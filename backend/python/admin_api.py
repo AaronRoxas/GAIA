@@ -36,6 +36,17 @@ from backend.python.middleware.rbac import (
 # Import ActivityLogger for comprehensive activity tracking
 from backend.python.middleware.activity_logger import ActivityLogger
 
+# Import field-level encryption for PII protection (RA 10173 compliance)
+from backend.python.utils.field_encryption import decrypt_pii_fields
+
+# Import Redis caching for performance
+from backend.python.middleware.redis_cache import (
+    get_or_set,
+    generate_cache_key,
+    invalidate_pattern,
+    CACHE_TTLS
+)
+
 logger = logging.getLogger(__name__)
 
 # Supabase client imported from centralized configuration
@@ -631,6 +642,10 @@ async def get_triage_queue(
         # Database has 'image_url' (TEXT or TEXT[]), model expects 'image_urls' (List[str])
         transformed_data = []
         for report in response.data:
+            # Decrypt PII fields for admin viewing (RA 10173 compliance)
+            # Only authenticated admin users can see decrypted PII
+            report = decrypt_pii_fields(report)
+            
             # Map image_url -> image_urls (handle both column names and convert string to array)
             image_url_value = report.get('image_url') or report.get('image_urls')
             if image_url_value:
@@ -982,22 +997,14 @@ async def get_recent_activity(
     current_user: UserContext = Depends(require_master_admin)
 ):
     """
-    Get recent user activity logs for monitoring dashboard.
+    Get recent user activity logs (cached for 30s)
     
     **Permissions**: Master Admin only
     **Module**: FP-04 (Activity Monitor)
-    **Rate Limit**: 30 requests/minute
-    
-    Returns recent user actions such as:
-    - User logins/logouts
-    - Hazard validation actions
-    - Report submissions
-    - System configuration changes
-    - RSS feed modifications
     """
-    try:
-        # Query activity logs from database
-        # Note: This requires an activity_logs table to be created
+    cache_key = generate_cache_key("admin:activity", limit=limit, user_email=user_email, action_type=action_type)
+    
+    async def fetch_activity():
         query = supabase.schema("gaia").from_("activity_logs").select("*")
         
         if user_email:
@@ -1005,17 +1012,17 @@ async def get_recent_activity(
         if action_type:
             query = query.eq("action", action_type)
         
-        # Get most recent activities
         response = query.order("timestamp", desc=True).limit(limit).execute()
-        
-        logger.info(f"Admin {current_user.email} retrieved {len(response.data)} activity logs")
-        return response.data
+        return response.data or []
+    
+    try:
+        data = await get_or_set(cache_key, fetch_activity, ttl=CACHE_TTLS.get("admin:activity", 30))
+        logger.info(f"Admin {current_user.email} retrieved {len(data)} activity logs")
+        return data
         
     except Exception as e:
         logger.error(f"Error fetching activity logs: {str(e)}")
-        # Return empty list if table doesn't exist yet (graceful degradation)
         if "does not exist" in str(e) or "Could not find" in str(e):
-            logger.warning("Activity logs table not found - returning empty list")
             return []
         raise HTTPException(status_code=500, detail="Failed to fetch activity logs")
 
@@ -1029,22 +1036,14 @@ async def get_audit_logs(
     current_user: UserContext = Depends(require_master_admin)
 ):
     """
-    Get system audit logs for compliance and security monitoring.
+    Get system audit logs (cached for 60s)
     
     **Permissions**: Master Admin only
     **Module**: FP-04 (Activity Monitor)
-    **Rate Limit**: 30 requests/minute
-    
-    Returns system-level audit logs including:
-    - Authentication events (login attempts, failures)
-    - Authorization events (permission checks)
-    - Data modification events
-    - Security events (rate limit violations, suspicious activity)
-    - System configuration changes
     """
-    try:
-        # Query audit logs from database
-        # Note: This requires an audit_logs table to be created
+    cache_key = generate_cache_key("admin:audit", limit=limit, severity=severity, event_type=event_type, start_date=start_date)
+    
+    async def fetch_audit():
         query = supabase.schema("gaia").from_("audit_logs").select("*")
         
         if severity:
@@ -1054,17 +1053,17 @@ async def get_audit_logs(
         if start_date:
             query = query.gte("created_at", start_date)
         
-        # Get most recent logs
         response = query.order("created_at", desc=True).limit(limit).execute()
-        
-        logger.info(f"Admin {current_user.email} retrieved {len(response.data)} audit logs")
-        return response.data
+        return response.data or []
+    
+    try:
+        data = await get_or_set(cache_key, fetch_audit, ttl=CACHE_TTLS.get("admin:audit", 60))
+        logger.info(f"Admin {current_user.email} retrieved {len(data)} audit logs")
+        return data
         
     except Exception as e:
         logger.error(f"Error fetching audit logs: {str(e)}")
-        # Return empty list if table doesn't exist yet (graceful degradation)
         if "does not exist" in str(e) or "Could not find" in str(e):
-            logger.warning("Audit logs table not found - returning empty list")
             return []
         raise HTTPException(status_code=500, detail="Failed to fetch audit logs")
 

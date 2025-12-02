@@ -18,6 +18,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lib.supabase_client import supabase
 
+# Import Redis caching for performance
+from backend.python.middleware.redis_cache import (
+    cache_response, 
+    get_or_set, 
+    generate_cache_key,
+    CACHE_TTLS
+)
+
 logger = logging.getLogger(__name__)
 
 # Supabase client imported from centralized configuration
@@ -98,9 +106,11 @@ class RecentAlert(BaseModel):
 @router.get("/stats", response_model=HazardStats)
 async def get_hazard_stats():
     """
-    Get overall hazard statistics
+    Get overall hazard statistics (cached for 30s)
     """
-    try:
+    cache_key = generate_cache_key("analytics:stats")
+    
+    async def fetch_stats():
         # Get total hazards
         total_response = supabase.schema("gaia").from_('hazards').select('id', count='exact').execute()
         total_hazards = total_response.count or 0
@@ -125,18 +135,20 @@ async def get_hazard_stats():
         else:
             avg_confidence = 0.0
         
-        # TODO: Time to action calculation requires detected_at and validated_at fields
-        # For now, set to None as the RPC function schema needs to be migrated
         avg_time_to_action = None
         
-        return HazardStats(
-            total_hazards=total_hazards,
-            active_hazards=active_hazards,
-            resolved_hazards=resolved_hazards,
-            unverified_reports=unverified_reports,
-            avg_confidence=round(avg_confidence, 2),
-            avg_time_to_action=round(avg_time_to_action / 60, 2) if avg_time_to_action else None  # Convert seconds to minutes
-        )
+        return {
+            "total_hazards": total_hazards,
+            "active_hazards": active_hazards,
+            "resolved_hazards": resolved_hazards,
+            "unverified_reports": unverified_reports,
+            "avg_confidence": round(avg_confidence, 2),
+            "avg_time_to_action": round(avg_time_to_action / 60, 2) if avg_time_to_action else None
+        }
+    
+    try:
+        data = await get_or_set(cache_key, fetch_stats, ttl=CACHE_TTLS.get("analytics:stats", 30))
+        return HazardStats(**data)
         
     except Exception as e:
         logger.error(f"Error fetching hazard stats: {e}")
@@ -148,22 +160,20 @@ async def get_hazard_trends(
     days: int = Query(30, ge=7, le=90, description="Number of days to retrieve (7-90)")
 ):
     """
-    Get hazard trends over time (last N days)
-    Direct SQL aggregation for performance
+    Get hazard trends over time (cached for 2 minutes)
     """
-    try:
-        # Calculate date range
+    cache_key = generate_cache_key("analytics:trends", days=days)
+    
+    async def fetch_trends():
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         
-        # Fetch all hazards within the date range
         response = supabase.schema('gaia').from_('hazards') \
             .select('hazard_type,detected_at') \
             .gte('detected_at', start_date.isoformat()) \
             .lte('detected_at', end_date.isoformat()) \
             .execute()
         
-        # Initialize date-based dictionary with all possible hazard types
         date_data = {}
         all_hazard_types = [
             'volcanic_eruption', 'earthquake', 'flood', 'landslide', 'fire',
@@ -174,11 +184,9 @@ async def get_hazard_trends(
         for i in range(days):
             date_str = (start_date + timedelta(days=i)).strftime('%Y-%m-%d')
             date_data[date_str] = {'date': date_str, 'total': 0}
-            # Initialize all hazard type counters to 0
             for hazard_type in all_hazard_types:
                 date_data[date_str][hazard_type] = 0
         
-        # Aggregate by date and type
         if response.data:
             for item in response.data:
                 detected = datetime.fromisoformat(item['detected_at'].replace('Z', '+00:00'))
@@ -189,9 +197,11 @@ async def get_hazard_trends(
                         date_data[date_str][hazard_type] += 1
                     date_data[date_str]['total'] += 1
         
-        # Convert to list and return
-        trends = [HazardTrend(**data) for data in date_data.values()]
-        return sorted(trends, key=lambda x: x.date)
+        return sorted(list(date_data.values()), key=lambda x: x['date'])
+    
+    try:
+        data = await get_or_set(cache_key, fetch_trends, ttl=CACHE_TTLS.get("analytics:trends", 120))
+        return [HazardTrend(**item) for item in data]
         
     except Exception as e:
         logger.error(f"Error fetching hazard trends: {e}")
@@ -201,11 +211,11 @@ async def get_hazard_trends(
 @router.get("/regions", response_model=List[RegionStats])
 async def get_region_stats():
     """
-    Get hazard statistics by administrative region
-    Direct SQL aggregation for performance
+    Get hazard statistics by region (cached for 3 minutes)
     """
-    try:
-        # Fetch all hazards with admin_division
+    cache_key = generate_cache_key("analytics:regions")
+    
+    async def fetch_regions():
         response = supabase.schema('gaia').from_('hazards') \
             .select('admin_division,status') \
             .execute()
@@ -213,7 +223,6 @@ async def get_region_stats():
         if not response.data:
             return []
         
-        # Aggregate by region
         region_data = {}
         for item in response.data:
             region = item.get('admin_division') or 'Unknown'
@@ -231,9 +240,11 @@ async def get_region_stats():
             elif item.get('status') == 'resolved':
                 region_data[region]['resolved_count'] += 1
         
-        # Convert to list and sort by total count
-        stats = [RegionStats(**data) for data in region_data.values()]
-        return sorted(stats, key=lambda x: x.total_count, reverse=True)
+        return sorted(list(region_data.values()), key=lambda x: x['total_count'], reverse=True)
+    
+    try:
+        data = await get_or_set(cache_key, fetch_regions, ttl=CACHE_TTLS.get("analytics:regions", 180))
+        return [RegionStats(**item) for item in data]
         
     except Exception as e:
         logger.error(f"Error fetching region stats: {e}")
@@ -243,41 +254,41 @@ async def get_region_stats():
 @router.get("/distribution", response_model=List[HazardTypeDistribution])
 async def get_hazard_distribution():
     """
-    Get distribution of hazards by type
+    Get distribution of hazards by type (cached for 2 minutes)
     """
-    try:
-        # Get total count
+    cache_key = generate_cache_key("analytics:distribution")
+    
+    async def fetch_distribution():
         total_response = supabase.schema("gaia").from_('hazards').select('id', count='exact').execute()
         total = total_response.count or 0
         
         if total == 0:
             return []
         
-        # Get distribution by type
         response = supabase.schema("gaia").from_('hazards') \
             .select('hazard_type') \
             .execute()
         
-        # Count by type
         type_counts = {}
         for item in response.data:
             hazard_type = item['hazard_type']
             type_counts[hazard_type] = type_counts.get(hazard_type, 0) + 1
         
-        # Calculate percentages
         distribution = []
         for hazard_type, count in type_counts.items():
             percentage = (count / total) * 100
-            distribution.append(HazardTypeDistribution(
-                hazard_type=hazard_type,
-                count=count,
-                percentage=round(percentage, 1)
-            ))
+            distribution.append({
+                "hazard_type": hazard_type,
+                "count": count,
+                "percentage": round(percentage, 1)
+            })
         
-        # Sort by count descending
-        distribution.sort(key=lambda x: x.count, reverse=True)
-        
+        distribution.sort(key=lambda x: x["count"], reverse=True)
         return distribution
+    
+    try:
+        data = await get_or_set(cache_key, fetch_distribution, ttl=CACHE_TTLS.get("analytics:distribution", 120))
+        return [HazardTypeDistribution(**item) for item in data]
         
     except Exception as e:
         logger.error(f"Error fetching hazard distribution: {e}")
@@ -289,19 +300,22 @@ async def get_recent_alerts(
     limit: int = Query(10, ge=1, le=50, description="Number of recent alerts to retrieve")
 ):
     """
-    Get most recent hazard alerts
+    Get most recent hazard alerts (cached for 15 seconds)
     """
-    try:
+    cache_key = generate_cache_key("analytics:alerts", limit=limit)
+    
+    async def fetch_alerts():
         response = supabase.schema("gaia").from_('hazards') \
             .select('id, hazard_type, severity, location_name, admin_division, confidence_score, detected_at, status') \
             .order('detected_at', desc=True) \
             .limit(limit) \
             .execute()
         
-        if not response.data:
-            return []
-        
-        return [RecentAlert(**item) for item in response.data]
+        return response.data or []
+    
+    try:
+        data = await get_or_set(cache_key, fetch_alerts, ttl=CACHE_TTLS.get("analytics:alerts", 15))
+        return [RecentAlert(**item) for item in data]
         
     except Exception as e:
         logger.error(f"Error fetching recent alerts: {e}")
