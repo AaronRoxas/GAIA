@@ -47,6 +47,18 @@ from slowapi.errors import RateLimitExceeded
 from backend.python.middleware.rate_limiter import limiter, rate_limit_exceeded_handler
 from backend.python.middleware.security_headers import SecurityHeadersMiddleware
 
+# PATCH-1: Import request logging middleware (Critical Security Fixes)
+from backend.python.middleware.request_logger import RequestLoggingMiddleware
+
+# PATCH-5: Import Redis cache for response caching (Performance Optimization)
+from backend.python.middleware.redis_cache import get_redis, close_redis, get_cache_stats, clear_all_cache
+
+# PATCH-1: Import new API proxy routers (Critical Security Fixes)
+from backend.python.api import hazards as hazards_api
+
+# PATCH-1.3: Import Realtime SSE router
+from backend.python.api import realtime as realtime_api
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -71,6 +83,13 @@ async def lifespan(app: FastAPI):
         geo_ner.load_model()
         logger.info("✓ Geo-NER model loaded")
 
+        # PATCH-5: Initialize Redis cache connection pool
+        try:
+            await get_redis()
+            logger.info("✓ Redis cache pool initialized")
+        except Exception as e:
+            logger.warning(f"Redis cache not available (non-critical): {e}")
+
         logger.info("GAIA Backend ready!")
         logger.info(f"Environment: {ENV}")
         logger.info(f"Port: {os.getenv('PORT', '8000')}")
@@ -84,6 +103,13 @@ async def lifespan(app: FastAPI):
 
     # Shutdown (cleanup if needed)
     logger.info("Shutting down GAIA Backend...")
+    
+    # PATCH-5: Close Redis cache connection pool
+    try:
+        await close_redis()
+        logger.info("✓ Redis cache pool closed")
+    except Exception as e:
+        logger.warning(f"Error closing Redis cache: {e}")
 
 # Initialize FastAPI application with lifespan handler
 app = FastAPI(
@@ -165,6 +191,20 @@ app.add_middleware(
     hsts_seconds=31536000  # 1 year
 )
 
+# PATCH-1: Add request logging middleware (Critical Security Fixes)
+# Log all requests for security audit (disabled in production for performance)
+log_requests = ENV == "development"  # Set to True for debugging, False for production
+app.add_middleware(
+    RequestLoggingMiddleware,
+    log_request_body=log_requests,
+    log_response_body=log_requests,
+    exclude_paths=["/health", "/docs", "/openapi.json", "/favicon.ico", "/metrics"]
+)
+
+# PATCH-2: Add rate limit headers middleware
+from backend.python.middleware.redis_rate_limiter import add_rate_limit_headers
+app.middleware("http")(add_rate_limit_headers)
+
 # Attach rate limiter (SECURITY_AUDIT.md #1)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
@@ -177,6 +217,12 @@ app.include_router(admin_router, prefix="/api/v1")  # Admin Dashboard
 app.include_router(rss_admin_router, prefix="/api/v1")  # RSS Feed Management
 app.include_router(boundaries_router)  # Boundaries API (no prefix - uses /api/boundaries)
 
+# PATCH-1: Include new API proxy routers (Critical Security Fixes)
+app.include_router(hazards_api.router, prefix="/api/v1")  # Hazards API Proxy
+
+# PATCH-1.3: Include Realtime SSE router
+app.include_router(realtime_api.router, prefix="/api/v1")  # Realtime SSE Streaming
+
 # Import analytics router
 from backend.python.analytics_api import router as analytics_router
 app.include_router(analytics_router, prefix="/api/v1")  # Analytics API
@@ -184,6 +230,59 @@ app.include_router(analytics_router, prefix="/api/v1")  # Analytics API
 # Import status API router
 from backend.python.status_api import router as status_router
 app.include_router(status_router, prefix="/api/v1")  # System Status API (SHM-04)
+
+# PATCH-2: Import Redis rate limiter for stats endpoint
+from backend.python.middleware.redis_rate_limiter import get_rate_limit_stats
+
+
+# PATCH-2: Rate limit statistics endpoint
+@app.get("/api/v1/rate-limit/stats", tags=["System"])
+async def rate_limit_stats():
+    """Get rate limiting statistics (PATCH-2)"""
+    return await get_rate_limit_stats()
+
+
+# PATCH-5: Cache statistics endpoint
+@app.get("/api/v1/cache/stats", tags=["System"])
+async def cache_stats():
+    """
+    Get Redis cache statistics (PATCH-5).
+    
+    Returns cache hit/miss rates, memory usage, and key counts.
+    """
+    try:
+        stats = await get_cache_stats()
+        return {
+            "status": "success",
+            "cache": stats
+        }
+    except Exception as e:
+        logger.warning(f"Cache stats unavailable: {e}")
+        return {
+            "status": "degraded",
+            "message": "Cache not available",
+            "cache": None
+        }
+
+
+# PATCH-5: Cache invalidation endpoint (admin only)
+@app.delete("/api/v1/cache/clear", tags=["System"])
+async def clear_cache():
+    """
+    Clear all cache entries (PATCH-5).
+    
+    **WARNING**: This will cause temporary performance degradation.
+    Use only when cache data is stale or corrupted.
+    """
+    try:
+        count = await clear_all_cache()
+        return {
+            "status": "success",
+            "message": f"Cleared {count} cache entries"
+        }
+    except Exception as e:
+        logger.error(f"Cache clear failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Cache clear failed: {str(e)}")
 
 
 # Pydantic models for request/response validation

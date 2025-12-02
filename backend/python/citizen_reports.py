@@ -32,6 +32,9 @@ from backend.python.utils.phone_validation import is_valid_philippine_phone_numb
 # Import shared geocoding utility (async version for FastAPI endpoints)
 from backend.python.utils.geocoding import get_coordinates_from_nominatim_async
 
+# Import field-level encryption for PII protection (RA 10173 compliance)
+from backend.python.utils.field_encryption import encrypt_pii_fields, decrypt_pii_fields
+
 logger = logging.getLogger(__name__)
 
 # Initialize router - main.py adds /api/v1 prefix, so this becomes /api/v1/citizen-reports
@@ -391,9 +394,9 @@ async def submit_citizen_report(
             "hazard_type": hazard_type,
             "description": description,
             "location_name": location_name,
-            "name": name,
-            "contact_number": contact_number,
-            "contact_method": contact_method,
+            "name": name,  # Will be encrypted below
+            "contact_number": contact_number,  # Will be encrypted below
+            "contact_method": contact_method,  # Will be encrypted below
             "image_url": [image_url] if image_url else None,  # Convert string to array for TEXT[] column
             "image_metadata": image_metadata,
             "source": "citizen_unverified",
@@ -427,13 +430,19 @@ async def submit_citizen_report(
         
         report_data["image_metadata"] = image_metadata
         
+        # 8. Encrypt PII fields before database storage (RA 10173 compliance)
+        # Fields: name, contact_number, contact_method
+        logger.info("Encrypting PII fields for storage")
+        report_data = encrypt_pii_fields(report_data)
+        
         result = supabase.schema("gaia").from_("citizen_reports").insert(report_data).execute()
         
         if not result.data:
             raise Exception("Database insert failed - no data returned")
         
-        logger.info(f"Citizen report created: {tracking_id}")
+        logger.info(f"Citizen report created: {tracking_id} (PII encrypted)")
         # Log public submission activity (anonymous user)
+        # Note: Do NOT log actual PII values, only metadata
         try:
             await ActivityLogger.log_activity(
                 user_context=None,
@@ -444,14 +453,15 @@ async def submit_citizen_report(
                 details={
                     "hazard_type": hazard_type,
                     "location_name": location_name,
-                    "name": name,
+                    "has_name": bool(name),  # Changed from logging actual name
                     "has_contact_number": bool(contact_number),
                     "confidence_score": confidence_score,
                     "source": "citizen_unverified",
                     "ai_hazard_type": ai_hazard_type,
                     "ai_confidence": ai_confidence,
                     "coordinates_source": coordinates_source,
-                    "has_coordinates": final_latitude is not None and final_longitude is not None
+                    "has_coordinates": final_latitude is not None and final_longitude is not None,
+                    "pii_encrypted": True  # Security audit marker
                 }
             )
         except Exception:

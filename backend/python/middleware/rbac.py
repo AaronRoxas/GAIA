@@ -99,6 +99,10 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> UserContext:
     """
+    Dependency to get current authenticated user
+    Raises 401 if not authenticated
+    """
+    """
     Extract and validate JWT token, return UserContext with role and permissions.
     
     This dependency can be used in any endpoint that requires authentication.
@@ -243,6 +247,90 @@ require_admin = require_role(
     UserRole.VALIDATOR,
     UserRole.LGU_RESPONDER
 )
+
+
+# ============================================================================
+# Optional Authentication (for public endpoints with enhanced features for logged-in users)
+# ============================================================================
+
+async def get_current_user_optional(
+    request: Request
+) -> Optional[UserContext]:
+    """
+    Dependency for optional authentication
+    
+    Returns UserContext if valid token is provided, None otherwise
+    Does NOT raise 401 if no token is present
+    
+    Usage:
+        @router.get("/public-endpoint")
+        async def public_endpoint(user: Optional[UserContext] = Depends(get_current_user_optional)):
+            if user:
+                # Enhanced features for authenticated users
+                pass
+            else:
+                # Basic features for anonymous users
+                pass
+    """
+    auth_header = request.headers.get("Authorization")
+    
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    
+    token = auth_header.replace("Bearer ", "").strip()
+    
+    try:
+        # Verify token with Supabase Auth
+        response = supabase.auth.get_user(token)
+        
+        if not response or not response.user:
+            return None
+        
+        user = response.user
+        user_id = user.id
+        email = user.email
+        
+        # Fetch user profile
+        profile_response = supabase.schema("gaia").from_("user_profiles").select(
+            "role, status, full_name, organization"
+        ).eq("id", user_id).execute()
+        
+        if not profile_response.data:
+            return None
+        
+        profile = profile_response.data[0]
+        user_role = UserRole(profile["role"])
+        user_status = UserStatus(profile["status"])
+        
+        # Return None if account is not active
+        if user_status != UserStatus.ACTIVE:
+            return None
+        
+        # Fetch permissions
+        permissions_response = supabase.schema("gaia").from_("role_permissions").select(
+            "permission_name"
+        ).eq("role", user_role.value).execute()
+        
+        permissions = [p["permission_name"] for p in permissions_response.data]
+        
+        # Create UserContext
+        return UserContext(
+            user_id=user_id,
+            email=email,
+            role=user_role,
+            status=user_status,
+            full_name=profile.get("full_name"),
+            organization=profile.get("organization"),
+            permissions=permissions
+        )
+        
+    except Exception as e:
+        logger.debug(f"Optional authentication failed: {str(e)}")
+        return None
+
+
+# Require authenticated user (any role)
+require_auth = Depends(get_current_user)
 
 # LGU Responder or higher
 require_lgu_responder = require_role(
