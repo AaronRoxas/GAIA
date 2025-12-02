@@ -4,7 +4,7 @@ Centralized logging for all user actions and system events
 
 Module: AC-05 (Session and Activity Logger)
 Tables: gaia.activity_logs, gaia.audit_logs
-Security: IP tracking, user agent logging, request validation
+Security: IP tracking, user agent logging, request validation, integrity checksums
 """
 
 import logging
@@ -13,6 +13,9 @@ from datetime import datetime
 from fastapi import Request
 from backend.python.lib.supabase_client import supabase
 from backend.python.middleware.rbac import UserContext
+
+# Import audit integrity for tamper-evident logging
+from backend.python.middleware.audit_integrity import compute_checksum_for_log, GENESIS_HASH
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +104,20 @@ class ActivityLogger:
                 "timestamp": datetime.utcnow().isoformat()
             }
             
+            # Compute integrity checksum for tamper detection
+            log_entry["checksum"] = compute_checksum_for_log(
+                action=action,
+                user_id=user_id,
+                user_email=user_email,
+                user_role=user_role,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                ip_address=ip_address,
+                details=details or {},
+                timestamp=log_entry["timestamp"],
+                previous_hash=GENESIS_HASH  # Individual entries, not chained
+            )
+            
             # Insert into activity_logs table
             response = supabase.schema("gaia").from_("activity_logs").insert(log_entry).execute()
             
@@ -166,6 +183,20 @@ class ActivityLogger:
                 "ip_address": ip_address,
                 "created_at": datetime.utcnow().isoformat()
             }
+            
+            # Compute integrity checksum for tamper detection
+            log_entry["checksum"] = compute_checksum_for_log(
+                action=action,
+                user_id=user_context.user_id if user_context else None,
+                user_email=user_context.email if user_context else "system",
+                user_role=user_context.role.value if user_context and hasattr(user_context.role, 'value') else "system",
+                resource_type=resource,
+                resource_id=None,
+                ip_address=ip_address,
+                details=metadata or {},
+                timestamp=log_entry["created_at"],
+                previous_hash=GENESIS_HASH
+            )
             
             # Insert into audit_logs table
             response = supabase.schema("gaia").from_("audit_logs").insert(log_entry).execute()

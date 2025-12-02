@@ -16,6 +16,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { fetchValidatedHazards } from '../services/hazardsApi';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotificationStore } from '../stores/notificationStore';
@@ -75,17 +76,8 @@ export function useRealtimeHazards() {
 
       pollIntervalRef.current = window.setInterval(async () => {
         try {
-          const { data, error } = await supabase
-            .from('hazards')
-            .select('*')
-            .eq('validated', true)
-            .order('created_at', { ascending: false })
-            .limit(10);
-
-          if (error) {
-            console.error('[Realtime Poll] Supabase query error:', error);
-            return;
-          }
+          // PATCH-1.4: Use backend API instead of direct Supabase access
+          const data = await fetchValidatedHazards({ limit: 10 });
 
           if (!data || data.length === 0) return;
 
@@ -97,11 +89,12 @@ export function useRealtimeHazards() {
               const h = data[i];
               if (!h.created_at) continue;
               if (h.created_at > (lastSeenRef.current || '')) {
+                const severity = h.severity || 'unknown';
                 addNotification({
                   type: 'hazard',
-                  severity: h.severity === 'critical' || h.severity === 'high' ? 'error' : 'warning',
+                  severity: severity === 'critical' || severity === 'high' ? 'error' : 'warning',
                   title: `New ${h.hazard_type} detected`,
-                  message: `${h.location_name} - Severity: ${h.severity?.toUpperCase()}`,
+                  message: `${h.location_name} - Severity: ${severity.toUpperCase()}`,
                   link: `/map?hazard=${h.id}`,
                   metadata: { hazardId: h.id, hazardType: h.hazard_type }
                 });

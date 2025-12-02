@@ -34,6 +34,12 @@ geopy>=2.4.0
 # Rate Limiting & Security
 slowapi>=0.1.9
 
+# Field-Level Encryption (PII Protection - RA 10173 Compliance)
+cryptography>=42.0.0
+
+# Server-Sent Events (SSE)
+sse-starlette>=1.6.0
+
 # PDF Generation & Image Processing
 reportlab>=4.0.0
 pillow>=10.0.0

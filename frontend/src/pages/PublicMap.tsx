@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, ScaleControl, LayersControl, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { OpenStreetMapProvider } from 'leaflet-geosearch';
-import { supabase } from '../lib/supabase';
+import { fetchValidatedHazards, HazardResponse } from '../services/hazardsApi';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from '../components/ui/alert';
 import { Card } from '../components/ui/card';
@@ -48,10 +48,29 @@ interface Hazard {
   latitude: number;
   longitude: number;
   confidence_score: number;
-  source_type: string;  // Changed from 'source' to match database schema
+  source_type: string;
   validated: boolean;
   created_at: string;
-  source_content?: string;  // Original text snippet from RSS
+  source_content?: string;
+}
+
+/**
+ * Map API response to local Hazard interface
+ */
+function mapResponseToHazard(response: HazardResponse): Hazard {
+  return {
+    id: response.id,
+    hazard_type: response.hazard_type,
+    severity: response.severity || 'unknown',
+    location_name: response.location_name,
+    latitude: response.latitude,
+    longitude: response.longitude,
+    confidence_score: response.confidence_score,
+    source_type: response.source_type,
+    validated: response.validated,
+    created_at: response.created_at,
+    source_content: response.source_content || undefined,
+  };
 }
 
 interface NominatimResult {
@@ -125,24 +144,19 @@ const PublicMap: React.FC = () => {
   // Filter hook (FP-01, FP-02, FP-03, FP-04) - replaces old layer visibility filters
   const { applyFilters } = useHazardFilters();
 
-  // Fetch validated hazards from Supabase (gaia schema)
-  const fetchHazards = async () => {
+  // Fetch validated hazards from backend proxy API (PATCH-1.4: Secure API migration)
+  // Replaces direct Supabase access to remove exposed credentials
+  const fetchHazards = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error: fetchError } = await supabase
-        .schema('gaia')
-        .from('hazards')
-        .select('id, hazard_type, severity, location_name, latitude, longitude, confidence_score, source_type, validated, created_at, source_content')
-        .eq('validated', true)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const data = await fetchValidatedHazards({
+        limit: 100,
+        timeWindowHours: 168, // Last 7 days
+      });
 
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      setHazards(data || []);
+      // Map API response to local Hazard interface
+      const hazards = data.map(mapResponseToHazard);
+      setHazards(hazards);
       setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -151,7 +165,7 @@ const PublicMap: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchHazards();
@@ -160,7 +174,7 @@ const PublicMap: React.FC = () => {
     const interval = setInterval(fetchHazards, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchHazards]);
 
   // Default map center: Manila, Philippines
   const philippinesCenter: [number, number] = [14.5995, 120.9842];
