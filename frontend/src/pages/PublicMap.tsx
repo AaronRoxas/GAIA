@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, ScaleControl, LayersControl, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { OpenStreetMapProvider } from 'leaflet-geosearch';
-import { supabase } from '../lib/supabase';
+import { fetchValidatedHazards, HazardResponse } from '../services/hazardsApi';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from '../components/ui/alert';
 import { Card } from '../components/ui/card';
@@ -48,10 +48,29 @@ interface Hazard {
   latitude: number;
   longitude: number;
   confidence_score: number;
-  source_type: string;  // Changed from 'source' to match database schema
+  source_type: string;
   validated: boolean;
   created_at: string;
-  source_content?: string;  // Original text snippet from RSS
+  source_content?: string;
+}
+
+/**
+ * Map API response to local Hazard interface
+ */
+function mapResponseToHazard(response: HazardResponse): Hazard {
+  return {
+    id: response.id,
+    hazard_type: response.hazard_type,
+    severity: response.severity || 'unknown',
+    location_name: response.location_name,
+    latitude: response.latitude,
+    longitude: response.longitude,
+    confidence_score: response.confidence_score,
+    source_type: response.source_type,
+    validated: response.validated,
+    created_at: response.created_at,
+    source_content: response.source_content || undefined,
+  };
 }
 
 interface NominatimResult {
@@ -125,24 +144,19 @@ const PublicMap: React.FC = () => {
   // Filter hook (FP-01, FP-02, FP-03, FP-04) - replaces old layer visibility filters
   const { applyFilters } = useHazardFilters();
 
-  // Fetch validated hazards from Supabase (gaia schema)
-  const fetchHazards = async () => {
+  // Fetch validated hazards from backend proxy API (PATCH-1.4: Secure API migration)
+  // Replaces direct Supabase access to remove exposed credentials
+  const fetchHazards = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error: fetchError } = await supabase
-        .schema('gaia')
-        .from('hazards')
-        .select('id, hazard_type, severity, location_name, latitude, longitude, confidence_score, source_type, validated, created_at, source_content')
-        .eq('validated', true)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const data = await fetchValidatedHazards({
+        limit: 100,
+        timeWindowHours: 168, // Last 7 days
+      });
 
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      setHazards(data || []);
+      // Map API response to local Hazard interface
+      const hazards = data.map(mapResponseToHazard);
+      setHazards(hazards);
       setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -151,7 +165,7 @@ const PublicMap: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchHazards();
@@ -160,7 +174,7 @@ const PublicMap: React.FC = () => {
     const interval = setInterval(fetchHazards, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchHazards]);
 
   // Default map center: Manila, Philippines
   const philippinesCenter: [number, number] = [14.5995, 120.9842];
@@ -438,13 +452,15 @@ const PublicMap: React.FC = () => {
                   className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:border-transparent"
                 />
                 <button 
+                  type="button"
+                  aria-label={isSearching ? 'Searching...' : 'Search location'}
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[#0a2a4d]"
                   onClick={() => searchQuery && searchLocation(searchQuery)}
                 >
                   {isSearching ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#0a2a4d]"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#0a2a4d]" aria-hidden="true"></div>
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   )}
@@ -474,10 +490,11 @@ const PublicMap: React.FC = () => {
               {/* Stop Following Button - shown when following active */}
               {isFollowingSearch && selectedLocation && (
                 <button
+                  type="button"
                   onClick={() => setIsFollowingSearch(false)}
                   className="mt-2 w-full px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-md hover:bg-amber-100 transition-colors text-sm flex items-center justify-center gap-2"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                   Stop Following Location
@@ -600,10 +617,15 @@ const PublicMap: React.FC = () => {
           )}
 
           {loading && hazards.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-[999]">
+            <div 
+              className="absolute inset-0 flex items-center justify-center bg-gray-50 z-[999]"
+              role="status"
+              aria-live="polite"
+              aria-busy="true"
+            >
               <Card className="p-8">
                 <div className="flex flex-col items-center space-y-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0a2a4d]"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0a2a4d]" aria-hidden="true"></div>
                   <p className="text-gray-600">Loading hazard data...</p>
                 </div>
               </Card>
