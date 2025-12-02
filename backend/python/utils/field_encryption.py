@@ -188,9 +188,10 @@ class FieldEncryptor:
                 return env_key.encode()
         
         # For development/testing: generate a temporary key (NOT FOR PRODUCTION)
+        # CodeQL Fix: Avoid logging env var names containing secrets
         logger.warning(
-            f"⚠️ {ENCRYPTION_KEY_ENV} not set! Using temporary key. "
-            "SET THIS IN PRODUCTION!"
+            "⚠️ Field encryption key not configured! Using temporary key. "
+            "Configure this properly in production."
         )
         return Fernet.generate_key()
     

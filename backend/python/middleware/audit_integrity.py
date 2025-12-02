@@ -121,10 +121,11 @@ class AuditIntegrity:
             if secret:
                 cls._hmac_secret = secret.encode()
             else:
+                # CodeQL Fix: Avoid logging env var names containing secrets
                 logger.warning(
-                    f"⚠️ {AUDIT_HMAC_SECRET_ENV} not set! "
+                    "⚠️ Audit HMAC secret not configured! "
                     "Audit entries will use temporary HMAC secret. "
-                    "SET THIS IN PRODUCTION!"
+                    "Configure this properly in production."
                 )
                 # Generate deterministic fallback (consistent across restarts)
                 cls._hmac_secret = hashlib.sha256(b"gaia-audit-default").digest()
