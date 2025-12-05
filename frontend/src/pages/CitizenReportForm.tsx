@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 // import type { TurnstileInstance } from '@marsidev/react-turnstile'; // TEMPORARILY DISABLED
 import { AlertCircle, Send, MapPin, Image as ImageIcon } from 'lucide-react';
 import { ALL_HAZARD_TYPES } from '../hooks/useHazardFilters';
+import { HAZARD_ICON_REGISTRY, HazardIcon } from '../constants/hazard-icons';
 import ImageUpload from '../components/reports/ImageUpload';
 import LocationPicker from '../components/reports/LocationPicker';
 // import { supabase } from '../lib/supabase'; // TEMPORARILY DISABLED - backend handles image upload
@@ -285,24 +286,44 @@ const CitizenReportForm: React.FC = () => {
               <label htmlFor="hazard-type" className="block text-sm font-medium text-gray-700 mb-2">
                 Hazard Type <span className="text-red-500">*</span>
               </label>
-              <select
-                id="hazard-type"
-                value={formData.hazardType}
-                onChange={(e) => handleInputChange('hazardType', e.target.value)}
-                className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.hazardType ? 'border-red-500' : 'border-gray-300'
-                }`}
-                disabled={isSubmitting}
-              >
-                <option value="">Select hazard type...</option>
-                {ALL_HAZARD_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                  </option>
-                ))}
-              </select>
+              
+              {/* Custom styled hazard type buttons */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {ALL_HAZARD_TYPES.map((type) => {
+                  const config = HAZARD_ICON_REGISTRY[type as keyof typeof HAZARD_ICON_REGISTRY];
+                  const isSelected = formData.hazardType === type;
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleInputChange('hazardType', type)}
+                      disabled={isSubmitting}
+                      className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      aria-pressed={isSelected}
+                    >
+                      <div 
+                        className="p-1.5 rounded-md"
+                        style={{ 
+                          backgroundColor: config?.bgColor || 'rgba(100, 116, 139, 0.15)',
+                          color: config?.color || '#64748b'
+                        }}
+                      >
+                        <HazardIcon hazardType={type} size={16} useHazardColor />
+                      </div>
+                      <span className={`text-xs font-medium ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}>
+                        {config?.label || type.replace(/_/g, ' ')}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              
               {errors.hazardType && (
-                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle size={14} />
                   {errors.hazardType}
                 </p>

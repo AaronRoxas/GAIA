@@ -171,7 +171,7 @@ export default function ActivityMonitor() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     state: { sorting, columnFilters },
-    initialState: { pagination: { pageSize: 50 } },
+    initialState: { pagination: { pageSize: 10 } },
   });
 
   return (
@@ -206,6 +206,21 @@ export default function ActivityMonitor() {
             onChange={(e) => table.getColumn('action')?.setFilterValue(e.target.value)}
             className="max-w-sm"
           />
+        </div>
+        {/* Controls */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {table.getRowModel().rows.length} of {logs.length} logs
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+              Previous
+            </Button>
+            <div className="text-sm">Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</div>
+            <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+              Next
+            </Button>
+          </div>
         </div>
 
         <div className="rounded-md border">

@@ -67,7 +67,7 @@ const AuditLogViewer: React.FC = () => {
   // Table state
   const [sorting, setSorting] = useState<SortingState>([{ id: 'created_at', desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
   // Fetch audit logs with React Query
   const { data: logs = [], isLoading, error: queryError } = useQuery({
@@ -319,6 +319,36 @@ const AuditLogViewer: React.FC = () => {
               Export CSV
             </Button>
           </div>
+
+          {/* Pagination */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-muted-foreground">
+            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+            {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, logs.length)} of{' '}
+            {logs.length} logs
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <span className="text-sm">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
 
           {/* Clear Filters */}
           {(emailFilter || actionFilter !== 'all' || resourceTypeFilter !== 'all' || successFilter !== null || dateRange.from) && (

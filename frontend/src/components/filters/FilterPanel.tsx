@@ -17,10 +17,10 @@
  */
 
 import React, { useState } from 'react';
-import { Filter, X, ChevronDown, ChevronUp, RotateCcw, Map } from 'lucide-react';
+import { Filter, X, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { Checkbox } from '../ui/checkbox';
+// import { Checkbox } from '../ui/checkbox';
 import { HazardTypeFilter } from './HazardTypeFilter';
 import { TimeWindowFilter } from './TimeWindowFilter';
 import { SourceTypeFilter } from './SourceTypeFilter';
@@ -51,12 +51,12 @@ export interface FilterPanelProps {
 export function FilterPanel({ 
   hazards, 
   className = '',
-  boundarySettings = {
-    showRegions: false,
-    showProvinces: false,
-    showMunicipalities: false,
-  },
-  onBoundarySettingsChange,
+  // boundarySettings = {
+  //   showRegions: false,
+  //   showProvinces: false,
+  //   showMunicipalities: false,
+  // },
+  // onBoundarySettingsChange,
   onExpandChange,
 }: FilterPanelProps) {
   const {
@@ -129,7 +129,11 @@ export function FilterPanel({
 
           {/* Active Filter Count */}
           {activeFilterCount > 0 && (
-            <Badge variant="default" className="bg-blue-600 text-white font-bold">
+            <Badge 
+              variant="default" 
+              className="bg-blue-600 text-white font-bold"
+              aria-label={`${activeFilterCount} active filter${activeFilterCount !== 1 ? 's' : ''}`}
+            >
               {activeFilterCount} active
             </Badge>
           )}
@@ -139,236 +143,160 @@ export function FilterPanel({
         {!isDefault && (
           <button
             onClick={resetFilters}
-            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-all font-medium text-sm"
+            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-all font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            aria-label="Reset all filters to default"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4" aria-hidden="true" />
             Reset All Filters
           </button>
         )}
       </Card>
 
       {/* Hazard Type Filter Section */}
-      <div className="space-y-2">
+      <div className="space-y-2" role="group" aria-labelledby="hazard-types-heading">
         <button
           onClick={() => toggleSection('hazardTypes')}
-          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
+          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+          aria-expanded={expandedSections.hazardTypes}
+          aria-controls="hazard-types-content"
         >
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">Hazard Types</h3>
+            <h3 id="hazard-types-heading" className="text-sm font-semibold text-gray-900">Hazard Types</h3>
             {filters.hazardTypes.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs" aria-label={`${filters.hazardTypes.length} types selected`}>
                 {filters.hazardTypes.length} selected
               </Badge>
             )}
           </div>
           {expandedSections.hazardTypes ? (
-            <ChevronUp className="w-4 h-4 text-gray-600" />
+            <ChevronUp className="w-4 h-4 text-gray-600" aria-hidden="true" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-600" />
+            <ChevronDown className="w-4 h-4 text-gray-600" aria-hidden="true" />
           )}
         </button>
 
         {expandedSections.hazardTypes && (
-          <HazardTypeFilter
-            selectedTypes={filters.hazardTypes}
-            onTypesChange={(types) => updateFilters({ hazardTypes: types })}
-            hazardCounts={hazardTypeCounts}
-          />
+          <div id="hazard-types-content" role="region" aria-labelledby="hazard-types-heading">
+            <HazardTypeFilter
+              selectedTypes={filters.hazardTypes}
+              onTypesChange={(types) => updateFilters({ hazardTypes: types })}
+              hazardCounts={hazardTypeCounts}
+            />
+          </div>
         )}
       </div>
 
       {/* Time Window Filter Section */}
-      <div className="space-y-2">
+      <div className="space-y-2" role="group" aria-labelledby="time-range-heading">
         <button
           onClick={() => toggleSection('timeWindow')}
-          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
+          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+          aria-expanded={expandedSections.timeWindow}
+          aria-controls="time-range-content"
         >
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">Time Range</h3>
+            <h3 id="time-range-heading" className="text-sm font-semibold text-gray-900">Time Window</h3>
             {filters.timeWindow !== 'all' && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
                 Active
               </Badge>
             )}
           </div>
           {expandedSections.timeWindow ? (
-            <ChevronUp className="w-4 h-4 text-gray-600" />
+            <ChevronUp className="w-4 h-4 text-gray-600" aria-hidden="true" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-600" />
+            <ChevronDown className="w-4 h-4 text-gray-600" aria-hidden="true" />
           )}
         </button>
 
         {expandedSections.timeWindow && (
-          <TimeWindowFilter
-            timeWindow={filters.timeWindow}
-            customDateRange={filters.customDateRange}
-            onTimeWindowChange={(window, customRange) =>
-              updateFilters({ timeWindow: window, customDateRange: customRange })
-            }
-            onExpandChange={onExpandChange}
-          />
+          <div id="time-range-content" role="region" aria-labelledby="time-range-heading">
+            <TimeWindowFilter
+              timeWindow={filters.timeWindow}
+              customDateRange={filters.customDateRange}
+              onTimeWindowChange={(window, customRange) =>
+                updateFilters({ timeWindow: window, customDateRange: customRange })
+              }
+              onExpandChange={onExpandChange}
+            />
+          </div>
         )}
       </div>
 
       {/* Source Type Filter Section */}
-      <div className="space-y-2">
+      <div className="space-y-2" role="group" aria-labelledby="source-types-heading">
         <button
           onClick={() => toggleSection('sourceTypes')}
-          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
+          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+          aria-expanded={expandedSections.sourceTypes}
+          aria-controls="source-types-content"
         >
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">Source Types</h3>
+            <h3 id="source-types-heading" className="text-sm font-semibold text-gray-900">Source Types</h3>
             {filters.sourceTypes.length > 0 && filters.sourceTypes.length < 3 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs" aria-label={`${filters.sourceTypes.length} sources selected`}>
                 {filters.sourceTypes.length} selected
               </Badge>
             )}
           </div>
           {expandedSections.sourceTypes ? (
-            <ChevronUp className="w-4 h-4 text-gray-600" />
+            <ChevronUp className="w-4 h-4 text-gray-600" aria-hidden="true" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-600" />
+            <ChevronDown className="w-4 h-4 text-gray-600" aria-hidden="true" />
           )}
         </button>
 
         {expandedSections.sourceTypes && (
-          <SourceTypeFilter
-            selectedSources={filters.sourceTypes}
-            onSourcesChange={(sources) => updateFilters({ sourceTypes: sources })}
-            sourceCounts={sourceCounts}
-          />
-        )}
-      </div>
-
-      {/* Administrative Boundaries Section */}
-      <div className="space-y-2">
-        <button
-          onClick={() => toggleSection('boundaries')}
-          className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all"
-        >
-          <div className="flex items-center gap-2">
-            <Map className="w-4 h-4 text-gray-600" />
-            <h3 className="text-sm font-semibold text-gray-900">Administrative Boundaries</h3>
-            {(boundarySettings.showRegions || boundarySettings.showProvinces || boundarySettings.showMunicipalities) && (
-              <Badge variant="secondary" className="text-xs">
-                Active
-              </Badge>
-            )}
+          <div id="source-types-content" role="region" aria-labelledby="source-types-heading">
+            <SourceTypeFilter
+              selectedSources={filters.sourceTypes}
+              onSourcesChange={(sources) => updateFilters({ sourceTypes: sources })}
+              sourceCounts={sourceCounts}
+            />
           </div>
-          {expandedSections.boundaries ? (
-            <ChevronUp className="w-4 h-4 text-gray-600" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-gray-600" />
-          )}
-        </button>
-
-        {expandedSections.boundaries && (
-          <Card className="p-4 space-y-3">
-            <p className="text-xs text-gray-600 mb-3">
-              Show administrative boundaries on the map. Visibility is automatically adjusted based on zoom level.
-            </p>
-            
-            {/* Regions Checkbox */}
-            <div className="flex items-center space-x-3">
-              <Checkbox
-                id="boundary-regions"
-                checked={boundarySettings.showRegions}
-                onCheckedChange={(checked) =>
-                  onBoundarySettingsChange?.({
-                    ...boundarySettings,
-                    showRegions: checked === true,
-                  })
-                }
-              />
-              <div className="flex-1">
-                <label
-                  htmlFor="boundary-regions"
-                  className="text-sm font-medium text-gray-900 cursor-pointer"
-                >
-                  Regions (17 regions)
-                </label>
-                <p className="text-xs text-gray-500">Visible at zoom 5-8</p>
-              </div>
-            </div>
-
-            {/* Provinces Checkbox */}
-            <div className="flex items-center space-x-3 opacity-50 cursor-not-allowed" title="Coming soon">
-              <Checkbox
-                id="boundary-provinces"
-                checked={false}
-                disabled
-              />
-              <div className="flex-1">
-                <label
-                  htmlFor="boundary-provinces"
-                  className="text-sm font-medium text-gray-900"
-                >
-                  Provinces (82 provinces)
-                </label>
-                <p className="text-xs text-gray-500">Coming soon - Visible at zoom 9-11</p>
-              </div>
-            </div>
-
-            {/* Municipalities Checkbox */}
-            <div className="flex items-center space-x-3 opacity-50 cursor-not-allowed" title="Coming soon">
-              <Checkbox
-                id="boundary-municipalities"
-                checked={false}
-                disabled
-              />
-              <div className="flex-1">
-                <label
-                  htmlFor="boundary-municipalities"
-                  className="text-sm font-medium text-gray-900"
-                >
-                  Municipalities (1,634 cities/municipalities)
-                </label>
-                <p className="text-xs text-gray-500">Coming soon - Visible at zoom 12+</p>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-gray-200">
-              <p className="text-xs text-gray-500">
-                💡 Tip: Boundaries help identify which administrative areas are affected by hazards. Toggle them on/off as needed.
-              </p>
-            </div>
-          </Card>
         )}
       </div>
-
+      
+      
       {/* Filter Summary */}
       {activeFilterCount > 0 && (
-        <Card className="p-4 bg-blue-50 border-blue-200">
+        <Card 
+          className="p-4 bg-blue-50 border-blue-200"
+          role="region"
+          aria-label="Active filter summary"
+        >
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-blue-900">Active Filters</h3>
               <button
                 onClick={resetFilters}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1"
+                aria-label="Clear all active filters"
               >
                 Clear all
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="list" aria-label="Applied filters">
               {/* Hazard Type Tags */}
               {filters.hazardTypes.map((type) => (
                 <Badge
                   key={type}
                   variant="secondary"
-                  className="bg-white border-blue-200 text-blue-700 text-xs"
+                  className="bg-white border-blue-200 text-blue-700 text-xs pr-1"
+                  role="listitem"
                 >
-                  {type.replace(/_/g, ' ')}
+                  <span className="capitalize">{type.replace(/_/g, ' ')}</span>
                   <button
-                    aria-label={`Remove filter for ${type.replace(/_/g, ' ')}`}
+                    aria-label={`Remove ${type.replace(/_/g, ' ')} filter`}
                     onClick={() =>
                       updateFilters({
                         hazardTypes: filters.hazardTypes.filter((t) => t !== type),
                       })
                     }
-                    className="ml-1 hover:text-blue-900"
+                    className="ml-1.5 p-0.5 hover:bg-blue-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3 h-3" aria-hidden="true" />
                   </button>
                 </Badge>
               ))}
@@ -377,7 +305,8 @@ export function FilterPanel({
               {filters.timeWindow !== 'all' && (
                 <Badge
                   variant="secondary"
-                  className="bg-white border-blue-200 text-blue-700 text-xs"
+                  className="bg-white border-blue-200 text-blue-700 text-xs pr-1"
+                  role="listitem"
                 >
                   {filters.timeWindow === 'custom'
                     ? 'Custom dates'
@@ -387,7 +316,7 @@ export function FilterPanel({
                     ? 'Last 7 days'
                     : 'Last 30 days'}
                   <button
-                    aria-label={`Remove filter for time window ${filters.timeWindow === 'custom'
+                    aria-label={`Remove time filter: ${filters.timeWindow === 'custom'
                       ? 'Custom dates'
                       : filters.timeWindow === '24h'
                       ? 'Last 24 hours'
@@ -395,9 +324,9 @@ export function FilterPanel({
                       ? 'Last 7 days'
                       : 'Last 30 days'}`}
                     onClick={() => updateFilters({ timeWindow: 'all', customDateRange: undefined })}
-                    className="ml-1 hover:text-blue-900"
+                    className="ml-1.5 p-0.5 hover:bg-blue-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3 h-3" aria-hidden="true" />
                   </button>
                 </Badge>
               )}
@@ -409,7 +338,8 @@ export function FilterPanel({
                   <Badge
                     key={source}
                     variant="secondary"
-                    className="bg-white border-blue-200 text-blue-700 text-xs"
+                    className="bg-white border-blue-200 text-blue-700 text-xs pr-1"
+                    role="listitem"
                   >
                     {source === 'rss_feed'
                       ? 'News Feed'
@@ -417,7 +347,7 @@ export function FilterPanel({
                       ? 'Verified Citizen'
                       : 'Unverified Citizen'}
                     <button
-                      aria-label={`Remove filter for source type ${source === 'rss_feed'
+                      aria-label={`Remove source filter: ${source === 'rss_feed'
                         ? 'News Feed'
                         : source === 'citizen_verified'
                         ? 'Verified Citizen'
@@ -427,9 +357,9 @@ export function FilterPanel({
                           sourceTypes: filters.sourceTypes.filter((s) => s !== source),
                         })
                       }
-                      className="ml-1 hover:text-blue-900"
+                      className="ml-1.5 p-0.5 hover:bg-blue-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3 h-3" aria-hidden="true" />
                     </button>
                   </Badge>
                 ))}
@@ -439,8 +369,8 @@ export function FilterPanel({
       )}
 
       {/* Help Text */}
-      <div className="text-xs text-gray-500 text-center">
-        <p>Filters are automatically saved and synced with URL</p>
+      <div className="text-xs text-gray-500 text-center px-2">
+        <p>Filters sync with URL for easy sharing</p>
       </div>
     </div>
   );

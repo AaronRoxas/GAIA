@@ -187,7 +187,9 @@ const UserManagement: React.FC = () => {
       if (statusFilter !== 'all') params.status = statusFilter;
 
       const response = await adminApi.users.list(params);
+      // eslint-disable-next-line
       console.log('[UserManagement] API response:', response);
+      // eslint-disable-next-line
       console.log('[UserManagement] Is array?', Array.isArray(response));
       // Backend returns array directly, not wrapped in {users: []}
       return Array.isArray(response) ? response : [];

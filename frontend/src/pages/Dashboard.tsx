@@ -62,6 +62,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { HAZARD_ICON_REGISTRY } from '../constants/hazard-icons';
 
 // Chart data types (extends for recharts compatibility)
 type ChartData = Record<string, string | number | undefined>;
@@ -77,14 +78,14 @@ const COLORS = {
   pink: '#ec4899',
 };
 
-const HAZARD_COLORS: Record<string, string> = {
-  volcanic_eruption: COLORS.danger,
-  earthquake: COLORS.warning,
-  flood: COLORS.info,
-  landslide: COLORS.purple,
-  fire: COLORS.danger,
-  storm_surge: COLORS.primary,
-};
+// Generate HAZARD_COLORS from centralized registry
+const HAZARD_COLORS: Record<string, string> = Object.entries(HAZARD_ICON_REGISTRY).reduce(
+  (acc, [key, config]) => {
+    acc[key] = config.color;
+    return acc;
+  },
+  {} as Record<string, string>
+);
 
 export default function Dashboard() {
   const { user, userProfile, loading: authLoading, signOut, isAdmin } = useAuth();

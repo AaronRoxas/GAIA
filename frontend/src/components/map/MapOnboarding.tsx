@@ -155,9 +155,10 @@ export const MapOnboarding: React.FC<MapOnboardingProps> = ({
       <button
         aria-label="Start map tour"
         onClick={start}
-        className="fixed bottom-20 right-4 z-[9999] rounded-full bg-blue-600 text-white px-3 py-2 shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="fixed bottom-44 right-4 z-[9999] rounded-full bg-blue-600 text-white w-10 h-10 flex items-center justify-center shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        title="Take a guided tour of the map"
       >
-        ?
+        <span className="text-lg font-semibold">?</span>
       </button>,
       document.body
     );

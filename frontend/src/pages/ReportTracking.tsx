@@ -11,6 +11,7 @@ import { Search, CheckCircle, Clock, XCircle, AlertTriangle, MapPin, Calendar, F
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { HazardIcon, getHazardIcon } from '../constants/hazard-icons';
 
 interface ReportStatus {
   tracking_id: string;
@@ -196,8 +197,15 @@ export function ReportTracking() {
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               {/* Hazard Type */}
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                <div 
+                  className="p-2 rounded-lg"
+                  style={{ backgroundColor: getHazardIcon(report.hazard_type).bgColor }}
+                >
+                  <HazardIcon 
+                    hazardType={report.hazard_type} 
+                    size={20} 
+                    useHazardColor 
+                  />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Hazard Type</p>

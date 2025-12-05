@@ -11,27 +11,15 @@
  * - Checkbox list of all hazard types
  * - "Select All" / "Deselect All" toggle
  * - Hazard count per type (from current filtered data)
- * - Icon visualization for each hazard type
+ * - Icon visualization for each hazard type (from centralized registry)
  * - Responsive layout with grid display
  */
 
 import React from 'react';
-import { 
-  Droplets, 
-  Wind, 
-  Mountain, 
-  Activity, 
-  Flame, 
-  Waves, 
-  CloudRain, 
-  Sun, 
-  Thermometer, 
-  AlertTriangle,
-  type LucideIcon
-} from 'lucide-react';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { ALL_HAZARD_TYPES } from '../../hooks/useHazardFilters';
+import { HAZARD_ICON_REGISTRY, HazardIcon } from '../../constants/hazard-icons';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -43,42 +31,6 @@ export interface HazardTypeFilterProps {
   hazardCounts?: Record<string, number>;
   disabled?: boolean;
 }
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
-
-// Hazard type labels
-const HAZARD_LABELS: Record<string, string> = {
-  flood: 'Flood',
-  typhoon: 'Typhoon',
-  landslide: 'Landslide',
-  earthquake: 'Earthquake',
-  volcanic_eruption: 'Volcanic Eruption',
-  storm_surge: 'Storm Surge',
-  tsunami: 'Tsunami',
-  fire: 'Fire',
-  drought: 'Drought',
-  heat_wave: 'Heat Wave',
-  heavy_rain: 'Heavy Rain',
-  other: 'Other Hazards',
-};
-
-// Hazard icons and colors mapping
-const HAZARD_ICONS: Record<string, { icon: LucideIcon; color: string }> = {
-  flood: { icon: Droplets, color: '#3b82f6' },
-  typhoon: { icon: Wind, color: '#6366f1' },
-  landslide: { icon: Mountain, color: '#a855f7' },
-  earthquake: { icon: Activity, color: '#ef4444' },
-  volcanic_eruption: { icon: Flame, color: '#dc2626' },
-  storm_surge: { icon: Waves, color: '#0891b2' },
-  tsunami: { icon: Waves, color: '#06b6d4' },
-  fire: { icon: Flame, color: '#f97316' },
-  drought: { icon: Sun, color: '#eab308' },
-  heat_wave: { icon: Thermometer, color: '#f59e0b' },
-  heavy_rain: { icon: CloudRain, color: '#0ea5e9' },
-  other: { icon: AlertTriangle, color: '#64748b' },
-};
 
 // ============================================================================
 // COMPONENT
@@ -162,7 +114,7 @@ export function HazardTypeFilter({
         {/* Hazard Type Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {ALL_HAZARD_TYPES.map((type) => {
-            const { icon: Icon, color } = HAZARD_ICONS[type] || HAZARD_ICONS.other;
+            const config = HAZARD_ICON_REGISTRY[type as keyof typeof HAZARD_ICON_REGISTRY] || HAZARD_ICON_REGISTRY.other;
             const count = hazardCounts[type] || 0;
             const isSelected = noneSelected || selectedTypes.includes(type);
             
@@ -188,22 +140,22 @@ export function HazardTypeFilter({
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 disabled:cursor-not-allowed"
                   />
                   
-                  {/* Icon */}
+                  {/* Icon - using centralized HazardIcon component */}
                   <div 
                     className="flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0"
                     style={{ 
-                      backgroundColor: `${color}20`, 
-                      color: isSelected ? color : '#9ca3af' 
+                      backgroundColor: config.bgColor, 
+                      color: isSelected ? config.color : '#9ca3af' 
                     }}
                   >
-                    <Icon size={18} strokeWidth={2.5} />
+                    <HazardIcon hazardType={type} size={18} />
                   </div>
                   
                   {/* Label */}
                   <span className={`text-sm font-medium truncate ${
                     isSelected ? 'text-gray-900' : 'text-gray-600'
                   }`}>
-                    {HAZARD_LABELS[type]}
+                    {config.label}
                   </span>
                 </div>
                 

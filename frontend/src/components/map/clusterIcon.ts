@@ -11,22 +11,16 @@
  */
 
 import L from 'leaflet';
+import { HAZARD_ICON_REGISTRY } from '../../constants/hazard-icons';
 
-// Hazard type color mapping (matches PublicMap severity colors)
-const hazardColors: Record<string, string> = {
-  flood: '#3b82f6',        // blue-500
-  typhoon: '#8b5cf6',      // violet-500
-  landslide: '#a16207',    // yellow-700
-  earthquake: '#dc2626',   // red-600
-  volcanic_eruption: '#ea580c', // orange-600
-  storm_surge: '#0891b2',  // cyan-600
-  tsunami: '#0284c7',      // sky-600
-  fire: '#dc2626',         // red-600
-  drought: '#ca8a04',      // yellow-600
-  heat_wave: '#dc2626',    // red-600
-  heavy_rain: '#0369a1',   // sky-700
-  other: '#64748b',        // slate-500
-};
+// Generate hazard colors from centralized registry
+const hazardColors: Record<string, string> = Object.entries(HAZARD_ICON_REGISTRY).reduce(
+  (acc, [key, config]) => {
+    acc[key] = config.color;
+    return acc;
+  },
+  {} as Record<string, string>
+);
 
 interface ClusterMarker extends L.Marker {
   getAllChildMarkers?: () => Array<L.Marker & { options?: { hazardType?: string } }>;

@@ -27,6 +27,7 @@ import { Shield, CheckCircle, XCircle, MapPin, AlertCircle, Image as ImageIcon, 
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { HazardIcon, getHazardIcon } from '../../constants/hazard-icons';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -202,7 +203,7 @@ const ReportTriage: React.FC = () => {
 
   // Table state
   const [sorting, setSorting] = useState<SortingState>([{ id: 'submitted_at', desc: false }]);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
   // Dialog state
   const [selectedReport, setSelectedReport] = useState<TriageReport | null>(null);
@@ -340,11 +341,20 @@ const ReportTriage: React.FC = () => {
     }),
     columnHelper.accessor('hazard_type', {
       header: 'Hazard Type',
-      cell: (info) => (
-        <Badge variant="secondary" className="capitalize">
-          {info.getValue() || 'Unclassified'}
-        </Badge>
-      ),
+      cell: (info) => {
+        const hazardType = info.getValue() || 'other';
+        const config = getHazardIcon(hazardType);
+        return (
+          <Badge 
+            variant="secondary" 
+            className="capitalize flex items-center gap-1.5"
+            style={{ backgroundColor: config.bgColor, color: config.color }}
+          >
+            <HazardIcon hazardType={hazardType} size={14} useHazardColor />
+            {config.label || 'Unclassified'}
+          </Badge>
+        );
+      },
     }),
     columnHelper.accessor('location_name', {
       header: 'Location',
@@ -624,6 +634,36 @@ const ReportTriage: React.FC = () => {
           </div>
         </div>
 
+        {/* Pagination */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-muted-foreground">
+            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+            {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, reports.length)} of{' '}
+            {reports.length} reports
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <span className="text-sm">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+
         {/* Error Alert */}
         {error && (
           <Alert variant="destructive" className="mb-4">
@@ -736,7 +776,17 @@ const ReportTriage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">Hazard Type:</span>
-                    <Badge variant="secondary">{selectedReport.hazard_type || 'Unclassified'}</Badge>
+                    <Badge 
+                      variant="secondary" 
+                      className="flex items-center gap-1.5"
+                      style={{ 
+                        backgroundColor: getHazardIcon(selectedReport.hazard_type || 'other').bgColor, 
+                        color: getHazardIcon(selectedReport.hazard_type || 'other').color 
+                      }}
+                    >
+                      <HazardIcon hazardType={selectedReport.hazard_type || 'other'} size={14} useHazardColor />
+                      {getHazardIcon(selectedReport.hazard_type || 'other').label || 'Unclassified'}
+                    </Badge>
                   </div>
                   {(selectedReport.name || selectedReport.contact_number) && (
                     <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">

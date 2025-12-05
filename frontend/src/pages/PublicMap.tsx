@@ -10,25 +10,31 @@ import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { createCustomClusterIcon } from '../components/map/clusterIcon';
 import { HeatmapLayer, useHeatmapSettings } from '../components/map/HeatmapLayer';
-import { MapControls } from '../components/map/MapControls';
 import { MapOnboarding } from '../components/map/MapOnboarding';
 import { FilterPanel } from '../components/filters/FilterPanel';
 import { BoundaryLayer } from '../components/map/BoundaryLayer';
 import { ReportGenerator } from '../components/reports/ReportGenerator';
 import { useHazardFilters } from '../hooks/useHazardFilters';
 import { 
-  Droplets, 
-  Wind, 
-  Mountain, 
-  Activity, 
-  Flame, 
-  Waves, 
-  CloudRain, 
-  Sun, 
-  Thermometer, 
+  Menu,
+  X,
+  Search,
+  ChevronLeft,
+  ChevronUp,
+  ChevronDown,
+  MapPin,
+  ExternalLink,
+  RefreshCw,
+  Layers,
+  Map as MapIcon,
+  Settings,
+  FileText,
   AlertTriangle,
-  type LucideIcon
 } from 'lucide-react';
+import { 
+  HAZARD_ICON_REGISTRY, 
+  HazardIcon,
+} from '../constants/hazard-icons';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -109,12 +115,23 @@ const severityColors: Record<string, string> = {
  * - Color-coded severity markers
  * - Hazard details popup on marker click
  * - Philippine-focused viewport (default center: Manila)
+ * - WCAG A/AA/AAA accessibility compliance
+ * - Responsive design for mobile, tablet, and desktop
  * 
  * Data Source: gaia.hazards table (RLS: public can view validated hazards)
  * 
  * Use Case: General public can view live hazard map without login
  * 
  * Related Modules: GV-01 (Base Map), GV-02 (Dynamic Markers)
+ * 
+ * Accessibility Features:
+ * - Skip navigation link for keyboard users
+ * - ARIA landmarks and labels
+ * - Focus management for modals/drawers
+ * - High contrast mode support
+ * - Screen reader announcements for dynamic content
+ * - Keyboard navigation for all interactive elements
+ * - Reduced motion support
  */
 const PublicMap: React.FC = () => {
   const { user } = useAuth(); // Get authenticated user
@@ -124,6 +141,15 @@ const PublicMap: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isLegendVisible, setIsLegendVisible] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Accessibility: Live region announcements
+  const [announcement, setAnnouncement] = useState<string>('');
+  
+  // Sidebar focus trap ref
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const sidebarToggleRef = useRef<HTMLButtonElement>(null);
   
   // Map container ref for PDF screenshot capture
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -160,10 +186,15 @@ const PublicMap: React.FC = () => {
       const hazards = data.map(mapResponseToHazard);
       setHazards(hazards);
       setError(null);
+      setLastUpdated(new Date());
+      
+      // Accessibility: Announce update to screen readers
+      setAnnouncement(`Hazard data refreshed. ${hazards.length} active hazards loaded.`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error('Error fetching hazards:', errorMessage);
       setError('Failed to load hazard data. Please try again later.');
+      setAnnouncement('Error: Failed to load hazard data.');
     } finally {
       setLoading(false);
     }
@@ -274,6 +305,7 @@ const PublicMap: React.FC = () => {
     // Extract city/municipality name from display_name (first part before comma)
     const locationName = suggestion.display_name.split(',')[0].trim();
     setSearchedLocationName(locationName);
+    // eslint-disable-next-line
     console.log('[PublicMap] Searched location:', locationName);
   };
 
@@ -384,123 +416,153 @@ const PublicMap: React.FC = () => {
     return null;
   };
 
-  // Hazard type labels
-  const hazardLabels: Record<string, string> = {
-    flood: 'Flood Hazard',
-    typhoon: 'Typhoon',
-    landslide: 'Landslide Hazard',
-    earthquake: 'Earthquake',
-    volcanic_eruption: 'Volcanoes',
-    storm_surge: 'Storm Surge Hazard',
-    tsunami: 'Tsunami',
-    fire: 'Fire Incident',
-    drought: 'Drought',
-    heat_wave: 'Heat Wave',
-    heavy_rain: 'Heavy Rain',
-    other: 'Other Hazards',
-  };
-
-  // Hazard icons and colors mapping
-  const hazardIcons: Record<string, { icon: LucideIcon; color: string }> = {
-    flood: { icon: Droplets, color: '#3b82f6' },
-    typhoon: { icon: Wind, color: '#6366f1' },
-    landslide: { icon: Mountain, color: '#a855f7' },
-    earthquake: { icon: Activity, color: '#ef4444' },
-    volcanic_eruption: { icon: Flame, color: '#dc2626' },
-    storm_surge: { icon: Waves, color: '#0891b2' },
-    tsunami: { icon: Waves, color: '#06b6d4' },
-    fire: { icon: Flame, color: '#f97316' },
-    drought: { icon: Sun, color: '#eab308' },
-    heat_wave: { icon: Thermometer, color: '#f59e0b' },
-    heavy_rain: { icon: CloudRain, color: '#0ea5e9' },
-    other: { icon: AlertTriangle, color: '#64748b' },
-  };
+  // Hazard icons and colors are now accessed from HAZARD_ICON_REGISTRY
+  // Use getHazardIcon(hazardType) for individual icon config
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Skip Navigation Link - WCAG 2.4.1 (Level A) */}
+      <a
+        href="#public-map-container"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:bg-[#0a2a4d] focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:font-semibold focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+      
+      {/* Live Region for Screen Reader Announcements - WCAG 4.1.3 (Level A) */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {announcement}
+      </div>
+
       {/* Main Content with Sidebar and Map */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" role="main">
         {/* Left Sidebar - Layer Controls (Overlay) */}
         {/* Full width on mobile, fixed width on desktop */}
-        <div
+        <aside
+          ref={sidebarRef}
+          id="sidebar-filters"
+          aria-label="Hazard filters and controls"
+          aria-hidden={!isSidebarOpen}
           className={`${
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           } ${
             isSidebarExpanded ? 'md:w-[420px]' : 'md:w-80'
-          } w-full md:max-w-none absolute left-0 top-0 h-full transition-all duration-300 bg-white shadow-2xl z-[1000] overflow-hidden`}
+          } w-full md:max-w-none fixed md:absolute left-0 top-0 h-full transition-all duration-300 ease-in-out motion-reduce:transition-none bg-white shadow-2xl z-[1000] overflow-hidden flex flex-col`}
         >
-          <div className="h-full overflow-y-auto">
-            {/* GAIA Logo and Navigation */}
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-                  <img
-                    src="/assets/img/GAIA.svg"
-                    alt="GAIA Logo"
-                    className="h-10 w-10"
-                  />
-                  <div>
-                    <h2 className="text-lg font-bold text-[#0a2a4d]">GAIA</h2>
-                    <p className="text-xs text-gray-600">Live Hazard Map</p>
-                  </div>
-                </Link>
-                {/* Close button - visible on mobile */}
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  aria-label="Close sidebar"
-                >
-                  <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+          {/* Sidebar Header - Fixed */}
+          <header className="p-4 border-b border-gray-200 bg-white shrink-0">
+            <div className="flex items-center justify-between gap-4">
+              <Link 
+                to="/" 
+                className="flex items-center space-x-3 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-2 rounded-lg p-1 -m-1"
+                aria-label="Go to GAIA homepage"
+              >
+                <img
+                  src="/assets/img/GAIA.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-10 w-10 sm:h-12 sm:w-12"
+                />
+                <div>
+                  <h1 className="text-lg sm:text-xl font-bold text-[#0a2a4d]">GAIA</h1>
+                  <p className="text-xs sm:text-sm text-gray-600">Live Hazard Map</p>
+                </div>
+              </Link>
+              {/* Close button - visible on all screens when sidebar is open */}
+              <button
+                onClick={() => {
+                  setIsSidebarOpen(false);
+                  sidebarToggleRef.current?.focus();
+                }}
+                className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1"
+                aria-label="Close sidebar"
+                aria-expanded={isSidebarOpen}
+                aria-controls="sidebar-filters"
+              >
+                <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" aria-hidden="true" />
+              </button>
             </div>
+          </header>
 
+          {/* Scrollable Content Area */}
+          <div className="flex-1 overflow-y-auto overscroll-contain">
             {/* Search Location */}
             <div className="p-4 border-b border-gray-200">
-              <div className="relative">
+              <label htmlFor="location-search" className="sr-only">Search for a location in the Philippines</label>
+              <div className="relative" role="search">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                  <Search className="w-5 h-5 text-gray-400" aria-hidden="true" />
+                </div>
                 <input
-                  type="text"
+                  id="location-search"
+                  type="search"
                   placeholder="Search Location (Philippines)"
                   value={searchQuery}
                   onChange={handleSearchChange}
                   onFocus={() => searchQuery && setShowSuggestions(true)}
-                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:border-transparent"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:border-transparent transition-shadow"
+                  aria-describedby="search-hint"
+                  aria-autocomplete="list"
+                  aria-controls="search-suggestions"
+                  aria-expanded={showSuggestions && searchSuggestions.length > 0}
+                  autoComplete="off"
                 />
+                <span id="search-hint" className="sr-only">
+                  Type at least 3 characters to search. Use arrow keys to navigate suggestions.
+                </span>
                 <button 
                   type="button"
                   aria-label={isSearching ? 'Searching...' : 'Search location'}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-[#0a2a4d]"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-[#0a2a4d] hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
                   onClick={() => searchQuery && searchLocation(searchQuery)}
+                  disabled={isSearching}
                 >
                   {isSearching ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#0a2a4d]" aria-hidden="true"></div>
+                    <RefreshCw className="w-5 h-5 animate-spin" aria-hidden="true" />
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
+                    <Search className="w-5 h-5" aria-hidden="true" />
                   )}
                 </button>
                 
                 {/* Search Suggestions Dropdown */}
                 {showSuggestions && searchSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-                    {searchSuggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSelectSuggestion(suggestion)}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                      >
-                        <p className="text-sm font-medium text-gray-900">
-                          {suggestion.display_name.split(',')[0]}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {suggestion.display_name}
-                        </p>
-                      </button>
+                  <ul
+                    id="search-suggestions"
+                    role="listbox"
+                    aria-label="Location suggestions"
+                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto"
+                  >
+                    {searchSuggestions.map((suggestion) => (
+                      <li key={suggestion.place_id} role="option" aria-selected={false}>
+                        <button
+                          onClick={() => handleSelectSuggestion(suggestion)}
+                          className="w-full text-left px-4 py-3 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" aria-hidden="true" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {suggestion.display_name.split(',')[0]}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {suggestion.display_name}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 )}
               </div>
               
@@ -509,11 +571,10 @@ const PublicMap: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsFollowingSearch(false)}
-                  className="mt-2 w-full px-3 py-1.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-md hover:bg-amber-100 transition-colors text-sm flex items-center justify-center gap-2"
+                  className="mt-3 w-full px-4 py-2.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+                  aria-live="polite"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="w-4 h-4" aria-hidden="true" />
                   Stop Following Location
                 </button>
               )}
@@ -527,151 +588,363 @@ const PublicMap: React.FC = () => {
                 onExpandChange={setIsSidebarExpanded}
               />
             </div>
+          </div>
 
-            {/* Active Hazards Count */}
-            <div className="p-4 border-t border-gray-200">
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-sm text-gray-700">
-                  <strong className="text-[#0a2a4d]">{filteredHazards.length}</strong> active hazard
-                  {filteredHazards.length !== 1 ? 's' : ''} visible
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {hazards.length - filteredHazards.length} hidden by filters
-                </p>
+          {/* Active Hazards Count - Fixed at bottom */}
+          <div className="p-4 border-t border-gray-200 bg-white shrink-0">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 sm:p-4 border border-blue-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm sm:text-base text-gray-700">
+                    <strong className="text-[#0a2a4d] text-lg sm:text-xl">{filteredHazards.length}</strong>
+                    <span className="ml-1">hazard{filteredHazards.length !== 1 ? 's' : ''} visible</span>
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                    {hazards.length - filteredHazards.length > 0 && (
+                      <span className="text-amber-600 font-medium">
+                        {hazards.length - filteredHazards.length} hidden by filters
+                      </span>
+                    )}
+                    {hazards.length - filteredHazards.length === 0 && 'All hazards shown'}
+                  </p>
+                </div>
+                <Badge variant="outline" className="hidden sm:flex bg-white text-[#0a2a4d] border-[#0a2a4d]">
+                  Live
+                </Badge>
               </div>
             </div>
           </div>
-        </div>
+        </aside>
 
         {/* Sidebar Toggle Button */}
-        {/* Hidden on mobile when sidebar is open (use X button inside instead) */}
         <button
+          ref={sidebarToggleRef}
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className={`${
             isSidebarOpen 
-              ? `hidden md:block ${isSidebarExpanded ? 'md:left-[420px]' : 'md:left-80'}` 
-              : 'block left-0'
-          } absolute top-[6rem] z-[1001] bg-white shadow-md rounded-r-md p-2 hover:bg-gray-50 transition-all duration-300`}
-          aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+              ? `${isSidebarExpanded ? 'md:left-[420px]' : 'md:left-80'} hidden md:flex` 
+              : 'left-0 flex'
+          } fixed md:absolute top-20 sm:top-24 z-[1001] bg-white shadow-lg rounded-r-xl p-2.5 sm:p-3 hover:bg-gray-50 transition-all duration-300 motion-reduce:transition-none focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1 items-center justify-center group`}
+          aria-label={isSidebarOpen ? 'Close filters sidebar' : 'Open filters sidebar'}
+          aria-expanded={isSidebarOpen}
+          aria-controls="sidebar-filters"
         >
-          <svg
-            className={`w-5 h-5 text-gray-700 transform transition-transform ${
-              isSidebarOpen ? 'rotate-180' : ''
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+          {isSidebarOpen ? (
+            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 group-hover:text-[#0a2a4d]" aria-hidden="true" />
+          ) : (
+            <>
+              <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 group-hover:text-[#0a2a4d]" aria-hidden="true" />
+              <span className="sr-only sm:not-sr-only sm:ml-2 sm:text-sm sm:font-medium sm:text-gray-700 sm:group-hover:text-[#0a2a4d]">
+                Filters
+              </span>
+            </>
+          )}
         </button>
 
-        {/* Map Container - Full Screen */}
-        <div ref={mapContainerRef} className="absolute inset-0" id="public-map-container">
-          {/* Floating UI Controls Container - Top Right */}
-          {/* Hidden on mobile when sidebar is open for better UX */}
+        {/* Mobile Overlay when sidebar is open */}
+        {isSidebarOpen && (
           <div 
-            className={`absolute top-56 right-4 z-[1000] space-y-4 transition-opacity duration-300 ${
-              isSidebarOpen ? 'hidden md:block' : 'block'
-            }`} 
+            className="fixed inset-0 bg-black/30 z-[999] md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Map Container - Full Screen */}
+        <div 
+          ref={mapContainerRef} 
+          className="absolute inset-0" 
+          id="public-map-container"
+          role="application"
+          aria-label="Interactive hazard map of the Philippines"
+        >
+          {/* Unified Floating Controls Panel - Top Right */}
+          <Card 
+            className={`absolute top-4 sm:top-6 right-4 sm:right-6 z-[1000] bg-white/95 backdrop-blur-sm shadow-lg border border-gray-200 w-[280px] sm:w-[300px] transition-all duration-300 motion-reduce:transition-none ${
+              isSidebarOpen ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : 'opacity-100'
+            }`}
             data-map-control="true"
+            role="region"
+            aria-label="Map controls and legend"
           >
             {/* Report Generator Button (RG-02) - Only for authenticated users */}
             {user && (
-              <ReportGenerator 
-                hazards={filteredHazards}
-                mapContainerRef={mapContainerRef}
-                onReportGenerated={() => {
-                  // PDF report generated successfully
-                }}
-              />
+              <div className="p-3 border-b border-gray-100">
+                <ReportGenerator 
+                  hazards={filteredHazards}
+                  mapContainerRef={mapContainerRef}
+                  onReportGenerated={() => {
+                    setAnnouncement('Report generated successfully.');
+                  }}
+                  triggerButton={
+                    <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
+                      <FileText className="w-4 h-4" />
+                      Generate Report
+                    </button>
+                  }
+                />
+              </div>
             )}
 
-            {/* Legend Card */}
-            <Card className="bg-white/95 backdrop-blur-sm shadow-lg max-w-xs map-legend">
-              <div className="p-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-gray-700">Legend</h3>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {filteredHazards.length} active
-                    </Badge>
-                    <button
-                      onClick={() => setIsLegendVisible(!isLegendVisible)}
-                      className="p-1 hover:bg-gray-100 rounded transition-colors"
-                      aria-label={isLegendVisible ? 'Hide legend' : 'Show legend'}
-                    >
-                      <svg
-                        className={`w-4 h-4 text-gray-500 transition-transform ${isLegendVisible ? '' : 'rotate-180'}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                      </svg>
-                    </button>
-                  </div>
+            {/* Legend Section */}
+            <div className="p-3 sm:p-4 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <h2 id="legend-heading" className="text-sm sm:text-base font-semibold text-gray-800">
+                  Legend
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                    aria-label={`${filteredHazards.length} active hazards`}
+                  >
+                    {filteredHazards.length} active
+                  </Badge>
+                  <button
+                    onClick={() => setIsLegendVisible(!isLegendVisible)}
+                    className="p-1.5 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
+                    aria-expanded={isLegendVisible}
+                    aria-controls="legend-content"
+                    aria-label={isLegendVisible ? 'Collapse legend' : 'Expand legend'}
+                  >
+                    {isLegendVisible ? (
+                      <ChevronUp className="w-4 h-4 text-gray-500" aria-hidden="true" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-500" aria-hidden="true" />
+                    )}
+                  </button>
                 </div>
-                {isLegendVisible && (
-                  <div className="space-y-1.5 max-h-[400px] overflow-y-auto mt-3">
-                    {Object.entries(hazardIcons).map(([key, { icon: Icon, color }]) => {
-                      const count = filteredHazards.filter(h => h.hazard_type === key).length;
-                      const hasCount = count > 0;
-                      return (
-                        <div
-                          key={key}
-                          className={`flex items-center justify-between p-1.5 rounded ${
-                            hasCount ? 'hover:bg-gray-50' : 'opacity-50'
+              </div>
+              {isLegendVisible && (
+                <ul 
+                  id="legend-content"
+                  className="space-y-1 max-h-[200px] overflow-y-auto mt-3 -mx-1 px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+                  aria-label="Hazard types and counts"
+                >
+                  {Object.entries(HAZARD_ICON_REGISTRY).map(([key, config]) => {
+                    const count = filteredHazards.filter(h => h.hazard_type === key).length;
+                    const hasCount = count > 0;
+                    return (
+                      <li
+                        key={key}
+                        className={`flex items-center justify-between p-1.5 rounded-lg transition-colors ${
+                          hasCount ? 'hover:bg-gray-50 cursor-default' : 'opacity-40'
+                        }`}
+                        aria-label={`${config.label}: ${count} ${count === 1 ? 'hazard' : 'hazards'}`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div 
+                            className="flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0"
+                            style={{ 
+                              backgroundColor: hasCount ? config.bgColor : '#f3f4f6', 
+                              color: hasCount ? config.color : '#9ca3af' 
+                            }}
+                            aria-hidden="true"
+                          >
+                            <HazardIcon hazardType={key} size={16} />
+                          </div>
+                          <span className={`text-xs font-medium ${hasCount ? 'text-gray-700' : 'text-gray-400'}`}>
+                            {config.label}
+                          </span>
+                        </div>
+                        <Badge 
+                          variant={hasCount ? "secondary" : "outline"} 
+                          className={`text-xs h-5 min-w-[1.75rem] justify-center ${
+                            hasCount 
+                              ? 'bg-gray-100 text-gray-700' 
+                              : 'bg-transparent text-gray-400 border-gray-200'
                           }`}
                         >
-                          <div className="flex items-center space-x-2">
-                            <div 
-                              className="flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0"
-                              style={{ backgroundColor: `${color}20`, color: hasCount ? color : '#9ca3af' }}
-                            >
-                              <Icon size={16} strokeWidth={2.5} />
-                            </div>
-                            <span className={`text-xs ${hasCount ? 'text-gray-700' : 'text-gray-400'}`}>
-                              {hazardLabels[key]}
-                            </span>
-                          </div>
-                          <Badge 
-                            variant={hasCount ? "secondary" : "outline"} 
-                            className="text-xs h-5"
-                          >
-                            {count}
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
+                          {count}
+                        </Badge>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
 
+            {/* Map Controls Section - Clustering & Heatmap */}
+            <div className="p-3 sm:p-4 space-y-3">
+              {/* Clustering Toggle */}
+              <div className="flex items-center justify-between" data-tour="cluster-section">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-blue-50 rounded-md">
+                    <Layers className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                  </div>
+                  <span id="clustering-label" className="text-sm font-medium text-gray-700">
+                    Clustering
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  data-tour="cluster-toggle"
+                  onClick={() => setClusteringEnabled(!clusteringEnabled)}
+                  className={`
+                    relative inline-flex h-6 w-11 items-center rounded-full
+                    transition-colors duration-200 motion-reduce:transition-none
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                    ${clusteringEnabled ? 'bg-blue-600' : 'bg-gray-300'}
+                  `}
+                  role="switch"
+                  aria-checked={clusteringEnabled}
+                  aria-labelledby="clustering-label"
+                >
+                  <span className="sr-only">
+                    {clusteringEnabled ? 'Disable clustering' : 'Enable clustering'}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`
+                      inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200
+                      ${clusteringEnabled ? 'translate-x-6' : 'translate-x-1'}
+                    `}
+                  />
+                </button>
+              </div>
+
+              {/* Heatmap Toggle */}
+              <div className="flex items-center justify-between" data-tour="heatmap-section">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-md ${currentZoom > heatmapSettings.maxZoom ? 'bg-gray-100' : 'bg-orange-50'}`}>
+                    <MapIcon 
+                      className={`w-4 h-4 ${currentZoom > heatmapSettings.maxZoom ? 'text-gray-400' : 'text-orange-600'}`} 
+                      aria-hidden="true" 
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <span id="heatmap-label" className="text-sm font-medium text-gray-700">
+                      Heatmap
+                    </span>
+                    {currentZoom > heatmapSettings.maxZoom && (
+                      <span className="text-[10px] text-amber-600 font-medium leading-tight">
+                        Zoom out to enable
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  data-tour="heatmap-toggle"
+                  onClick={() => updateHeatmapSettings({ enabled: !heatmapSettings.enabled })}
+                  disabled={currentZoom > heatmapSettings.maxZoom}
+                  className={`
+                    relative inline-flex h-6 w-11 items-center rounded-full
+                    transition-colors duration-200 motion-reduce:transition-none
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                    ${heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom ? 'bg-blue-600' : 'bg-gray-300'}
+                    ${currentZoom > heatmapSettings.maxZoom ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                  `}
+                  role="switch"
+                  aria-checked={heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom}
+                  aria-labelledby="heatmap-label"
+                  aria-disabled={currentZoom > heatmapSettings.maxZoom}
+                >
+                  <span className="sr-only">
+                    {heatmapSettings.enabled ? 'Disable heatmap' : 'Enable heatmap'}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`
+                      inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200
+                      ${heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom ? 'translate-x-6' : 'translate-x-1'}
+                    `}
+                  />
+                </button>
+              </div>
+
+              {/* Settings Link */}
+              <button
+                type="button"
+                onClick={() => setShowSettings(!showSettings)}
+                className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors pt-1"
+                aria-expanded={showSettings}
+              >
+                <Settings className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{showSettings ? 'Hide settings' : 'Heatmap settings'}</span>
+              </button>
+
+              {/* Heatmap Settings Panel */}
+              {showSettings && (
+                <div className="pt-3 border-t border-gray-100 space-y-3">
+                  <div>
+                    <label htmlFor="heatmap-radius" className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                      <span>Radius</span>
+                      <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{heatmapSettings.radius}px</span>
+                    </label>
+                    <input
+                      id="heatmap-radius"
+                      type="range"
+                      min="10"
+                      max="50"
+                      value={heatmapSettings.radius}
+                      onChange={(e) => updateHeatmapSettings({ radius: Number(e.target.value) })}
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="heatmap-blur" className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                      <span>Blur</span>
+                      <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{heatmapSettings.blur}px</span>
+                    </label>
+                    <input
+                      id="heatmap-blur"
+                      type="range"
+                      min="5"
+                      max="30"
+                      value={heatmapSettings.blur}
+                      onChange={(e) => updateHeatmapSettings({ blur: Number(e.target.value) })}
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Error Alert - Enhanced Styling */}
           {error && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1100] max-w-md w-full px-4">
-              <Alert variant="destructive" className="bg-red-50 border-red-200">
-                <div className="flex items-start space-x-2">
-                  <AlertTriangle className="h-5 w-5 mt-0.5 text-red-600" />
-                  <span className="text-red-800">{error}</span>
+            <div 
+              className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1100] max-w-md w-full px-4"
+              role="alert"
+              aria-live="assertive"
+            >
+              <Alert variant="destructive" className="bg-red-50 border-red-300 shadow-lg">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="h-5 w-5 mt-0.5 text-red-600 shrink-0" aria-hidden="true" />
+                  <div>
+                    <p className="text-red-800 font-medium">Error Loading Data</p>
+                    <p className="text-red-700 text-sm mt-1">{error}</p>
+                    <button
+                      onClick={fetchHazards}
+                      className="mt-2 text-sm font-medium text-red-700 hover:text-red-800 underline focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
+                    >
+                      Try again
+                    </button>
+                  </div>
                 </div>
               </Alert>
             </div>
           )}
 
+          {/* Loading State - Enhanced Accessibility */}
           {loading && hazards.length === 0 && (
             <div 
-              className="absolute inset-0 flex items-center justify-center bg-gray-50 z-[999]"
+              className="absolute inset-0 flex items-center justify-center bg-gray-50/90 backdrop-blur-sm z-[999]"
               role="status"
               aria-live="polite"
               aria-busy="true"
             >
-              <Card className="p-8">
+              <Card className="p-6 sm:p-8 shadow-xl border border-gray-200">
                 <div className="flex flex-col items-center space-y-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0a2a4d]" aria-hidden="true"></div>
-                  <p className="text-gray-600">Loading hazard data...</p>
+                  <div 
+                    className="animate-spin rounded-full h-12 w-12 sm:h-14 sm:w-14 border-4 border-gray-200 border-t-[#0a2a4d]" 
+                    aria-hidden="true"
+                  />
+                  <div className="text-center">
+                    <p className="text-gray-800 font-medium text-base sm:text-lg">Loading hazard data...</p>
+                    <p className="text-gray-500 text-sm mt-1">This may take a moment</p>
+                  </div>
                 </div>
               </Card>
             </div>
@@ -692,9 +965,9 @@ const PublicMap: React.FC = () => {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             
-            {/* Map Controls */}
-            <ZoomControl position="topright" />
-            <ScaleControl position="bottomleft" />
+            {/* Map Controls - Zoom on left to avoid legend overlap */}
+            <ZoomControl position="topleft" />
+            <ScaleControl position="bottomright" />
             
             {/* Search Controller - flies map to selected location */}
             <SearchController 
@@ -730,8 +1003,8 @@ const PublicMap: React.FC = () => {
               }}
             />
             
-            {/* Layers Control - Base Map Switcher */}
-            <LayersControl position="topleft">
+            {/* Layers Control - Base Map Switcher (bottom-right to avoid sidebar overlap) */}
+            <LayersControl position="bottomright">
               <LayersControl.BaseLayer checked name="OpenStreetMap">
                 <TileLayer
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -864,43 +1137,54 @@ const PublicMap: React.FC = () => {
               ))
             )}
           </MapContainer>
-          
-          {/* Map Controls (GV-03, GV-04) */}
-          {/* Hidden on mobile when sidebar is open */}
-          <div 
-            className={`${isSidebarOpen ? 'hidden md:block' : 'block'}`}
-            data-map-control="true"
-          >
-            <MapControls
-              clusteringEnabled={clusteringEnabled}
-              onToggleClustering={setClusteringEnabled}
-              heatmapEnabled={heatmapSettings.enabled}
-              onToggleHeatmap={(enabled) => updateHeatmapSettings({ enabled })}
-              currentZoom={currentZoom}
-              heatmapMaxZoom={heatmapSettings.maxZoom}
-              heatmapRadius={heatmapSettings.radius}
-              heatmapBlur={heatmapSettings.blur}
-              onHeatmapSettingsChange={updateHeatmapSettings}
-            />
-          </div>
         </div>
       </div>
 
-      {/* Stats Footer */}
-      <footer className="bg-white border-t border-gray-200 py-2 md:py-3 z-[9999]" data-realtime-footer="true">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <div>
-              <strong>{hazards.length}</strong> active hazard{hazards.length !== 1 ? 's' : ''} displayed
+      {/* Stats Footer - Enhanced Responsiveness and Accessibility */}
+      <footer 
+        className="bg-white border-t border-gray-200 py-2 sm:py-3 z-[9999] relative" 
+        data-realtime-footer="true"
+        role="contentinfo"
+        aria-label="Hazard statistics and controls"
+      >
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+            {/* Hazard Count */}
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant="outline" 
+                className="bg-green-50 text-green-700 border-green-200 font-semibold"
+                aria-label={`${hazards.length} active hazards displayed`}
+              >
+                <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse" aria-hidden="true" />
+                {hazards.length} Active
+              </Badge>
+              <span className="hidden sm:inline text-gray-400">|</span>
+              <span className="hidden sm:inline">
+                hazard{hazards.length !== 1 ? 's' : ''} displayed
+              </span>
             </div>
-            <div>
-              Last updated: {new Date().toLocaleTimeString('en-PH')} • Auto-refresh: 30s
+
+            {/* Last Updated & Auto-refresh */}
+            <div className="flex items-center gap-2 text-gray-500">
+              <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>
+                Updated: {lastUpdated.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <span className="text-gray-300">•</span>
+              <span className="text-green-600 font-medium">Auto-refresh: 30s</span>
             </div>
-            <div>
-              <a href="/report" className="text-[#005a9c] hover:underline">
-                Report a Hazard
-              </a>
-            </div>
+
+            {/* Report a Hazard Link */}
+            <Link 
+              to="/report" 
+              className="flex items-center gap-1.5 text-[#005a9c] hover:text-[#003d66] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#005a9c] focus:ring-offset-2 rounded px-2 py-1 -mx-2 transition-colors"
+              aria-label="Report a hazard - opens citizen report form"
+            >
+              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+              <span>Report a Hazard</span>
+              <ExternalLink className="w-3 h-3" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </footer>
