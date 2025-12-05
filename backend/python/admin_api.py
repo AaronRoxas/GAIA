@@ -131,24 +131,27 @@ class DeactivateUserRequest(BaseModel):
 
 
 class AuditLogResponse(BaseModel):
-    """Audit log entry for admin dashboard"""
+    """Audit log entry for admin dashboard - matches gaia.audit_logs schema"""
     id: str
-    user_id: Optional[str]
-    user_email: Optional[str]
-    user_role: Optional[str]
-    action: str
-    action_description: str
-    resource_type: Optional[str]
-    resource_id: Optional[str]
-    old_values: Optional[Dict[str, Any]]
-    new_values: Optional[Dict[str, Any]]
-    ip_address: Optional[str]
-    user_agent: Optional[str]
-    success: bool
-    error_message: Optional[str]
-    created_at: str
-    event_type: Optional[str]  # Added: exists in database  
-    status: str
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    user_role: str  # Required in DB (NOT NULL)
+    action: str  # Required in DB (NOT NULL)
+    action_description: Optional[str] = None  # Nullable in DB
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    old_values: Dict[str, Any]  # Required in DB (NOT NULL)
+    new_values: Dict[str, Any]  # Required in DB (NOT NULL)
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    success: bool  # Required in DB (NOT NULL)
+    error_message: Optional[str] = None
+    created_at: str  # Required in DB (NOT NULL)
+    event_type: Optional[str] = None  # Exists in database
+    severity: str  # Required in DB (NOT NULL)
+    status: str  # Required in DB (NOT NULL)
+    message: Optional[str] = None  # Exists in DB
+    metadata: Optional[Dict[str, Any]] = None  # Exists in DB, default {}
 
 class SystemConfigResponse(BaseModel):
     """System configuration parameter"""

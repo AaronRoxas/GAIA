@@ -71,19 +71,26 @@ class RSSFeedUpdate(BaseModel):
 
 
 class RSSFeedResponse(BaseModel):
-    """RSS feed response model"""
+    """RSS feed response model - matches gaia.rss_feeds schema"""
     id: str
     feed_url: str
     feed_name: str
-    feed_category: Optional[str]
-    is_active: bool
-    priority: int
-    fetch_interval_minutes: int
-    last_fetched_at: Optional[datetime]
-    last_successful_fetch: Optional[datetime]
-    total_fetches: int
-    total_errors: int
-    total_hazards_found: int
+    feed_category: Optional[str] = None
+    language: Optional[str] = "en"
+    country: Optional[str] = "PH"
+    is_active: bool = True
+    priority: int = 1
+    fetch_interval_minutes: int = 5
+    last_fetched_at: Optional[datetime] = None
+    last_successful_fetch: Optional[datetime] = None
+    last_error_at: Optional[datetime] = None
+    last_error_message: Optional[str] = None
+    total_fetches: int = 0
+    total_errors: int = 0
+    total_hazards_found: int = 0
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    created_by: Optional[str] = None
 
 
 class ProcessRSSRequest(BaseModel):
