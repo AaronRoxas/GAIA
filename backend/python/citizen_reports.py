@@ -32,8 +32,8 @@ from backend.python.models.geo_ner import geo_ner
 # Import phone validation utility
 from backend.python.utils.phone_validation import is_valid_philippine_phone_number
 
-# Import shared geocoding utility (async version for FastAPI endpoints)
-from backend.python.utils.geocoding import get_coordinates_from_nominatim_async
+# Import shared geocoding utility for reverse geocoding (coords -> address)
+from backend.python.utils.geocoding import get_address_from_coordinates_async
 
 # Import field-level encryption for PII protection (RA 10173 compliance)
 from backend.python.utils.field_encryption import encrypt_pii_fields, decrypt_pii_fields
@@ -163,11 +163,10 @@ async def submit_citizen_report(
     captcha_token: Optional[str] = Form(None, description="Cloudflare Turnstile token (optional)"),
     hazard_type: str = Form(..., description="Type of hazard"),
     description: str = Form(..., min_length=10, max_length=2000, description="Hazard description"),
-    location_name: str = Form(..., description="Location name"),
     name: str = Form(..., min_length=2, max_length=100, description="Reporter's name"),
     contact_number: str = Form(..., description="Reporter's contact number (Philippine phone number)"),
-    latitude: Optional[float] = Form(None, ge=-90, le=90, description="Latitude coordinate (optional)"),
-    longitude: Optional[float] = Form(None, ge=-180, le=180, description="Longitude coordinate (optional)"),
+    latitude: float = Form(..., ge=-90, le=90, description="Latitude coordinate (required, from map picker/GPS)"),
+    longitude: float = Form(..., ge=-180, le=180, description="Longitude coordinate (required, from map picker/GPS)"),
     contact_method: Optional[str] = Form(None, description="Optional contact method"),
     image: Optional[UploadFile] = File(None, description="Optional hazard photo"),
     image_metadata: Optional[dict] = Form(None, description="Metadata of the uploaded image")
@@ -178,12 +177,13 @@ async def submit_citizen_report(
     - **captcha_token**: Cloudflare Turnstile token for bot prevention
     - **hazard_type**: Type of hazard (flood, typhoon, etc.)
     - **description**: Detailed description of the hazard (10-2000 characters)
-    - **location_name**: Human-readable location name
     - **name**: Reporter's full name (required, 2-100 characters)
     - **contact_number**: Reporter's Philippine phone number (required, validated)
-    - **latitude/longitude**: GPS coordinates
+    - **latitude/longitude**: GPS coordinates (required, from map picker or GPS)
     - **contact_method**: Optional contact information
     - **image**: Optional photo of the hazard
+    
+    Location is pinned on the map (required). location_name is derived via reverse geocoding.
     
     Returns tracking ID for checking report status.
     """
@@ -259,12 +259,16 @@ async def submit_citizen_report(
     #         detail="Error verifying Turnstile token"
     #     )
     
-    # 2. AI Processing: Zero-Shot Classification and GeoNER
+    # 2. Reverse geocode coordinates to get human-readable location_name for storage
+    location_name = await get_address_from_coordinates_async(latitude, longitude)
+    if not location_name:
+        location_name = f"{latitude:.6f}, {longitude:.6f}"
+        logger.info(f"Reverse geocoding failed; using coordinate string as location_name")
+    
+    # 3. AI Processing: Zero-Shot Classification
     ai_hazard_type = None
     ai_confidence = 0.0
-    extracted_latitude = None
-    extracted_longitude = None
-    coordinates_source = "user" if (latitude is not None and longitude is not None) else None
+    coordinates_source = "user"
     
     try:
         # Combine location_name and description for better context
@@ -281,59 +285,20 @@ async def submit_citizen_report(
         else:
             logger.info(f"AI did not detect a clear hazard type (confidence too low)")
         
-        # Coordinate Extraction: Use Nominatim API for accurate map pinning
-        # This replaces the previous GeoNER-based coordinate extraction process
-        if latitude is None or longitude is None:
-            logger.info(f"Extracting coordinates using Nominatim API from location name: {location_name}")
-            try:
-                # Step 1: Identify Input - Extract location string from report data
-                # The location_name field contains the location string (e.g., "Biclatan, General Trias")
-                if location_name and location_name.strip():
-                    # Step 2-5: Use async Nominatim API client to get coordinates
-                    # This function handles:
-                    # - Constructing the HTTP GET request
-                    # - Executing the request with error handling (using asyncio.sleep for rate limiting)
-                    # - Parsing the JSONv2 response
-                    # - Extracting lat/lon from the first result
-                    coords = await get_coordinates_from_nominatim_async(location_name)
-                    
-                    if coords and 'latitude' in coords and 'longitude' in coords:
-                        extracted_latitude = coords['latitude']
-                        extracted_longitude = coords['longitude']
-                        coordinates_source = "nominatim_geocoded"
-                        logger.info(
-                            "Successfully extracted coordinates using Nominatim API for map pinning."
-                        )
-                    else:
-                        logger.warning(f"Could not extract coordinates from location name: {location_name}")
-                else:
-                    logger.warning("Location name is empty, cannot geocode")
-            except Exception as e:
-                logger.error(f"Error during Nominatim coordinate extraction: {e}", exc_info=True)
-                # Continue without coordinates if extraction fails
-        
     except Exception as e:
         logger.error(f"Error during AI processing: {e}", exc_info=True)
         # Don't fail the submission if AI processing fails - continue with user-provided data
     
-    # 3. Use Nominatim-extracted coordinates if user didn't provide them
-    final_latitude = latitude if latitude is not None else extracted_latitude
-    final_longitude = longitude if longitude is not None else extracted_longitude
+    # 4. Coordinates come directly from user (required from map picker)
+    final_latitude = latitude
+    final_longitude = longitude
     
-    # 4. Validate Philippine boundaries (4-21°N, 116-127°E) - only if coordinates available
-    if final_latitude is not None and final_longitude is not None:
-        if not (4 <= final_latitude <= 21 and 116 <= final_longitude <= 127):
-            logger.warning("Coordinates outside Philippine boundaries submitted.")
-            # Reset to None if outside boundaries (for Nominatim or other extracted coordinates)
-            if coordinates_source in ["nominatim_geocoded", "ai_extracted"]:
-                final_latitude = None
-                final_longitude = None
-                coordinates_source = None
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Coordinates outside Philippine boundaries"
-                )
+    # 5. Validate Philippine boundaries (4-21°N, 116-127°E)
+    if not (4 <= final_latitude <= 21 and 116 <= final_longitude <= 127):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Coordinates must be within the Philippines (4-21°N, 116-127°E)"
+        )
     
     # 5. Generate unique tracking ID
     tracking_id = f"CR{datetime.utcnow().strftime('%Y%m%d')}{str(uuid.uuid4())[:8].upper()}"

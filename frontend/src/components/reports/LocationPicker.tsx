@@ -27,6 +27,8 @@ interface LocationPickerProps {
   initialLat?: number;
   initialLng?: number;
   onLocationSelect: (lat: number, lng: number) => void;
+  /** If true, attempts to get user's GPS location when the component mounts */
+  autoLocateOnMount?: boolean;
 }
 
 // ============================================================================
@@ -103,12 +105,14 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   initialLat,
   initialLng,
   onLocationSelect,
+  autoLocateOnMount = false,
 }) => {
   const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(
     initialLat && initialLng ? [initialLat, initialLng] : null
   );
   const [error, setError] = useState<string | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [hasAutoLocated, setHasAutoLocated] = useState(false);
 
   // Sync marker position with initial props
   useEffect(() => {
@@ -116,6 +120,27 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       setMarkerPosition([initialLat, initialLng]);
     }
   }, [initialLat, initialLng]);
+
+  // Auto-request GPS on mount when enabled (e.g., when no initial coords)
+  useEffect(() => {
+    if (!autoLocateOnMount || hasAutoLocated || markerPosition) return;
+    if (!navigator.geolocation) return;
+
+    setHasAutoLocated(true);
+    setIsGettingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        if (isWithinPhilippineBounds(latitude, longitude)) {
+          setMarkerPosition([latitude, longitude]);
+          onLocationSelect(latitude, longitude);
+        }
+        setIsGettingLocation(false);
+      },
+      () => setIsGettingLocation(false),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }, [autoLocateOnMount, hasAutoLocated, markerPosition, onLocationSelect]);
 
   // ============================================================================
   // HANDLERS
