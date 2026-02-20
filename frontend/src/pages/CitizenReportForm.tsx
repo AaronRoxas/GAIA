@@ -1,12 +1,12 @@
 /**
  * Citizen Report Form (CR-01, CR-06)
- * Allows citizens to submit hazard reports with optional image upload and location
+ * Allows citizens to submit hazard reports with optional image upload
  * 
  * Features:
  * - Form validation with Zod schema
  * - Character limits and field sanitization
  * - Image upload component integration
- * - Location picker map widget
+ * - Required map location picker (pin on map or use GPS)
  * - Cloudflare Turnstile integration
  * - Honeypot field for spam prevention
  * - Mobile responsive design
@@ -17,7 +17,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 // import { Turnstile } from '@marsidev/react-turnstile'; // TEMPORARILY DISABLED
 // import type { TurnstileInstance } from '@marsidev/react-turnstile'; // TEMPORARILY DISABLED
-import { AlertCircle, Send, MapPin, Image as ImageIcon } from 'lucide-react';
+import { AlertCircle, Send, Image as ImageIcon } from 'lucide-react';
 import { ALL_HAZARD_TYPES } from '../hooks/useHazardFilters';
 import { HAZARD_ICON_REGISTRY, HazardIcon } from '../constants/hazard-icons';
 import ImageUpload from '../components/reports/ImageUpload';
@@ -26,13 +26,16 @@ import LocationPicker from '../components/reports/LocationPicker';
 import { API_BASE_URL } from '../lib/api';
 import { isValidPhilippinePhoneNumber } from '../utils/phoneValidation';
 
+/** Must match backend SUBMISSION_COOLDOWN_SECONDS. Cooldown starts on successful submit. */
+const SUBMISSION_COOLDOWN_SECONDS = 180;
+const COOLDOWN_STORAGE_KEY = 'citizen_report_cooldown_until';
+
 // ============================================================================
 // TYPES
 // ============================================================================
 
 interface FormData {
   hazardType: string;
-  locationName: string;
   description: string;
   name: string;
   contactNumber: string;
@@ -49,7 +52,6 @@ interface FormData {
 
 interface FormErrors {
   hazardType?: string;
-  locationName?: string;
   description?: string;
   name?: string;
   contactNumber?: string;
@@ -70,7 +72,6 @@ const CitizenReportForm: React.FC = () => {
   // Form state
   const [formData, setFormData] = useState<FormData>({
     hazardType: '',
-    locationName: '',
     description: '',
     name: '',
     contactNumber: '',
@@ -83,14 +84,28 @@ const CitizenReportForm: React.FC = () => {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
   /** When set, user is rate-limited until this timestamp (ms). Drives live countdown. */
   const [rateLimitRetryAt, setRateLimitRetryAt] = useState<number | null>(null);
+
+  // Restore cooldown from localStorage on mount (e.g. user submitted, went to confirmation, then "Submit Another Report")
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(COOLDOWN_STORAGE_KEY);
+      if (!stored) return;
+      const retryAt = Number(stored);
+      if (!Number.isFinite(retryAt) || retryAt <= Date.now()) {
+        localStorage.removeItem(COOLDOWN_STORAGE_KEY);
+        return;
+      }
+      setRateLimitRetryAt(retryAt);
+    } catch {
+      localStorage.removeItem(COOLDOWN_STORAGE_KEY);
+    }
+  }, []);
 
   // Character counts
   const descriptionLength = formData.description.length;
   const descriptionMax = 1000;
-  const locationNameMax = 200;
   const nameMax = 100;
 
   // Live countdown when rate-limited (updates every second)
@@ -108,6 +123,11 @@ const CitizenReportForm: React.FC = () => {
       if (remaining <= 0) {
         setRateLimitRetryAt(null);
         setErrors(prev => ({ ...prev, submit: undefined }));
+        try {
+          localStorage.removeItem(COOLDOWN_STORAGE_KEY);
+        } catch {
+          /* ignore */
+        }
         return;
       }
       setErrors(prev => ({
@@ -134,11 +154,9 @@ const CitizenReportForm: React.FC = () => {
       newErrors.hazardType = 'Invalid hazard type selected';
     }
 
-    // Location name validation
-    if (!formData.locationName.trim()) {
-      newErrors.locationName = 'Location name is required';
-    } else if (formData.locationName.length > locationNameMax) {
-      newErrors.locationName = `Location name must be ${locationNameMax} characters or less`;
+    // Map location validation (required - pin on map or use GPS)
+    if (formData.latitude == null || formData.longitude == null) {
+      newErrors.location = 'Please select the hazard location on the map (click the map or use "Use My Current Location")';
     }
 
     // Description validation
@@ -230,18 +248,11 @@ const CitizenReportForm: React.FC = () => {
       // Submit form to backend using FormData (backend expects multipart/form-data)
       const formDataPayload = new FormData();
       formDataPayload.append('hazard_type', formData.hazardType);
-      formDataPayload.append('location_name', formData.locationName);
       formDataPayload.append('description', formData.description);
       formDataPayload.append('name', formData.name.trim());
       formDataPayload.append('contact_number', formData.contactNumber.trim());
-      
-      // Add optional fields only if provided
-      if (formData.latitude !== undefined && formData.latitude !== null) {
-        formDataPayload.append('latitude', formData.latitude.toString());
-      }
-      if (formData.longitude !== undefined && formData.longitude !== null) {
-        formDataPayload.append('longitude', formData.longitude.toString());
-      }
+      formDataPayload.append('latitude', formData.latitude!.toString());
+      formDataPayload.append('longitude', formData.longitude!.toString());
       
       // CAPTCHA token - temporarily disabled, backend accepts null
       // if (turnstileToken) {
@@ -265,9 +276,14 @@ const CitizenReportForm: React.FC = () => {
         if (response.status === 429) {
           const retryAfter = typeof detail === 'object' && detail?.retry_after != null
             ? Number(detail.retry_after)
-            : 60;
+            : SUBMISSION_COOLDOWN_SECONDS;
           const retryAt = Date.now() + retryAfter * 1000;
           setRateLimitRetryAt(retryAt);
+          try {
+            localStorage.setItem(COOLDOWN_STORAGE_KEY, String(retryAt));
+          } catch {
+            /* ignore */
+          }
           setErrors(prev => ({
             ...prev,
             submit: `Too many report submissions. You can submit again in ${retryAfter} sec.`,
@@ -279,7 +295,16 @@ const CitizenReportForm: React.FC = () => {
       }
 
       const result = await response.json();
-      
+
+      // Start cooldown timer immediately on successful submit (so it's active when user returns via "Submit Another Report")
+      const retryAt = Date.now() + SUBMISSION_COOLDOWN_SECONDS * 1000;
+      setRateLimitRetryAt(retryAt);
+      try {
+        localStorage.setItem(COOLDOWN_STORAGE_KEY, String(retryAt));
+      } catch {
+        /* ignore */
+      }
+
       // // Reset Turnstile for potential resubmission - TEMPORARILY DISABLED
       // turnstileRef.current?.reset();
       // setTurnstileToken(null);
@@ -371,37 +396,6 @@ const CitizenReportForm: React.FC = () => {
                   {errors.hazardType}
                 </p>
               )}
-            </div>
-
-            {/* Location Name Input */}
-            <div>
-              <label htmlFor="location-name" className="block text-sm font-medium text-gray-700 mb-2">
-                Location Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="location-name"
-                type="text"
-                value={formData.locationName}
-                onChange={(e) => handleInputChange('locationName', e.target.value)}
-                maxLength={locationNameMax}
-                placeholder="e.g., Manggahan, General Trias"
-                className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.locationName ? 'border-red-500' : 'border-gray-300'
-                }`}
-                disabled={isSubmitting}
-              />
-              <div className="mt-1 flex justify-between items-center">
-                {errors.locationName ? (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle size={14} />
-                    {errors.locationName}
-                  </p>
-                ) : (
-                  <span className="text-sm text-gray-500">
-                    {formData.locationName.length}/{locationNameMax}
-                  </span>
-                )}
-              </div>
             </div>
 
             {/* Name Input */}
@@ -513,43 +507,29 @@ const CitizenReportForm: React.FC = () => {
               </p>
             </div>
 
-            {/* Location Picker Toggle */}
+            {/* Location Picker (Required) - Pin on map or use GPS */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Exact Location (Optional)
+                Hazard Location <span className="text-red-500">*</span>
               </label>
-              <button
-                type="button"
-                onClick={() => setShowLocationPicker(!showLocationPicker)}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
-                disabled={isSubmitting}
-              >
-                <MapPin size={16} />
-                {showLocationPicker ? 'Hide' : 'Show'} Location Picker
-              </button>
-              {formData.latitude && formData.longitude && (
-                <p className="mt-2 text-sm text-gray-600">
-                  Coordinates: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
-                </p>
-              )}
+              <p className="text-sm text-gray-500 mb-2">
+                Click on the map to place a marker, drag to adjust, or use &quot;Use My Current Location&quot; for GPS.
+              </p>
               {errors.location && (
-                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <p className="mb-2 text-sm text-red-600 flex items-center gap-1">
                   <AlertCircle size={14} />
                   {errors.location}
                 </p>
               )}
-            </div>
-
-            {/* Location Picker Map */}
-            {showLocationPicker && (
-              <div className="border rounded-lg overflow-hidden">
+              <div className={`border rounded-lg overflow-hidden ${errors.location ? 'ring-2 ring-red-200' : ''}`}>
                 <LocationPicker
                   initialLat={formData.latitude}
                   initialLng={formData.longitude}
                   onLocationSelect={handleLocationSelect}
+                  autoLocateOnMount
                 />
               </div>
-            )}
+            </div>
 
             {/* Honeypot Field (Hidden) */}
             <input

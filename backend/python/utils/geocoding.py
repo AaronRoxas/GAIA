@@ -279,6 +279,66 @@ def get_coordinates_from_nominatim_sync(location_string: str) -> Optional[Dict[s
         return None
 
 
+NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse"
+
+
+async def get_address_from_coordinates_async(lat: float, lon: float) -> Optional[str]:
+    """
+    Get human-readable address from coordinates using Nominatim reverse geocoding (async).
+    
+    Args:
+        lat: Latitude (WGS84)
+        lon: Longitude (WGS84)
+        
+    Returns:
+        display_name string from Nominatim (e.g., "Barangay, City, Province, Philippines"),
+        or None if reverse geocoding fails
+    """
+    global _last_nominatim_call_time
+
+    if not _is_within_philippine_bounds(lat, lon):
+        logger.debug("Coordinates outside Philippine bounds for reverse geocoding")
+        return None
+
+    try:
+        sleep_time = 0.0
+        with _nominatim_lock:
+            current_time = time.time()
+            time_since_last = current_time - _last_nominatim_call_time
+            if time_since_last < 1.0:
+                sleep_time = 1.0 - time_since_last
+
+        if sleep_time > 0:
+            await asyncio.sleep(sleep_time)
+
+        params = {
+            "lat": str(lat),
+            "lon": str(lon),
+            "format": "jsonv2",
+        }
+
+        async with httpx.AsyncClient(timeout=NOMINATIM_TIMEOUT) as client:
+            response = await client.get(
+                NOMINATIM_REVERSE_URL,
+                params=params,
+                headers=_get_headers(),
+            )
+            response.raise_for_status()
+
+        with _nominatim_lock:
+            _last_nominatim_call_time = time.time()
+
+        data = response.json()
+        display_name = data.get("display_name") if isinstance(data, dict) else None
+        if display_name:
+            logger.info(f"Reverse geocoded coordinates to: {display_name[:60]}...")
+        return display_name
+
+    except Exception as e:
+        logger.warning(f"Reverse geocoding failed for ({lat}, {lon}): {e}")
+        return None
+
+
 def get_centroid_from_geocoding(name: str, hierarchy: Dict) -> Optional[Dict[str, float]]:
     """
     Get centroid coordinates for an administrative boundary using Nominatim.
