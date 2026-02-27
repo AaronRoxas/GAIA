@@ -8,14 +8,19 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Environment variables from docker-compose.yml
+// Environment variables - injected at build time by CRA (react-scripts)
+// Vercel/Docker must set these BEFORE `npm run build` runs
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
 // Validate environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'PLACEHOLDER_SET_IN_VERCEL') {
   throw new Error(
-    'Missing Supabase environment variables. Ensure REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY are set in docker-compose.yml or .env file.'
+    'Missing Supabase environment variables. ' +
+    'REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY must be set as build-time env vars. ' +
+    'For Vercel: set in dashboard Settings → Environment Variables (Production). ' +
+    'For Docker: set as ARG/ENV in Dockerfile or in docker-compose.yml. ' +
+    'Then redeploy (without build cache).'
   );
 }
 
