@@ -7,9 +7,8 @@ services:
     container_name: gaia-backend-prod
     command: uvicorn backend.python.main:app --host 0.0.0.0 --port 8000 --workers 2
     ports:
-      - "${PORT:-8000}:8000"  # Railway sets PORT env var
+      - "${PORT:-8000}:8000"
     environment:
-      # Cloud Supabase connection (from .env file)
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
@@ -26,7 +25,7 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - RSS_FEEDS=${RSS_FEEDS:-https://www.gmanetwork.com/news/rss/news/}
     volumes:
-      - ai-models:/app/models  # Named volume for AI models cache
+      - ai-models:/app/models
     networks:
       - gaia-network
     restart: unless-stopped
@@ -35,32 +34,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 300s  # AI model download + loading can take 5+ min on first run
-
-  # Frontend React PWA (Production Build with Nginx)
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    container_name: gaia-frontend-prod
-    ports:
-      - "3000:80"  # Nginx serves on port 80 internally
-    environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://backend:8000}
-      - REACT_APP_SUPABASE_URL=${SUPABASE_URL}
-      - REACT_APP_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-      - REACT_APP_RECAPTCHA_SITE_KEY=${REACT_APP_RECAPTCHA_SITE_KEY}
-    networks:
-      - gaia-network
-    depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      start_period: 300s
 
   # Redis (Celery Broker)
   redis:
