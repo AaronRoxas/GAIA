@@ -166,9 +166,9 @@ export const adminApi = {
       });
     },
 
-    reject: (trackingId: string, payload?: { notes?: string | null }) => {
-      const body: Record<string, unknown> = {};
-      if (payload?.notes !== undefined) {
+    reject: (trackingId: string, payload: { reason: string; notes?: string | null }) => {
+      const body: Record<string, unknown> = { reason: payload.reason };
+      if (payload.notes !== undefined) {
         body.notes = payload.notes;
       }
 
