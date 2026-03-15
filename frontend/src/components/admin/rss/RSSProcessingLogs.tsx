@@ -488,7 +488,7 @@ export function RSSProcessingLogs() {
       </div>
 
       {/* Info Bar */}
-      <div className="flex items-center justify-between rounded-md bg-muted px-4 py-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-y-1 rounded-md bg-muted px-4 py-2 text-sm">
         <span>
           Showing {logs.length} of {totalLogs} log entries
         </span>
@@ -498,7 +498,7 @@ export function RSSProcessingLogs() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -551,7 +551,7 @@ export function RSSProcessingLogs() {
       </div>
 
       {/* Server-Side Pagination */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-y-2">
         <div className="text-sm text-muted-foreground">
           Page {currentPage} of {totalPages} ({totalLogs} total entries)
         </div>

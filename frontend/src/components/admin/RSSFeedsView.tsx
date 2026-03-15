@@ -28,7 +28,7 @@ export default function RSSFeedsView() {
 
       {/* Tabs */}
       <Tabs defaultValue="feeds" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 lg:w-[520px]">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-[520px] !h-auto">
           <TabsTrigger value="feeds">Feed Manager</TabsTrigger>
           <TabsTrigger value="articles">Articles</TabsTrigger>
           <TabsTrigger value="logs">Processing Logs</TabsTrigger>

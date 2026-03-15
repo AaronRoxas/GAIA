@@ -233,7 +233,7 @@ export function RSSStatistics() {
   return (
     <div className="w-full space-y-6">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-y-2">
         <div className="flex items-center gap-4">
           <div className="flex items-center space-x-2">
             <Switch
