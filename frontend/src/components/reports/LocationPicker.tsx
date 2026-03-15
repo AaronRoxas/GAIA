@@ -224,7 +224,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   return (
     <div className="space-y-3">
       {/* Use Current Location Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <button
           type="button"
           onClick={handleUseCurrentLocation}
@@ -261,12 +261,12 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       )}
 
       {/* Map Container */}
-      <div className="border rounded-lg overflow-hidden" style={{ height: '400px' }}>
+      <div className="border rounded-lg overflow-hidden h-[280px] sm:h-[350px] md:h-[400px]">
         <MapContainer
           center={markerPosition || DEFAULT_CENTER}
           zoom={markerPosition ? 13 : DEFAULT_ZOOM}
           style={{ height: '100%', width: '100%' }}
-          scrollWheelZoom={true}
+          scrollWheelZoom={false}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

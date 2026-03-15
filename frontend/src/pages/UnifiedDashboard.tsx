@@ -238,7 +238,7 @@ export default function UnifiedDashboard() {
   return (
     <RSSAutoProcessProvider>
       <SidebarProvider>
-        <div className="flex h-screen w-full overflow-hidden">
+        <div className="flex h-dvh h-screen w-full overflow-hidden">
           {/* Sidebar */}
           <Sidebar className="border-r" data-tour="sidebar">
           <SidebarContent>
@@ -297,7 +297,7 @@ export default function UnifiedDashboard() {
         </Sidebar>
 
         {/* Main Content */}
-        <SidebarInset className="flex-1 overflow-auto">
+        <SidebarInset className="flex-1 min-w-0 overflow-auto">
           <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4" data-tour="admin-header">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
@@ -310,7 +310,7 @@ export default function UnifiedDashboard() {
             </div>
           </header>
           
-          <main className="p-6">
+          <main className="p-3 sm:p-4 md:p-6">
             {renderViewContent()}
           </main>
 
