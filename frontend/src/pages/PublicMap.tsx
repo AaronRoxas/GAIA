@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, ScaleControl, LayersControl, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { OpenStreetMapProvider } from 'leaflet-geosearch';
 import { fetchValidatedHazards, HazardResponse } from '../services/hazardsApi';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from '../components/ui/alert';
 import { Card } from '../components/ui/card';
@@ -136,13 +137,12 @@ const severityColors: Record<string, string> = {
 const PublicMap: React.FC = () => {
   const { user } = useAuth(); // Get authenticated user
   const [hazards, setHazards] = useState<Hazard[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isLegendVisible, setIsLegendVisible] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [showSettings, setShowSettings] = useState(false);
+  const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(false);
   
   // Accessibility: Live region announcements
   const [announcement, setAnnouncement] = useState<string>('');
@@ -172,42 +172,46 @@ const PublicMap: React.FC = () => {
   // Filter hook (FP-01, FP-02, FP-03, FP-04) - replaces old layer visibility filters
   const { applyFilters } = useHazardFilters();
 
-  // Fetch validated hazards from backend proxy API (PATCH-1.4: Secure API migration)
-  // Replaces direct Supabase access to remove exposed credentials
-  const fetchHazards = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await fetchValidatedHazards({
-        limit: 1000, // Max limit to fetch all validated hazards
-        // No timeWindowHours - fetch all validated hazards, filtering happens client-side
-      });
+  // Fetch validated hazards with React Query (PATCH-1.4: Secure API migration)
+  // Replaces the old useCallback/setInterval polling pattern.
+  // Benefits: request deduplication, 30s stale cache, automatic background refresh.
+  const {
+    data: hazardData,
+    isLoading: loading,
+    isError,
+    error: queryError,
+    refetch,
+  } = useQuery<HazardResponse[], Error>({
+    queryKey: ['hazards', 'validated', 'public'],
+    queryFn: () => fetchValidatedHazards({ limit: 1000 }),
+    staleTime: 30_000,        // data stays fresh for 30s — matches old polling interval
+    refetchInterval: 30_000,  // auto-refresh every 30s for live map updates
+    refetchOnWindowFocus: false,
+  });
 
-      // Map API response to local Hazard interface
-      const hazards = data.map(mapResponseToHazard);
-      setHazards(hazards);
-      setError(null);
-      setLastUpdated(new Date());
-      
-      // Accessibility: Announce update to screen readers
-      setAnnouncement(`Hazard data refreshed. ${hazards.length} active hazards loaded.`);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error('Error fetching hazards:', errorMessage);
-      setError('Failed to load hazard data. Please try again later.');
-      setAnnouncement('Error: Failed to load hazard data.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Sync query data into local hazards state and update accessibility announcements
   useEffect(() => {
-    fetchHazards();
+    if (hazardData) {
+      const mapped = hazardData.map(mapResponseToHazard);
+      setHazards(mapped);
+      setLastUpdated(new Date());
+      setAnnouncement(`Hazard data refreshed. ${mapped.length} active hazards loaded.`);
+    }
+  }, [hazardData]);
 
-    // Refresh hazards every 30 seconds for real-time updates
-    const interval = setInterval(fetchHazards, 30000);
+  // Announce fetch errors to screen readers
+  useEffect(() => {
+    if (isError) {
+      setAnnouncement('Error: Failed to load hazard data.');
+    }
+  }, [isError]);
 
-    return () => clearInterval(interval);
-  }, [fetchHazards]);
+  // Close mobile controls panel whenever the sidebar opens so they don't overlap
+  useEffect(() => {
+    if (isSidebarOpen) {
+      setIsMobileControlsOpen(false);
+    }
+  }, [isSidebarOpen]);
 
   // Default map center: Manila, Philippines
   const philippinesCenter: [number, number] = [14.5995, 120.9842];
@@ -658,10 +662,30 @@ const PublicMap: React.FC = () => {
           role="application"
           aria-label="Interactive hazard map of the Philippines"
         >
+          {/* Mobile Controls Toggle Button — visible only on small screens when sidebar is closed */}
+          {!isSidebarOpen && (
+            <button
+              className="sm:hidden absolute top-4 right-4 z-[1001] p-2.5 bg-white/95 backdrop-blur-sm shadow-lg rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
+              onClick={() => setIsMobileControlsOpen(prev => !prev)}
+              aria-label={isMobileControlsOpen ? 'Hide map controls' : 'Show map controls'}
+              aria-expanded={isMobileControlsOpen}
+              aria-controls="mobile-controls-panel"
+              data-map-control="true"
+            >
+              {isMobileControlsOpen
+                ? <X className="w-5 h-5 text-gray-700" aria-hidden="true" />
+                : <Layers className="w-5 h-5 text-gray-700" aria-hidden="true" />
+              }
+            </button>
+          )}
+
           {/* Unified Floating Controls Panel - Top Right */}
-          <Card 
-            className={`absolute top-4 sm:top-6 right-4 sm:right-6 z-[1000] bg-white/95 backdrop-blur-sm shadow-lg border border-gray-200 w-[280px] sm:w-[300px] transition-all duration-300 motion-reduce:transition-none ${
-              isSidebarOpen ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : 'opacity-100'
+          <Card
+            id="mobile-controls-panel"
+            className={`absolute right-4 sm:right-6 z-[1000] bg-white/95 backdrop-blur-sm shadow-lg border border-gray-200 w-[280px] sm:w-[300px] max-h-[75vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all duration-300 motion-reduce:transition-none ${
+              isMobileControlsOpen && !isSidebarOpen ? 'top-[3.75rem] block' : 'top-4 sm:top-6 hidden sm:block'
+            } ${
+              isSidebarOpen ? 'sm:opacity-0 sm:pointer-events-none md:opacity-100 md:pointer-events-auto' : ''
             }`}
             data-map-control="true"
             role="region"
@@ -903,8 +927,8 @@ const PublicMap: React.FC = () => {
           </Card>
 
           {/* Error Alert - Enhanced Styling */}
-          {error && (
-            <div 
+          {isError && (
+            <div
               className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1100] max-w-md w-full px-4"
               role="alert"
               aria-live="assertive"
@@ -914,9 +938,9 @@ const PublicMap: React.FC = () => {
                   <AlertTriangle className="h-5 w-5 mt-0.5 text-red-600 shrink-0" aria-hidden="true" />
                   <div>
                     <p className="text-red-800 font-medium">Error Loading Data</p>
-                    <p className="text-red-700 text-sm mt-1">{error}</p>
+                    <p className="text-red-700 text-sm mt-1">{queryError?.message || 'Failed to load hazard data. Please try again later.'}</p>
                     <button
-                      onClick={fetchHazards}
+                      onClick={() => refetch()}
                       className="mt-2 text-sm font-medium text-red-700 hover:text-red-800 underline focus:outline-none focus:ring-2 focus:ring-red-500 rounded"
                     >
                       Try again

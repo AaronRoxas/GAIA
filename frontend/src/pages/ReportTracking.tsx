@@ -5,13 +5,16 @@
  * Allows users to check the status of their submitted report using tracking ID
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Search, CheckCircle, Clock, XCircle, AlertTriangle, MapPin, Calendar, FileText } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Search, CheckCircle, Clock, XCircle, AlertTriangle, MapPin, Calendar, FileText, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { HazardIcon, getHazardIcon } from '../constants/hazard-icons';
+import { API_BASE_URL } from '../lib/api';
 
 interface ReportStatus {
   tracking_id: string;
@@ -25,44 +28,53 @@ interface ReportStatus {
   notes?: string;
 }
 
+/**
+ * Render the report-tracking UI allowing a user to enter a tracking ID and view the status and details of a submitted hazard report.
+ *
+ * Displays a search form for a tracking ID, shows loading and error states, and conditionally renders a detailed report card (status badge, metadata, description, verification and notes, and action links) when a report is found. When no report is present, shows help guidance.
+ *
+ * @returns A React element containing the tracking form, conditional report details, and help content
+ */
 export function ReportTracking() {
   const [searchParams] = useSearchParams();
   const initialId = searchParams.get('id') || '';
-  
+
   const [trackingId, setTrackingId] = useState(initialId);
-  const [report, setReport] = useState<ReportStatus | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [submittedTrackingId, setSubmittedTrackingId] = useState('');
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!trackingId.trim()) {
-      setError('Please enter a tracking ID');
-      return;
+  // Auto-trigger search when a tracking ID is present in the URL on mount
+  useEffect(() => {
+    if (initialId) {
+      setSubmittedTrackingId(initialId);
     }
+  }, [initialId]);
 
-    setLoading(true);
-    setError(null);
-    setReport(null);
-
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/v1/citizen-reports/track/${trackingId}`);
-      
+  const {
+    data: report,
+    isFetching,
+    isError,
+    error,
+  } = useQuery<ReportStatus>({
+    queryKey: ['report-tracking', submittedTrackingId],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/api/v1/citizen-reports/track/${submittedTrackingId}`);
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('Report not found. Please check your tracking ID.');
         }
         throw new Error('Failed to retrieve report status');
       }
+      return response.json();
+    },
+    enabled: !!submittedTrackingId,
+    staleTime: 60_000,
+    retry: 1,
+  });
 
-      const data = await response.json();
-      setReport(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!trackingId.trim()) return;
+    setSubmittedTrackingId(trackingId.trim());
   };
 
   const getStatusBadge = (status: string) => {
@@ -122,11 +134,20 @@ export function ReportTracking() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
+        {/* Back Navigation */}
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Back to Home
+        </Link>
+
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">
             Track Your Report
           </h1>
           <p className="text-lg text-gray-600">
@@ -141,23 +162,23 @@ export function ReportTracking() {
               <label htmlFor="tracking-id" className="block text-sm font-medium text-gray-700 mb-2">
                 Tracking ID
               </label>
-              <div className="flex gap-3 items-center">
-                <input
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <Input
                   id="tracking-id"
                   type="text"
                   value={trackingId}
                   onChange={(e) => setTrackingId(e.target.value.toUpperCase())}
                   placeholder="CR20241102ABCD1234"
-                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all font-mono text-lg"
-                  disabled={loading}
+                  className="flex-1 font-mono text-base h-12"
+                  disabled={isFetching}
                 />
                 <Button
                   type="submit"
-                  disabled={loading || !trackingId.trim()}
+                  disabled={isFetching || !trackingId.trim()}
                   size="lg"
-                  className="px-8"
+                  className="w-full sm:w-auto px-8"
                 >
-                  {loading ? (
+                  {isFetching ? (
                     <>
                       <div className="animate-spin mr-2 h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
                       Searching...
@@ -172,10 +193,10 @@ export function ReportTracking() {
               </div>
             </div>
             
-            {error && (
+            {isError && (
               <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 flex items-start gap-3">
                 <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800">{error}</p>
+                <p className="text-sm text-red-800">{error instanceof Error ? error.message : 'An error occurred'}</p>
               </div>
             )}
           </form>
@@ -185,9 +206,9 @@ export function ReportTracking() {
         {report && (
           <Card className="p-8 shadow-xl animate-fade-in">
             {/* Status Badge */}
-            <div className="flex justify-between items-start mb-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between items-start gap-3 mb-6">
               {getStatusBadge(report.status)}
-              <div className="text-right">
+              <div className="text-left sm:text-right">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Tracking ID</p>
                 <code className="text-sm font-mono font-semibold text-gray-900">{report.tracking_id}</code>
               </div>
@@ -289,7 +310,7 @@ export function ReportTracking() {
         )}
 
         {/* Help Section */}
-        {!report && !loading && (
+        {!report && !isFetching && (
           <Card className="p-6 bg-blue-50 border-2 border-blue-200">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-blue-600" />

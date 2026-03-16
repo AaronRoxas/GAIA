@@ -116,6 +116,12 @@ export function useRealtimeHazards() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
           await supabase.realtime.setAuth(session.access_token);
+        } else {
+          // No active session — unauthenticated users cannot subscribe to
+          // postgres_changes. Fall back to polling silently instead of showing
+          // a confusing "Real-time notifications unavailable" error toast.
+          startPollingFallback();
+          return;
         }
 
         const channel = supabase
@@ -215,9 +221,9 @@ export function useRealtimeHazards() {
                 break;
               case 'CHANNEL_ERROR':
                 // eslint-disable-next-line no-console
-                console.error('[Realtime] ❌ Channel error:', err);
-                toast.error('Real-time notifications unavailable', {
-                  description: 'You may need to refresh to see new hazards'
+                console.warn('[Realtime] ⚠️ Channel error (falling back to polling):', err);
+                toast.warning('Real-time notifications unavailable', {
+                  description: 'Hazard updates will refresh every 30 seconds'
                 });
                 // Start polling fallback when channel has errors
                 startPollingFallback();
