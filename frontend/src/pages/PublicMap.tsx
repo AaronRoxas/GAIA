@@ -673,6 +673,7 @@ const PublicMap: React.FC = () => {
               onClick={() => setIsMobileControlsOpen(prev => !prev)}
               aria-label={isMobileControlsOpen ? 'Hide map controls' : 'Show map controls'}
               aria-expanded={isMobileControlsOpen}
+              aria-controls="mobile-controls-panel"
               data-map-control="true"
             >
               {isMobileControlsOpen
@@ -684,8 +685,9 @@ const PublicMap: React.FC = () => {
 
           {/* Unified Floating Controls Panel - Top Right */}
           <Card
+            id="mobile-controls-panel"
             className={`absolute right-4 sm:right-6 z-[1000] bg-white/95 backdrop-blur-sm shadow-lg border border-gray-200 w-[280px] sm:w-[300px] max-h-[75vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all duration-300 motion-reduce:transition-none ${
-              isMobileControlsOpen ? 'top-[3.75rem] block' : 'top-4 sm:top-6 hidden sm:block'
+              isMobileControlsOpen && !isSidebarOpen ? 'top-[3.75rem] block' : 'top-4 sm:top-6 hidden sm:block'
             } ${
               isSidebarOpen ? 'sm:opacity-0 sm:pointer-events-none md:opacity-100 md:pointer-events-auto' : ''
             }`}

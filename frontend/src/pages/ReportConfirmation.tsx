@@ -27,7 +27,7 @@ export function ReportConfirmation() {
 
   if (!trackingId) {
     return (
-      <div className="min-h-screen bg-[#F0F4F8] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 text-center">
           <p className="text-red-600 font-semibold">Invalid confirmation page</p>
           <Link to="/report" className="text-blue-600 hover:text-blue-700 underline mt-4 block">
@@ -39,7 +39,7 @@ export function ReportConfirmation() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F4F8] py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         {/* Success Icon */}
         <div className="flex justify-center mb-8 animate-bounce-slow">

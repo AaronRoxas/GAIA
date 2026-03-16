@@ -123,7 +123,7 @@ export function ReportTracking() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F4F8] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         {/* Back Navigation */}
         <Link
@@ -151,7 +151,7 @@ export function ReportTracking() {
               <label htmlFor="tracking-id" className="block text-sm font-medium text-gray-700 mb-2">
                 Tracking ID
               </label>
-              <div className="flex gap-3 items-center">
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                 <Input
                   id="tracking-id"
                   type="text"
@@ -165,7 +165,7 @@ export function ReportTracking() {
                   type="submit"
                   disabled={loading || !trackingId.trim()}
                   size="lg"
-                  className="px-8"
+                  className="w-full sm:w-auto px-8"
                 >
                   {loading ? (
                     <>

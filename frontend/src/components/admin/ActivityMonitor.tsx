@@ -196,7 +196,7 @@ export default function ActivityMonitor() {
             <CardDescription>Real-time user actions (auto-refreshes every 30s)</CardDescription>
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefetching}>
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefetching} aria-label="Refresh">
               <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToCSV(logs)} disabled={logs.length === 0}>
@@ -298,7 +298,7 @@ export default function ActivityMonitor() {
                 <div><p className="text-sm font-medium text-muted-foreground">Timestamp</p><p className="text-sm">{format(parseISO(detailsDialog.log.timestamp), 'PPpp')}</p></div>
                 <div><p className="text-sm font-medium text-muted-foreground">Resource</p><p className="text-sm">{detailsDialog.log.resource_type}</p></div>
                 <div><p className="text-sm font-medium text-muted-foreground">Resource ID</p><p className="text-sm font-mono">{detailsDialog.log.resource_id || 'N/A'}</p></div>
-                <div className="col-span-2"><p className="text-sm font-medium text-muted-foreground">IP Address</p><p className="text-sm font-mono">{detailsDialog.log.ip_address || 'N/A'}</p></div>
+                <div className="sm:col-span-2"><p className="text-sm font-medium text-muted-foreground">IP Address</p><p className="text-sm font-mono">{detailsDialog.log.ip_address || 'N/A'}</p></div>
               </div>
               {detailsDialog.log.details && Object.keys(detailsDialog.log.details).length > 0 && (
                 <div>

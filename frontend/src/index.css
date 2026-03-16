@@ -202,6 +202,12 @@ code {
   .card-lift {
     @apply transition-shadow duration-200 hover:shadow-md;
   }
+
+  /* Dot-grid overlay for dark panels */
+  .dot-grid {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
 }
 
 @layer base {

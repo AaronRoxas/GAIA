@@ -79,7 +79,7 @@ const UpdatePassword: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-auth px-4">
         <Card className="w-full max-w-md p-8 shadow-lg border border-slate-200 rounded-xl">
           <div className="text-center space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0A2A4D] mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
             <p className="text-muted-foreground">Validating reset link…</p>
           </div>
         </Card>
@@ -90,7 +90,7 @@ const UpdatePassword: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-auth px-4 py-12">
       <div className="w-full max-w-md">
-      <Card className="p-8 space-y-6 shadow-lg bg-white rounded-xl border border-slate-200 border-t-[3px] border-t-[#0A2A4D]">
+      <Card className="p-8 space-y-6 shadow-lg bg-white rounded-xl border border-slate-200 border-t-[3px] border-t-primary">
         <div className="text-center space-y-4">
           <div className="flex justify-center">
             <img
@@ -100,7 +100,7 @@ const UpdatePassword: React.FC = () => {
             />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight text-[#0A2A4D]">Set New Password</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-primary">Set New Password</h1>
             <p className="text-sm text-muted-foreground">
               Enter your new password below
             </p>
@@ -216,7 +216,7 @@ const UpdatePassword: React.FC = () => {
         <div className="text-center">
           <Link
             to="/login"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-[#0A2A4D] transition-colors"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
           >
             <ArrowLeft className="h-3 w-3" />
             Back to Login

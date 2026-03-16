@@ -552,8 +552,8 @@ export function RSSFeedManager() {
   return (
     <div className="w-full space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <Input
             placeholder="Filter feeds..."
             value={
@@ -562,7 +562,7 @@ export function RSSFeedManager() {
             onChange={(event) =>
               table.getColumn('feed_name')?.setFilterValue(event.target.value)
             }
-            className="w-full sm:max-w-sm"
+            className="flex-1 min-w-0 sm:max-w-sm"
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

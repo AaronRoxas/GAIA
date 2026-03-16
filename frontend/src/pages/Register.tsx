@@ -51,7 +51,9 @@ export default function Register() {
       
       // User-friendly error messages
       const errorMessage = err instanceof Error ? err.message : String(err);
-      if (errorMessage.includes('already registered')) {
+      if (errorMessage.includes('Self-registration is disabled')) {
+        setError('Self-registration is disabled. Please contact your administrator to create an account.');
+      } else if (errorMessage.includes('already registered')) {
         setError('This email is already registered. Please log in instead.');
       } else if (errorMessage.includes('Invalid email')) {
         setError('Please enter a valid email address.');

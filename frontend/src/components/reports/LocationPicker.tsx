@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Navigation, AlertCircle, Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
@@ -94,6 +94,26 @@ const MapClickHandler: React.FC<MapClickHandlerProps> = ({ onLocationClick }) =>
       }
     },
   });
+  return null;
+};
+
+// ============================================================================
+// MAP VIEWPORT SYNC COMPONENT
+// ============================================================================
+
+interface MapViewportSyncProps {
+  markerPosition: [number, number] | null;
+}
+
+const MapViewportSync: React.FC<MapViewportSyncProps> = ({ markerPosition }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    const center = markerPosition ?? DEFAULT_CENTER;
+    const zoom = markerPosition ? 13 : DEFAULT_ZOOM;
+    map.setView(center, zoom);
+  }, [map, markerPosition]);
+
   return null;
 };
 
@@ -275,6 +295,9 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
 
           {/* Map Click Handler */}
           <MapClickHandler onLocationClick={handleMapClick} />
+
+          {/* Sync viewport when marker changes */}
+          <MapViewportSync markerPosition={markerPosition} />
 
           {/* Draggable Marker */}
           {markerPosition && (

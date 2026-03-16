@@ -1,7 +1,12 @@
 import React from 'react';
 
+interface HighlightItem {
+  label: string;
+  description: string;
+}
+
 export const SocialProofSection: React.FC = () => {
-  const highlights = [
+  const highlights: HighlightItem[] = [
     {
       label: 'Multi-Source Ingestion',
       description: 'Monitors RSS feeds from GMA News, Rappler, Inquirer, and more.',
@@ -17,18 +22,14 @@ export const SocialProofSection: React.FC = () => {
   ];
 
   return (
-    <div className="bg-[#0a2a4d] w-full relative overflow-hidden">
+    <div className="bg-primary w-full relative overflow-hidden">
       {/* Subtle dot-grid texture */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none dot-grid"
         aria-hidden="true"
-        style={{
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
       />
       {/* Orange top accent */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-[#FF7A00]" />
+      <div className="absolute top-0 left-0 right-0 h-1 bg-accent" />
 
       <div className="relative z-10 box-border flex flex-col gap-10 items-center justify-center px-4 sm:px-6 lg:px-16 py-16 sm:py-20 w-full max-w-screen-xl mx-auto">
 
@@ -49,7 +50,7 @@ export const SocialProofSection: React.FC = () => {
               className="flex flex-col gap-2 items-start bg-white/[0.08] border border-white/10 rounded-xl px-5 py-5 backdrop-blur-sm"
             >
               {/* Accent dot */}
-              <div className="w-2 h-2 rounded-full bg-[#FF7A00] mb-1" />
+              <div className="w-2 h-2 rounded-full bg-accent mb-1" />
               <h3 className="font-lato font-bold text-[15px] sm:text-[16px] text-white leading-snug">
                 {item.label}
               </h3>
