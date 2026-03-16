@@ -92,12 +92,12 @@ const CitizenReportSchema = z.object({
     'Please select the hazard location on the map (click the map or use "Use My Current Location")'
   ),
 
-  description: z.string()
+  description: z.string().trim()
     .min(1, 'Description is required')
     .min(20, 'Description must be at least 20 characters')
     .max(descriptionMax, `Description must be ${descriptionMax} characters or less`),
 
-  name: z.string()
+  name: z.string().trim()
     .min(1, 'Name is required')
     .max(nameMax, `Name must be ${nameMax} characters or less`)
     .min(2, 'Name must be at least 2 characters'),
