@@ -43,10 +43,10 @@ export const SocialProofSection: React.FC = () => {
         </div>
 
         {/* Feature highlights */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full max-w-4xl">
-          {highlights.map((item, i) => (
-            <div
-              key={i}
+        <ul aria-label="Feature highlights" className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 w-full max-w-4xl">
+          {highlights.map((item) => (
+            <li
+              key={item.label}
               className="flex flex-col gap-2 items-start bg-white/[0.08] border border-white/10 rounded-xl px-5 py-5 backdrop-blur-sm"
             >
               {/* Accent dot */}
@@ -57,9 +57,9 @@ export const SocialProofSection: React.FC = () => {
               <p className="font-lato text-[13px] sm:text-[14px] leading-[22px] text-blue-200">
                 {item.description}
               </p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </div>
   );

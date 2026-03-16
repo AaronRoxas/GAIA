@@ -248,7 +248,7 @@ export default function UnifiedDashboard() {
   return (
     <RSSAutoProcessProvider>
       <SidebarProvider>
-        <div className="flex h-dvh h-screen w-full overflow-hidden">
+        <div className="flex h-screen w-full overflow-hidden">
           {/* Sidebar */}
           <Sidebar className="border-r" data-tour="sidebar">
           <SidebarContent>

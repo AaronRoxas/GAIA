@@ -94,8 +94,13 @@ function exportToCSV(data: ActivityLog[]) {
   toast.success(`Exported ${data.length} logs`);
 }
 
+interface PaginationControlsProps {
+  table: ReturnType<typeof useReactTable<ActivityLog>>;
+  totalLogs: number;
+}
+
 /** Reusable pagination controls for top and bottom of the table */
-function PaginationControls({ table, totalLogs }: { table: ReturnType<typeof useReactTable<ActivityLog>>; totalLogs: number }) {
+function PaginationControls({ table, totalLogs }: PaginationControlsProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-y-2">
       <div className="text-sm text-muted-foreground">
