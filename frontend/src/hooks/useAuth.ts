@@ -109,7 +109,7 @@ async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
       throw error;
     }
 
-    console.log('[useAuth] Profile fetched successfully:', data?.email);
+    console.log('[useAuth] Profile fetched successfully for user:', userId);
     return data as UserProfile;
   } catch (error) {
     const duration = performance.now() - startTime;
@@ -127,27 +127,44 @@ export function useCurrentUser() {
     queryKey: queryKeys.auth.currentUser(),
     queryFn: async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
-      
+
       if (error) {
-        console.error('[useAuth] User retrieval error:', error.message);
-        
-        // Clear invalid sessions
-        if (error.message.includes('session_not_found') || 
+        // Expected state for unauthenticated users visiting public pages — silently return null
+        if (error.message.includes('Auth session missing') ||
+            error.message.includes('AuthSessionMissingError')) {
+          return null;
+        }
+
+        // Clear invalid/corrupted sessions
+        if (error.message.includes('session_not_found') ||
             error.message.includes('invalid') ||
             error.message.includes('JWT') ||
             error.message.includes('expired')) {
-          console.warn('[useAuth] Clearing invalid session');
+          console.warn('[useAuth] Clearing invalid session:', error.message);
           await supabase.auth.signOut();
-          localStorage.clear();
+          // Clear only Supabase auth-related keys
+          Object.keys(localStorage).filter(key => key.startsWith('sb-') || key.includes('supabase')).forEach(key => localStorage.removeItem(key));
+          throw error;
         }
+
+        // Any other unexpected error
+        console.warn('[useAuth] User retrieval error:', error.message);
         throw error;
       }
-      
+
       return user;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - profile rarely changes
     gcTime: 30 * 60 * 1000, // 30 minutes in cache
-    retry: 1, // Only retry once for auth errors
+    retry: (failureCount, error: unknown) => {
+      // Never retry for "Auth session missing" — expected for unauthenticated users
+      const err = error as { message?: string };
+      if (err?.message?.includes('Auth session missing') ||
+          err?.message?.includes('AuthSessionMissingError')) {
+        return false;
+      }
+      return failureCount < 1; // Retry once for all other errors
+    },
   });
 }
 
@@ -243,13 +260,13 @@ export function useSignIn() {
         );
         throw new Error(`Account is ${profile.status}. Contact ICTD administrator.`);
       }
+
+      // Return profile with updated last_login value
+      const updatedProfile = profile && last_login 
+        ? { ...profile, last_login } 
+        : profile;
       
-      // Update profile with the new last_login value
-      if (profile && last_login) {
-        profile.last_login = last_login;
-      }
-      
-      return { user: data.user, profile, session: data.session };
+      return { user: data.user, profile: updatedProfile, session: data.session };
     },
     onSuccess: (data) => {
       // Invalidate and refetch current user and profile
