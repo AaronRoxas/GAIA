@@ -327,12 +327,14 @@ async def get_hazard_by_id(
                 lambda: supabase.schema("gaia").from_("hazards").select("*").eq("id", hazard_id).execute()
             )
             if not response.data or len(response.data) == 0:
-                return None
+                # Return a sentinel dict instead of None so get_or_set can cache
+                # the "not found" result and avoid repeated DB hits.
+                return {"__hazard_not_found__": True}
             return response.data[0]
 
         data = await get_or_set(cache_key, fetch_hazard, ttl=CACHE_TTLS.get("hazards:detail", 30))
 
-        if data is None:
+        if data is None or (isinstance(data, dict) and data.get("__hazard_not_found__") is True):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Hazard not found: {hazard_id}"
