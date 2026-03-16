@@ -106,7 +106,7 @@ export default function ActivityMonitor() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [detailsDialog, setDetailsDialog] = useState<{ open: boolean; log: ActivityLog | null }>({ open: false, log: null });
 
-  const { data: logs = [], isLoading, refetch, isRefetching } = useQuery({
+  const { data: logs = [], isLoading, isError, error, refetch, isRefetching } = useQuery({
     queryKey: ['admin', 'activity'],
     queryFn: fetchActivityLogs,
     refetchInterval: 30000,
@@ -259,6 +259,8 @@ export default function ActivityMonitor() {
             <TableBody>
               {isLoading ? (
                 <TableRow><TableCell colSpan={columns.length} className="h-24 text-center">Loading...</TableCell></TableRow>
+              ) : isError ? (
+                <TableRow><TableCell colSpan={columns.length} className="h-24 text-center text-destructive">Failed to load activity logs: {error?.message}</TableCell></TableRow>
               ) : table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>

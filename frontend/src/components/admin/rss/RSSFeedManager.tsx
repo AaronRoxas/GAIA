@@ -603,6 +603,7 @@ export function RSSFeedManager() {
               className="h-6 w-6 p-0"
               onClick={toggleAutoProcessing}
               title={isAutoProcessEnabled ? 'Pause auto-processing' : 'Resume auto-processing'}
+              aria-label={isAutoProcessEnabled ? 'Pause auto-processing' : 'Resume auto-processing'}
             >
               {isAutoProcessEnabled ? (
                 <Pause className="h-3.5 w-3.5 text-muted-foreground" />
