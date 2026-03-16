@@ -386,8 +386,7 @@ async def validate_philippine_coordinates(lat: float, lon: float) -> bool:
         return bool(response.data)
     except Exception:
         logger.error(
-            "PostGIS coordinate validation service error (lat=%.6f, lon=%.6f)",
-            lat, lon,
+            "PostGIS coordinate validation service error during latitude/longitude check",
             exc_info=True,
         )
         raise
