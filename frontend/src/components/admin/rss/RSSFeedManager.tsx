@@ -339,7 +339,11 @@ const initialFormData: FeedFormData = {
 
 // ============================================================================
 // MAIN COMPONENT
-// ============================================================================
+/**
+ * Render the RSS feeds management interface with list, add/edit/delete, test, and auto-processing controls.
+ *
+ * @returns A React element containing the feeds table, toolbar (filter, column visibility, auto-processing toggle and countdown, process-now, add), feed add/edit dialog, delete confirmation dialog, and pagination controls.
+ */
 
 export function RSSFeedManager() {
   // Query hooks

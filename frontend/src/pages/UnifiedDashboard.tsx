@@ -123,6 +123,16 @@ const navigationItems: NavItem[] = [
   },
 ];
 
+/**
+ * Render the RBAC-aware unified dashboard with a collapsible sidebar and main content area.
+ *
+ * Renders navigation filtered by the current user's roles/permissions, synchronizes the active
+ * view with the `view` URL query parameter, and redirects to the `/map` route when the map view
+ * is selected. If authentication is not established, navigates to `/login`. Each main view is
+ * rendered inside an ErrorBoundary. Shows an accessible fullscreen loading indicator while auth is loading.
+ *
+ * @returns The rendered dashboard UI element.
+ */
 export default function UnifiedDashboard() {
   const { user, userProfile, loading: authLoading, signOut, isAdmin, hasRole } = useAuth();
   const navigate = useNavigate();

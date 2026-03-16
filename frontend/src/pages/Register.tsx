@@ -15,6 +15,16 @@ import { Alert } from '../components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { landingAssets } from '../constants/landingAssets';
 
+/**
+ * Render the registration page allowing users to create an account with email and password.
+ *
+ * The component displays a responsive two-panel layout with brand content (desktop) and a card-based
+ * registration form (mobile and desktop). It validates password match and minimum length, shows a
+ * password strength indicator, maps common backend errors to user-friendly messages, auto-signs the
+ * user in on successful registration, and navigates to the dashboard.
+ *
+ * @returns The JSX element for the registration page with form, validation, error alert, strength indicator, and footer links.
+ */
 export default function Register() {
   const navigate = useNavigate();
   const { signUp } = useAuth();

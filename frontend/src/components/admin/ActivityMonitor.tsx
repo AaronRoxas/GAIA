@@ -94,6 +94,13 @@ function exportToCSV(data: ActivityLog[]) {
   toast.success(`Exported ${data.length} logs`);
 }
 
+/**
+ * Activity Monitor UI showing a searchable, sortable, and paginated table of recent user activity with export and detail drill-down.
+ *
+ * The table auto-refreshes every 30 seconds, supports column filtering and sorting, allows exporting visible logs to CSV, and opens a details dialog for individual log entries.
+ *
+ * @returns The rendered Activity Monitor React element
+ */
 export default function ActivityMonitor() {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'timestamp', desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);

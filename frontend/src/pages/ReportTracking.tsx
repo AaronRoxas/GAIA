@@ -26,6 +26,13 @@ interface ReportStatus {
   notes?: string;
 }
 
+/**
+ * Render the report-tracking UI allowing a user to enter a tracking ID and view the status and details of a submitted hazard report.
+ *
+ * Displays a search form for a tracking ID, shows loading and error states, and conditionally renders a detailed report card (status badge, metadata, description, verification and notes, and action links) when a report is found. When no report is present, shows help guidance.
+ *
+ * @returns A React element containing the tracking form, conditional report details, and help content
+ */
 export function ReportTracking() {
   const [searchParams] = useSearchParams();
   const initialId = searchParams.get('id') || '';

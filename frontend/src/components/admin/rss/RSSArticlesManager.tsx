@@ -438,7 +438,16 @@ const columns: ColumnDef<RSSArticle>[] = [
 
 // ============================================================================
 // MAIN COMPONENT
-// ============================================================================
+/**
+ * Admin interface for viewing, filtering, and managing collected RSS articles.
+ *
+ * Renders a dashboard that lists RSS articles with sorting, filtering, pagination,
+ * column visibility, row selection, single and bulk deletion (with confirmation),
+ * validation, and status updates. Shows header statistics and integrates with
+ * Supabase-backed queries and mutations for real-time operations.
+ *
+ * @returns The rendered RSS articles management dashboard UI.
+ */
 
 export function RSSArticlesManager() {
   // Filters state - no limit to show all articles

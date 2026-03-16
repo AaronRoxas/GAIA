@@ -16,6 +16,13 @@ import { Alert } from '../components/ui/alert';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { landingAssets } from '../constants/landingAssets';
 
+/**
+ * Renders the stakeholder login page with email/password inputs, password visibility toggle, error display, and branding.
+ *
+ * The component redirects to '/dashboard' when a user is already authenticated and navigates to '/dashboard' after a successful sign-in. On login failure it clears the password and surfaces a user-friendly error message.
+ *
+ * @returns The React element for the login page containing the brand panel and the login form UI.
+ */
 export default function Login() {
   const navigate = useNavigate();
   const { signIn, user } = useAuth();

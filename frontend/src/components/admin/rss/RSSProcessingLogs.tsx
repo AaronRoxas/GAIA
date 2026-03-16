@@ -239,7 +239,14 @@ function ErrorDetailsCell({ log }: { log: ProcessingLog }) {
 
 // ============================================================================
 // MAIN COMPONENT
-// ============================================================================
+/**
+ * Render the RSS processing logs admin interface with filtering, sorting, CSV export, and server-side pagination.
+ *
+ * Displays a table of processing logs with feed and status filters, page size selection, refresh control, real-time update indicator,
+ * expandable error details, and a CSV export that downloads the currently shown log rows.
+ *
+ * @returns The React element containing the RSS processing logs UI.
+ */
 
 export function RSSProcessingLogs() {
   // State

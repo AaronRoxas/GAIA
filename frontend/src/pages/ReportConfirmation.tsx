@@ -12,6 +12,15 @@ import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 
+/**
+ * Render the report submission confirmation view.
+ *
+ * Displays a thank-you page with the report's tracking ID, copy-to-clipboard action, next-step guidance,
+ * and navigation actions. If no `trackingId` is present in route parameters, renders an invalid confirmation
+ * message with a link to submit a new report.
+ *
+ * @returns The confirmation page JSX; if `trackingId` is missing, a fallback invalid-page JSX prompting report submission.
+ */
 export function ReportConfirmation() {
   const { trackingId } = useParams<{ trackingId: string }>();
   const navigate = useNavigate();
