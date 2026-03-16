@@ -20,7 +20,7 @@ import { landingAssets } from '../constants/landingAssets';
  *
  * @returns The JSX element for the registration-disabled page.
  */
-export default function Register() {
+const Register = () => {
   return (
     <div className="min-h-screen flex">
       {/* ── Brand Panel (desktop left column) ── */}
@@ -32,6 +32,9 @@ export default function Register() {
             src={landingAssets.logos.gaiaWhite}
             alt="GAIA Logo"
             className="w-44 h-auto"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
           />
 
           <div className="space-y-3">
@@ -61,6 +64,9 @@ export default function Register() {
               src={landingAssets.logo.gaia}
               alt="GAIA Logo"
               className="h-14 w-auto"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
             />
           </div>
 
@@ -108,4 +114,6 @@ export default function Register() {
       </div>
     </div>
   );
-}
+};
+
+export default Register;

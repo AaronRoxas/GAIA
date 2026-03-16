@@ -147,7 +147,14 @@ const StatusPage: React.FC = () => {
       <nav className="sticky top-0 z-50 bg-[#F0F4F8] border-b border-slate-200 shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl flex items-center justify-between h-14">
           <Link to="/" className="flex items-center gap-2">
-            <img src={landingAssets.logo.gaia} alt="GAIA" className="h-8 w-auto" />
+            <img
+              src={landingAssets.logo.gaia}
+              alt="GAIA"
+              className="h-8 w-auto"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+            />
           </Link>
           <Link
             to="/"

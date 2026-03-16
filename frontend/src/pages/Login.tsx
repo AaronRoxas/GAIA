@@ -58,7 +58,7 @@ export default function Login() {
       await signIn(email, password, undefined); // CAPTCHA DISABLED
       navigate('/dashboard');
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('Login failed:', err);
       
       // User-friendly error messages
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -109,6 +109,9 @@ export default function Login() {
             src={landingAssets.logos.gaiaWhite}
             alt="GAIA Logo"
             className="w-44 h-auto"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
           />
 
           <div className="space-y-3">
@@ -138,6 +141,9 @@ export default function Login() {
               src={landingAssets.logo.gaia}
               alt="GAIA Logo"
               className="h-14 w-auto"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
             />
           </div>
 
