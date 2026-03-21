@@ -18,45 +18,57 @@
 
 -- Create error_category enum type
 -- Categorizes different types of errors that can occur in the system
-CREATE TYPE IF NOT EXISTS gaia.error_category AS ENUM (
-    'system_crash',           -- Application/service crash
-    'unhandled_exception',    -- Uncaught exceptions
-    'silent_bug',             -- Logic errors without exceptions
-    'execution_error',        -- Runtime execution failures
-    'database_error',         -- Database operation failures
-    'external_api_error',     -- Third-party API failures
-    'model_error',            -- AI model inference errors
-    'validation_error',       -- Data validation failures
-    'resource_exhaustion',    -- Memory/CPU/disk issues
-    'timeout_error'           -- Operation timeout errors
-);
+DO $$ BEGIN
+    CREATE TYPE gaia.error_category AS ENUM (
+        'system_crash',           -- Application/service crash
+        'unhandled_exception',    -- Uncaught exceptions
+        'silent_bug',             -- Logic errors without exceptions
+        'execution_error',        -- Runtime execution failures
+        'database_error',         -- Database operation failures
+        'external_api_error',     -- Third-party API failures
+        'model_error',            -- AI model inference errors
+        'validation_error',       -- Data validation failures
+        'resource_exhaustion',    -- Memory/CPU/disk issues
+        'timeout_error'           -- Operation timeout errors
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 COMMENT ON TYPE gaia.error_category IS 'Categories of system errors for tracking and analysis';
 
 -- Create error_source enum type
 -- Identifies which component or service generated the error
-CREATE TYPE IF NOT EXISTS gaia.error_source AS ENUM (
-    'backend_python',         -- Python backend service
-    'frontend_react',         -- React frontend
-    'database_supabase',      -- Supabase database
-    'ai_classifier',          -- Climate-NLI classifier
-    'ai_geo_ner',            -- Geo-NER model
-    'rss_processor',         -- RSS processing pipeline
-    'external_api',          -- External service calls
-    'system'                 -- Operating system level
-);
+DO $$ BEGIN
+    CREATE TYPE gaia.error_source AS ENUM (
+        'backend_python',         -- Python backend service
+        'frontend_react',         -- React frontend
+        'database_supabase',      -- Supabase database
+        'ai_classifier',          -- Climate-NLI classifier
+        'ai_geo_ner',            -- Geo-NER model
+        'rss_processor',         -- RSS processing pipeline
+        'external_api',          -- External service calls
+        'system'                 -- Operating system level
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 COMMENT ON TYPE gaia.error_source IS 'Source components that can generate errors';
 
 -- Create error_status enum type
 -- Tracks the lifecycle status of an error
-CREATE TYPE IF NOT EXISTS gaia.error_status AS ENUM (
-    'new',                   -- Newly detected error
-    'investigating',         -- Being investigated
-    'resolved',              -- Fixed/resolved
-    'known_issue',           -- Documented known issue
-    'ignored'                -- Intentionally ignored
-);
+DO $$ BEGIN
+    CREATE TYPE gaia.error_status AS ENUM (
+        'new',                   -- Newly detected error
+        'investigating',         -- Being investigated
+        'resolved',              -- Fixed/resolved
+        'known_issue',           -- Documented known issue
+        'ignored'                -- Intentionally ignored
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 COMMENT ON TYPE gaia.error_status IS 'Lifecycle status of system errors';
 
@@ -330,10 +342,16 @@ END $$;
 -- MIGRATION COMPLETE
 -- ============================================================================
 
-RAISE NOTICE 'Error logging migration completed successfully';
-RAISE NOTICE 'Summary:';
-RAISE NOTICE '  - Created 3 enum types: error_category, error_source, error_status';
-RAISE NOTICE '  - Added 10 columns to audit_logs table';
-RAISE NOTICE '  - Created 5 indexes for performance';
-RAISE NOTICE '  - Created 3 helper functions for error querying';
-RAISE NOTICE 'The system can now track system crashes, silent bugs, and execution errors';
+DO $$
+BEGIN
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'Error logging migration completed successfully';
+    RAISE NOTICE '========================================';
+    RAISE NOTICE 'Summary:';
+    RAISE NOTICE '  - Created 3 enum types: error_category, error_source, error_status';
+    RAISE NOTICE '  - Added 10 columns to audit_logs table';
+    RAISE NOTICE '  - Created 5 indexes for performance';
+    RAISE NOTICE '  - Created 3 helper functions for error querying';
+    RAISE NOTICE 'The system can now track system crashes, silent bugs, and execution errors';
+    RAISE NOTICE '========================================';
+END $$;
