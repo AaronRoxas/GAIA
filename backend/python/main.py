@@ -6,6 +6,7 @@ Geospatial AI-driven Assessment - Environmental Hazard Detection
 import os
 import logging
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, Response
@@ -271,7 +272,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "detail": "An internal server error occurred. The error has been logged.",
-            "error_id": datetime.utcnow().isoformat(),
+            "error_id": datetime.now(timezone.utc).isoformat(),
             "type": "internal_server_error"
         }
     )

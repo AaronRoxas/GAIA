@@ -112,6 +112,7 @@ class SystemErrorLogger:
         Returns:
             bool: True if logged successfully
         """
+        error_msg = "Unknown"
         try:
             # Extract error details
             if error:
@@ -157,6 +158,7 @@ class SystemErrorLogger:
                 "recovery_successful": recovery_successful,
 
                 # Context
+                "context": context or {},
                 "metadata": {
                     **(context or {}),
                     "request_path": request_path,
@@ -186,6 +188,10 @@ class SystemErrorLogger:
                 "new_values": {},
             }
 
+            # Fetch the latest existing log's checksum to maintain the audit chain
+            last_log_response = supabase.schema("gaia").from_("audit_logs").select("checksum").order("created_at", desc=True).limit(1).execute()
+            previous_hash = last_log_response.data[0]["checksum"] if last_log_response.data and "checksum" in last_log_response.data[0] else GENESIS_HASH
+
             # Compute integrity checksum
             log_entry["checksum"] = compute_checksum_for_log(
                 action=log_entry["action"],
@@ -197,23 +203,23 @@ class SystemErrorLogger:
                 ip_address=ip_address,
                 details=log_entry["metadata"],
                 timestamp=timestamp,
-                previous_hash=GENESIS_HASH
+                previous_hash=previous_hash
             )
 
             # Insert into audit_logs
             response = supabase.schema("gaia").from_("audit_logs").insert(log_entry).execute()
 
             if response.data:
-                logger.error(f"System error logged: {category.value} from {source.value}: {error_msg}")
+                logger.info(f"System error logged: {category.value} from {source.value}: {error_msg}")
                 return True
             else:
-                logger.warning(f"System error log returned no data: {category.value}")
+                logger.error(f"System error log returned no data: {category.value} from {source.value}: {error_msg}")
                 return False
 
         except Exception as e:
             # Don't let error logging failure crash the application
             logger.error(f"CRITICAL: Failed to log system error: {str(e)}")
-            logger.error(f"Original error was: {error_msg if error or error_message else 'Unknown'}")
+            logger.error(f"Original error was: {error_msg}")
             return False
 
     @staticmethod
@@ -321,6 +327,27 @@ class SystemErrorLogger:
         )
 
     @staticmethod
+    def _sanitize_input(input_data: Any) -> str:
+        """Sanitizes sensitive fields from input data before logging."""
+        if not input_data:
+            return ""
+        if isinstance(input_data, str):
+            return input_data[:200]
+        try:
+            if isinstance(input_data, dict):
+                sanitized = {}
+                sensitive_keys = {"email", "phone", "ssn", "password", "hash", "secret", "token"}
+                for k, v in input_data.items():
+                    if any(sk in k.lower() for sk in sensitive_keys):
+                        sanitized[k] = "[REDACTED]"
+                    else:
+                        sanitized[k] = v
+                return str(sanitized)[:200]
+            return str(input_data)[:200]
+        except Exception:
+            return "[UN-LOGGABLE DATA]"
+
+    @staticmethod
     async def log_model_error(
         model_name: str,
         error: Exception,
@@ -351,7 +378,7 @@ class SystemErrorLogger:
             error_code=f"MODEL_{model_name.upper()}",
             context={
                 "model_name": model_name,
-                "input_preview": str(input_data)[:200] if input_data else None
+                "input_preview": SystemErrorLogger._sanitize_input(input_data) if input_data else None
             },
             user_id=user_id,
             user_email=user_email
