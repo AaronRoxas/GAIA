@@ -2,6 +2,9 @@
   "name": "agaila-frontend",
   "version": "2.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20 <23"
+  },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@marsidev/react-turnstile": "^1.3.1",
@@ -92,7 +95,7 @@
       "^sonner$": "<rootDir>/node_modules/sonner/dist/index.js"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(sonner|@radix-ui|react-leaflet|@react-leaflet|leaflet)/)"
+      "node_modules/(?!(sonner|@radix-ui|react-leaflet|@react-leaflet|leaflet|leaflet-geosearch)/)"
     ]
   },
   "browserslist": {
