@@ -52,21 +52,22 @@ pm test\ run inside containers)
 - \EDI-0x\: External Data Integration
 
 ## OpenSpec Workflow
-When starting new features: check \MODULE_CHECKLIST.md\ and check \openspec/project.md\. Create change proposals under \openspec/changes/[id]\.
+When starting new features: check [MODULE_CHECKLIST.md](MODULE_CHECKLIST.md) and [openspec/project.md](openspec/project.md). Create change proposals under [openspec/changes/](openspec/changes/).
 
 ## Documentation Guidelines
-Create docs in \docs/\ (\docs/setup/\, \docs/security/\, \docs/implementation/archive/\, \docs/research/\, \docs/guides/\). Update \docs/README.md\. No new files in root.
+Create docs in [docs/](docs/) ([docs/setup/](docs/setup/), [docs/security/](docs/security/), [docs/implementation/archive/](docs/implementation/archive/), [docs/research/](docs/research/), [docs/guides/](docs/guides/)). Update [docs/README.md](docs/README.md). No new files in root (except MODULE_CHECKLIST.md, README.md, and AGENTS.md).
 
 ## MCP Tools Integration
-- **Figma MCP**: Connect designs in React components.
-- **Hugging Face MCP**: Model discovery & docs (Climate-NLI/NER).
-- **StackHawk MCP**: Security scanning for API endpoints.
-- **Supabase MCP**: Deploy edge functions & perform DB ops.
-- **Upstash Context7 MCP**: Use for up-to-date SDK docs (Supabase, Leaflet, PostGIS).
+- **Upstash Context7 MCP**: Up-to-date SDK docs (Supabase, Leaflet, PostGIS, Transformers, FastAPI).
+- **Supabase MCP**: Deploy edge functions, manage migrations, execute SQL, generate TypeScript types.
+- **Hugging Face MCP**: Model discovery & docs (DeBERTa-v3, Climate-NLI, spaCy-NER for Geo-NER).
+- **StackHawk MCP**: Security scanning for API endpoints (DAST scans).
+- **GitHub MCP**: Issue/PR management, commit automation, branch operations.
+- **Figma MCP** (optional): Connect designs to React components.
 
 ## Testing & Build Commands
 ### Docker Environment
-\\\ash
+```bash
 # Run Python tests in container
 docker-compose run backend pytest tests/python/ --cov=backend/python
 
@@ -76,6 +77,6 @@ docker-compose run frontend npm test --coverage
 # Test Docker builds before deployment
 docker build -f Dockerfile.backend -t gaia-backend .
 docker build -f Dockerfile.frontend -t gaia-frontend .
-\\\
+```
 
-See \ackend/AGENTS.md\ and \rontend/AGENTS.md\ for detailed domain instructions.
+See [backend/AGENTS.md](backend/AGENTS.md) and [frontend/AGENTS.md](frontend/AGENTS.md) for detailed domain instructions.
