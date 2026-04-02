@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**GAIA (Geospatial AI-driven Assessment)** is a real-time environmental hazard detection and visualization system for the Philippines. It uses Zero-Shot Classification (Climate-NLI) and Geospatial Named Entity Recognition (Geo-NER) to automatically detect, classify, and map environmental hazards from RSS feeds and citizen reports.
+**AGAILA (A Framework Integrating Zero-Shot Classification and Geo-NER for Natural Hazard Detection)** is a real-time environmental hazard detection and visualization system for the Philippines. It uses Zero-Shot Classification (DeBERTa-MNLI, ClimateNLI) and Geospatial Named Entity Recognition (Geo-NER) to automatically detect, classify, and map environmental hazards from RSS feeds and citizen reports.
 
 **Target Time-to-Action**: Less than 5 minutes from article publication to hazard visualization on the map.
 
@@ -314,7 +314,7 @@ chore(RSS-10): remove obsolete documentation
 
 ## OpenSpec Workflow
 
-GAIA uses **spec-driven development** via OpenSpec. Before implementing new features:
+AGAILA uses **spec-driven development** via OpenSpec. Before implementing new features:
 
 1. **Check existing work**: Run `openspec list` and `openspec list --specs`
 2. **Review project context**: Read `openspec/project.md` for conventions
@@ -356,8 +356,8 @@ Role enforcement: `backend/python/middleware/rbac.py` with `@require_role` decor
 ### Database Migrations
 
 Migrations are SQL files applied manually to Supabase:
-- Location: `backend/migrations/`
-- Schema prefix: `gaia.` (e.g., `gaia.hazards`, `gaia.rss_feeds`)
+- Location: `backend/migrations/` or `backend/supabase/`
+- Schema prefix: `gaia.` (e.g., `gaia.hazards`, `gaia.rss_feeds`) — maintained for backward compatibility
 - Always use fully qualified table names in migrations and queries
 - Apply via Supabase SQL Editor or `psql` command
 
@@ -389,8 +389,8 @@ Using Supabase Realtime for live updates:
 ### Error Handling
 
 Backend middleware logs errors with full context:
-- `backend/python/middleware/error_logger.py` - Logs to `gaia.error_logs` table
-- Activity logging: `backend/python/middleware/activity_logger.py` - Logs user actions to `gaia.activity_logs`
+- `backend/python/middleware/error_logger.py` - Logs to `gaia.error_logs` table (or `gaia_error_logs`)
+- Activity logging: `backend/python/middleware/activity_logger.py` - Logs user actions to `gaia.activity_logs` (or `gaia_activity_logs`)
 - Audit logging: Database triggers for sensitive operations
 
 Frontend error handling:
@@ -418,8 +418,9 @@ Frontend error handling:
 - `.gaia-container`, `.section-py` — layout utilities
 
 ### Logo Assets
-- Colored: `/assets/img/GAIA.svg` (light backgrounds)
-- White: `/assets/img/GAIA-white.svg` (dark backgrounds like `.auth-brand-panel`)
+- Colored: `/assets/img/AGAILA.svg` (light backgrounds)
+- White: `/assets/img/AGAILA-white.svg` (dark backgrounds like `.auth-brand-panel`)
+- Note: Legacy GAIA.svg and GAIA-white.svg may still exist; prefer AGAILA assets
 
 ## Testing Strategy
 
@@ -551,11 +552,14 @@ See `docs/guides/RAILWAY_DEPLOYMENT.md` for complete deployment instructions.
 
 ## Related Documentation
 
-- **[MODULE_CHECKLIST.md](MODULE_CHECKLIST.md)** - Implementation status tracker (52 sub-modules, 38.5% complete)
-- **[AGENTS.md](AGENTS.md)** - AI agent navigation guide
+- **[AGENTS.md](AGENTS.md)** - Main AI agent navigation guide for AGAILA
 - **[openspec/AGENTS.md](openspec/AGENTS.md)** - OpenSpec workflow instructions
 - **[openspec/project.md](openspec/project.md)** - Complete tech stack and conventions
+- **[backend/AGENTS.md](backend/AGENTS.md)** - Backend-specific MCP tools and setup
+- **[frontend/AGENTS.md](frontend/AGENTS.md)** - Frontend-specific development guide
+- **[MODULE_CHECKLIST.md](MODULE_CHECKLIST.md)** - Implementation status tracker
 - **[docs/README.md](docs/README.md)** - Complete documentation index
-- **[docs/guides/RAILWAY_DEPLOYMENT.md](docs/guides/RAILWAY_DEPLOYMENT.md)** - Production deployment guide (550+ lines)
+- **[docs/AGAILA_Project-Thesis_Paper.md](docs/AGAILA_Project-Thesis_Paper.md)** - Thesis paper with full methodology and evaluation
+- **[docs/guides/RAILWAY_DEPLOYMENT.md](docs/guides/RAILWAY_DEPLOYMENT.md)** - Production deployment guide
 - **[docs/guides/DOCKER_GUIDE.md](docs/guides/DOCKER_GUIDE.md)** - Local development setup
 - **[docs/security/STACKHAWK_TESTING_GUIDE.md](docs/security/STACKHAWK_TESTING_GUIDE.md)** - Security scanning guide
