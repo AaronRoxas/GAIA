@@ -356,7 +356,7 @@ Role enforcement: `backend/python/middleware/rbac.py` with `@require_role` decor
 ### Database Migrations
 
 Migrations are SQL files applied manually to Supabase:
-- Location: `backend/migrations/` or `backend/supabase/`
+- Location: `backend/supabase/migrations/` — all migration files must be stored in this directory as `*.sql` files
 - Schema prefix: `gaia.` (e.g., `gaia.hazards`, `gaia.rss_feeds`) — maintained for backward compatibility
 - Always use fully qualified table names in migrations and queries
 - Apply via Supabase SQL Editor or `psql` command
@@ -389,9 +389,9 @@ Using Supabase Realtime for live updates:
 ### Error Handling
 
 Backend middleware logs errors with full context:
-- `backend/python/middleware/error_logger.py` - Logs to `gaia.error_logs` table (or `gaia_error_logs`)
-- Activity logging: `backend/python/middleware/activity_logger.py` - Logs user actions to `gaia.activity_logs` (or `gaia_activity_logs`)
-- Audit logging: Database triggers for sensitive operations
+- `backend/python/middleware/error_logger.py` - Logs to `gaia.audit_logs` (system errors and exceptions)
+- Activity logging: `backend/python/middleware/activity_logger.py` - Logs user actions to `gaia.activity_logs` (always use schema-qualified names)
+- Audit logging: Database triggers for sensitive operations (insert goes to `gaia.audit_logs`)
 
 Frontend error handling:
 - ErrorBoundary components wrap major sections
@@ -418,9 +418,8 @@ Frontend error handling:
 - `.gaia-container`, `.section-py` — layout utilities
 
 ### Logo Assets
-- Colored: `/assets/img/AGAILA.svg` (light backgrounds)
-- White: `/assets/img/AGAILA-white.svg` (dark backgrounds like `.auth-brand-panel`)
-- Note: Legacy GAIA.svg and GAIA-white.svg may still exist; prefer AGAILA assets
+- Colored: `/assets/img/GAIA.svg` (light backgrounds)
+- White: `/assets/img/GAIA-white.svg` (dark backgrounds like `.auth-brand-panel`)
 
 ## Testing Strategy
 
