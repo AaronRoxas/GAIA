@@ -146,11 +146,11 @@ ENV = os.getenv("ENV", "development")
 # Configure CORS with environment-based whitelist
 # Support for Vercel + Railway deployment, localhost development, and future custom domains
 if ENV == "production":
-    # Production: Explicit Vercel frontend + Railway backend domains
+    # Production: Explicit Vercel frontend + Digital Ocean backend domains
     # NOTE: CORSMiddleware does NOT support glob patterns (*.vercel.app) in allow_origins list.
     # Also, allow_origins=["*"] with allow_credentials=True is forbidden by the CORS spec.
     # Use allow_origin_regex for wildcard subdomain matching instead.
-    default_origins = "https://agaila-ph.vercel.app,https://gaia-production-2294.up.railway.app,https://agaila.me"
+    default_origins = "https://agaila-ph.vercel.app,https://agaila.me"
 else:
     # Development: localhost only
     default_origins = "http://localhost:3000,http://localhost:8000"
