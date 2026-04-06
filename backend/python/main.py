@@ -150,7 +150,7 @@ if ENV == "production":
     # NOTE: CORSMiddleware does NOT support glob patterns (*.vercel.app) in allow_origins list.
     # Also, allow_origins=["*"] with allow_credentials=True is forbidden by the CORS spec.
     # Use allow_origin_regex for wildcard subdomain matching instead.
-    default_origins = "https://gaia-ph.vercel.app,https://gaia-production-2294.up.railway.app,https://agaila.me"
+    default_origins = "https://agaila-ph.vercel.app,https://gaia-production-2294.up.railway.app,https://agaila.me"
 else:
     # Development: localhost only
     default_origins = "http://localhost:3000,http://localhost:8000"
