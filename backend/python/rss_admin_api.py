@@ -17,6 +17,11 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request, Response, status, Depends, Query
 from pydantic import BaseModel, HttpUrl, Field, validator
 
+
+def _sanitize_for_log(value: object) -> str:
+    """Sanitize untrusted values before logging to prevent log injection."""
+    return str(value).replace("\r", "").replace("\n", "")
+
 # Import security middleware
 from slowapi import Limiter
 from backend.python.middleware.rate_limiter import limiter
