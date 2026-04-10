@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { API_BASE_URL } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
@@ -67,6 +68,19 @@ const ResetPassword: React.FC = () => {
     setError(null);
 
     try {
+      const checkRes = await fetch(`${API_BASE_URL}/api/v1/auth/check-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!checkRes.ok) {
+        const body = await checkRes.json().catch(() => ({}));
+        throw new Error(
+          body.detail || 'This email address is not registered in our system.'
+        );
+      }
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/update-password`,
       });
@@ -90,6 +104,19 @@ const ResetPassword: React.FC = () => {
     setError(null);
 
     try {
+      const checkRes = await fetch(`${API_BASE_URL}/api/v1/auth/check-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!checkRes.ok) {
+        const body = await checkRes.json().catch(() => ({}));
+        throw new Error(
+          body.detail || 'This email address is not registered in our system.'
+        );
+      }
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/update-password`,
       });
