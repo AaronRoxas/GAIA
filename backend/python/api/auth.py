@@ -6,6 +6,7 @@ Features:
 - Log login/logout events to activity_logs and audit_logs
 - Update last_login timestamp in user_profiles
 - Single session enforcement (invalidate previous sessions on new login)
+- Email existence check for password reset flow
 
 Module: AC-05 (Session and Activity Logger)
 """
@@ -13,11 +14,12 @@ Module: AC-05 (Session and Activity Logger)
 import logging
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from pydantic import BaseModel, EmailStr
 
 from backend.python.lib.supabase_client import supabase
 from backend.python.middleware.activity_logger import ActivityLogger
+from backend.python.middleware.rate_limiter import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,53 @@ router = APIRouter(
     prefix="/auth",
     tags=["Authentication"],
 )
+
+
+class CheckEmailRequest(BaseModel):
+    email: EmailStr
+
+
+class CheckEmailResponse(BaseModel):
+    exists: bool
+    message: str
+
+
+@router.post("/check-email", response_model=CheckEmailResponse)
+@limiter.limit("5/minute")
+async def check_email_exists(request: Request, response: Response, body: CheckEmailRequest):
+    """
+    Check whether an email is registered before allowing password reset.
+
+    Returns 422 if the email is not found in user_profiles, preventing
+    the reset flow from proceeding for unregistered addresses.
+
+    Rate-limited to 5 requests/minute to mitigate enumeration abuse.
+    """
+    try:
+        result = (
+            supabase.schema("gaia")
+            .from_("user_profiles")
+            .select("id")
+            .eq("email", body.email)
+            .execute()
+        )
+
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="This email address is not registered in our system.",
+            )
+
+        return CheckEmailResponse(exists=True, message="Email is registered.")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Email check failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to verify email. Please try again later.",
+        )
 
 
 class AuthEventRequest(BaseModel):
