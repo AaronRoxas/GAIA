@@ -25,7 +25,7 @@ on:
       - '**.tsx'
       - '.github/workflows/**'
   pull_request:
-    branches: [ "main", "develop", "production" ]
+    branches: [ "main", "develop" ]
     paths:
       - '**.py'
       - '**.js'
