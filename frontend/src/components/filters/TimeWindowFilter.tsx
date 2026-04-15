@@ -21,7 +21,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Calendar, Clock } from 'lucide-react';
-import { format, utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+import { format, toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { Card } from '../ui/card';
 import type { TimeWindow, CustomDateRange } from '../../hooks/useHazardFilters';
 
@@ -124,11 +124,12 @@ export function TimeWindowFilter({
     // Parse dates as Philippine Time (GMT+8)
     const MANILA_TZ = 'Asia/Manila';
     
-    // Start date at 00:00:00 in Philippine Time
-    const startDateObj = zonedTimeToUtc(new Date(startDate + 'T00:00:00'), MANILA_TZ);
+    // Start date at 00:00:00 in Philippine Time, converted to UTC
+    // fromZonedTime converts FROM a zoned time TO UTC
+    const startDateObj = fromZonedTime(new Date(startDate + 'T00:00:00'), MANILA_TZ);
     
-    // End date at 23:59:59.999 in Philippine Time (full end day coverage)
-    const endDateObj = zonedTimeToUtc(new Date(endDate + 'T23:59:59.999'), MANILA_TZ);
+    // End date at 23:59:59.999 in Philippine Time, converted to UTC
+    const endDateObj = fromZonedTime(new Date(endDate + 'T23:59:59.999'), MANILA_TZ);
     
     if (startDateObj.getTime() > endDateObj.getTime()) {
       setDateError('Start date must be before end date');
