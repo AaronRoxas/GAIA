@@ -157,7 +157,7 @@ export function useRealtimeHazards() {
 
   useEffect(() => {
     // Prevent duplicate subscriptions
-    if (channelRef.current?.state === 'SUBSCRIBED') {
+    if (channelRef.current) {
       // eslint-disable-next-line no-console
       console.log('[Realtime] Already subscribed to hazards:validated');
       return () => {
@@ -367,7 +367,7 @@ export function useRealtimeRSSFeeds() {
     }
 
     // Prevent duplicate subscriptions
-    if (channelRef.current?.state === 'SUBSCRIBED') {
+    if (channelRef.current) {
       // eslint-disable-next-line no-console
       console.log('[Realtime] Already subscribed to rss:feeds');
       return;
