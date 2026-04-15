@@ -21,7 +21,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Calendar, Clock } from 'lucide-react';
-import { format, toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { format, fromZonedTime } from 'date-fns-tz';
 import { Card } from '../ui/card';
 import type { TimeWindow, CustomDateRange } from '../../hooks/useHazardFilters';
 
