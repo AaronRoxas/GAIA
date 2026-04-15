@@ -224,9 +224,6 @@ export const FloatingControlsSkeleton: React.FC = () => {
   return (
     <div 
       className="space-y-3"
-      role="status"
-      aria-label="Loading map controls"
-      aria-busy="true"
     >
       {/* Clustering toggle */}
       <div className="flex items-center justify-between p-3 bg-gray-100 rounded animate-pulse">
