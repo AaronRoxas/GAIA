@@ -239,6 +239,8 @@ async def submit_citizen_report(
                 )
         except HTTPException:
             raise
+        except HTTPException:
+            raise
         except Exception as e:
             logger.warning(f"Cooldown check failed (continuing): {e}")
     
