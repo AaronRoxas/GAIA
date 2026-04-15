@@ -19,7 +19,7 @@
  * - Timezone handling (Philippine Time GMT+8)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card } from '../ui/card';
@@ -94,12 +94,16 @@ export function TimeWindowFilter({
     customDateRange ? format(customDateRange.end, 'yyyy-MM-dd') : ''
   );
   const [dateError, setDateError] = useState<string>('');
+  // Track previous time window to restore on cancel
+  const prevTimeWindowRef = useRef<TimeWindow | null>(null);
 
   /**
    * Handle preset button click
    */
   const handlePresetClick = (preset: TimeWindow) => {
     if (preset === 'custom') {
+      // Save current time window before opening custom range
+      prevTimeWindowRef.current = timeWindow;
       setShowCustomRange(true);
     } else {
       setShowCustomRange(false);
@@ -116,26 +120,32 @@ export function TimeWindowFilter({
       setDateError('Both start and end dates are required');
       return;
     }
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (start.getTime() > end.getTime()) {
+    
+    // Parse the date strings as local Philippine dates at midnight
+    const startDateObj = new Date(startDate + 'T00:00:00');
+    const endDateObj = new Date(endDate + 'T00:00:00');
+    
+    if (startDateObj.getTime() > endDateObj.getTime()) {
       setDateError('Start date must be before end date');
       return;
     }
     const customRange: CustomDateRange = {
-      start,
-      end,
+      start: startDateObj,
+      end: endDateObj,
     };
     onTimeWindowChange('custom', customRange);
     setShowCustomRange(false);
   };
 
   /**
-   * Handle custom range cancel
+   * Handle custom range cancel - restore previous selection
    */
   const handleCustomRangeCancel = () => {
     setShowCustomRange(false);
-    onTimeWindowChange('all');
+    // Restore previous time window instead of forcing 'all'
+    if (prevTimeWindowRef.current && prevTimeWindowRef.current !== 'custom') {
+      onTimeWindowChange(prevTimeWindowRef.current);
+    }
   };
 
   return (
