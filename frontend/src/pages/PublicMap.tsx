@@ -201,9 +201,14 @@ const SearchController: React.FC<{
       // Clear animation flag when moveend fires
       const handleMoveEnd = () => {
         isAnimatingRef.current = false;
+      };
+      
+      map.on('moveend', handleMoveEnd);
+      
+      // Cleanup: remove listener on unmount or when dependencies change
+      return () => {
         map.off('moveend', handleMoveEnd);
       };
-      map.on('moveend', handleMoveEnd);
     }
   }, [location, bounds, boundaryLevel, map, isFollowing]);
 
