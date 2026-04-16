@@ -261,16 +261,6 @@ const AuditLogViewer: React.FC = () => {
 
   // Export to CSV
   const exportToCSV = () => {
-    // Sanitize cell content to prevent CSV formula injection
-    const sanitizeCell = (cell: string | number | boolean | null): string => {
-      const str = String(cell);
-      // Prefix cells that start with spreadsheet-formula characters to prevent execution
-      const formulaChars = ['=', '+', '-', '@'];
-      const sanitized = formulaChars.some(char => str.startsWith(char)) ? `'${str}` : str;
-      // Escape double quotes
-      return sanitized.replace(/"/g, '""');
-    };
-
     const headers = ['Timestamp', 'User Email', 'Role', 'Action', 'Description', 'Resource Type', 'Resource ID', 'Status', 'IP Address'];
     const rows = logs.map((log: AuditLog) => [
       format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss'),
@@ -330,7 +320,7 @@ const AuditLogViewer: React.FC = () => {
                 <SelectValue placeholder="All events" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All events</SelectItem>
+                <SelectItem value="all">All actions</SelectItem>
                 <SelectItem value="LOGIN">Login</SelectItem>
                 <SelectItem value="LOGOUT">Logout</SelectItem>
                 <SelectItem value="FAILED_LOGIN">Failed Login</SelectItem>
