@@ -87,6 +87,13 @@ class HazardTypeDistribution(BaseModel):
     percentage: float
 
 
+class SourceBreakdown(BaseModel):
+    """Distribution of hazards by source type"""
+    source_type: str
+    count: int
+    percentage: float
+
+
 class RecentAlert(BaseModel):
     """Recent hazard alert"""
     id: str
@@ -166,7 +173,7 @@ async def get_hazard_trends(
     
     async def fetch_trends():
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+        start_date = end_date - timedelta(days=days - 1)
         
         response = supabase.schema('gaia').from_('hazards') \
             .select('hazard_type,detected_at') \
@@ -361,6 +368,95 @@ async def get_hazard_distribution():
     except Exception as e:
         logger.error(f"Error fetching hazard distribution: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch hazard distribution: {str(e)}")
+
+
+@router.get("/source-breakdown", response_model=List[SourceBreakdown])
+async def get_source_breakdown():
+    """
+    Get distribution of hazards by source type (cached for 2 minutes)
+    """
+    cache_key = generate_cache_key("analytics:source-breakdown")
+
+    def _is_rpc_unavailable_error(rpc_error: Exception) -> bool:
+        """Return True only for known RPC-unavailable signatures (e.g., PGRST202)."""
+        payload = rpc_error.args[0] if getattr(rpc_error, "args", None) else None
+
+        if isinstance(payload, dict):
+            code = str(payload.get("code") or "")
+            message = str(payload.get("message") or "")
+            details = str(payload.get("details") or "")
+        else:
+            code = str(getattr(rpc_error, "code", "") or "")
+            message = str(getattr(rpc_error, "message", "") or "")
+            details = str(getattr(rpc_error, "details", "") or "")
+
+        combined = f"{code} {message} {details} {rpc_error}".lower()
+        return (
+            "pgrst202" in combined
+            or "could not find the function" in combined
+            or "schema cache" in combined
+            or "rpc unavailable" in combined
+        )
+
+    async def fetch_source_breakdown():
+        source_rows = []
+
+        try:
+            # Preferred path: server-side aggregation via RPC
+            response = supabase.schema("gaia").rpc('get_source_breakdown', {}).execute()
+            source_rows = response.data or []
+        except Exception as rpc_error:
+            if not _is_rpc_unavailable_error(rpc_error):
+                logger.error(f"get_source_breakdown RPC failed with non-recoverable error: {rpc_error}")
+                raise
+
+            logger.warning(f"get_source_breakdown RPC unavailable, using fallback aggregation: {rpc_error}")
+            # Fallback path: read source_type values and aggregate in Python
+            fallback_response = supabase.schema("gaia").from_('hazards').select('source_type').execute()
+            fallback_counts = {}
+            for item in fallback_response.data or []:
+                source_type = (item.get('source_type') or 'unknown').strip().lower()
+                fallback_counts[source_type] = fallback_counts.get(source_type, 0) + 1
+            source_rows = [
+                {"source_type": source_type, "count": count}
+                for source_type, count in fallback_counts.items()
+            ]
+
+        if not source_rows:
+            return []
+
+        # Normalize source_type first, then compute totals from normalized buckets.
+        # This keeps percentages consistent when RPC rows differ only by case/whitespace.
+        aggregated_counts = {}
+        for item in source_rows:
+            source_type = (item.get('source_type') or 'unknown').strip().lower()
+            count = item.get('count', 0)
+            aggregated_counts[source_type] = aggregated_counts.get(source_type, 0) + count
+
+        total = sum(aggregated_counts.values())
+
+        if total == 0:
+            return []
+
+        breakdown = []
+        for source_type, count in aggregated_counts.items():
+            percentage = (count / total) * 100 if total > 0 else 0
+            breakdown.append({
+                "source_type": source_type,
+                "count": count,
+                "percentage": round(percentage, 1)
+            })
+
+        breakdown.sort(key=lambda x: x["count"], reverse=True)
+        return breakdown
+
+    try:
+        data = await get_or_set(cache_key, fetch_source_breakdown, ttl=CACHE_TTLS.get("analytics:source-breakdown", 120))
+        return [SourceBreakdown(**item) for item in data]
+
+    except Exception as e:
+        logger.error(f"Error fetching source breakdown: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch source breakdown: {str(e)}")
 
 
 @router.get("/recent-alerts", response_model=List[RecentAlert])

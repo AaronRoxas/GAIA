@@ -1259,7 +1259,8 @@ async def delete_rss_article(
             .eq('source_type', 'rss') \
             .execute()
         
-        logger.info(f"Deleted RSS article: {article_id} by {current_user.email}")
+        safe_article_id = article_id.replace('\r', '').replace('\n', '')
+        logger.info(f"Deleted RSS article: {safe_article_id} by {current_user.email}")
         
         # Log admin action
         await log_admin_action(
@@ -1469,7 +1470,9 @@ async def update_rss_article(
             
         updated_data = result.data[0]
         
-        logger.info(f"Updated RSS article {article_id} by {current_user.email}: {list(update_dict.keys())}")
+        safe_article_id = _sanitize_for_log(article_id)
+        safe_user_email = _sanitize_for_log(current_user.email)
+        logger.info(f"Updated RSS article {safe_article_id} by {safe_user_email}: {list(update_dict.keys())}")
         
         # Log admin action
         await log_admin_action(
@@ -1555,7 +1558,9 @@ async def validate_rss_article(
         
         updated_data = result.data[0]
         
-        logger.info(f"Validated RSS article {article_id} by {current_user.email}")
+        safe_article_id = article_id.replace('\r', '').replace('\n', '')
+        safe_user_email = str(current_user.email).replace('\r', '').replace('\n', '')
+        logger.info(f"Validated RSS article {safe_article_id} by {safe_user_email}")
         
         # Log admin action
         await log_admin_action(
