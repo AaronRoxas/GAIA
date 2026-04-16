@@ -1,10 +1,15 @@
 /**
  * Analytics API Client
  * 
- * Provides functions to fetch analytics data from backend
+ * Provides methods to fetch analytics and statistics from the backend
+ * All methods return cached data via React Query hooks in useAnalytics.ts
+ * 
+ * Module: AAM-01 (Advanced Analytics Module)
  */
 
-import { API_BASE_URL } from './api';
+import { apiRequest } from './api';
+
+const ANALYTICS_BASE_PATH = '/api/v1/analytics';
 
 export interface HazardStats {
   total_hazards: number;
@@ -23,14 +28,7 @@ export interface HazardTrend {
   landslide: number;
   fire: number;
   storm_surge: number;
-  typhoon: number;
-  tsunami: number;
-  drought: number;
-  tornado: number;
-  coastal_erosion: number;
-  other: number;
   total: number;
-  [key: string]: string | number; // Allow additional dynamic hazard types
 }
 
 export interface RegionStats {
@@ -46,63 +44,70 @@ export interface HazardTypeDistribution {
   percentage: number;
 }
 
+export interface SourceBreakdown {
+  source_type: 'rss' | 'citizen_report';
+  count: number;
+  percentage: number;
+  avg_confidence: number;
+}
+
 export interface RecentAlert {
   id: string;
   hazard_type: string;
-  severity: string;
   location_name: string;
-  admin_division: string;
+  admin_division?: string;
+  severity: 'low' | 'moderate' | 'high' | 'critical';
+  source_type: 'rss' | 'citizen_report';
+  status: 'active' | 'resolved' | 'archived';
   confidence_score: number;
   detected_at: string;
-  status: string;
 }
 
-class AnalyticsAPI {
-  private baseUrl: string;
-
-  constructor() {
-    this.baseUrl = `${API_BASE_URL}/api/v1/analytics`;
-  }
-
+/**
+ * Analytics API client - provides methods to fetch various analytics data
+ */
+export const analyticsApi = {
+  /**
+   * Get overall hazard statistics
+   */
   async getStats(): Promise<HazardStats> {
-    const response = await fetch(`${this.baseUrl}/stats`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch stats: ${response.statusText}`);
-    }
-    return response.json();
-  }
+    return apiRequest<HazardStats>(`${ANALYTICS_BASE_PATH}/stats`);
+  },
 
+  /**
+   * Get hazard trends over time
+   * @param days Number of days to retrieve (7-90)
+   */
   async getTrends(days: number = 30): Promise<HazardTrend[]> {
-    const response = await fetch(`${this.baseUrl}/trends?days=${days}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch trends: ${response.statusText}`);
-    }
-    return response.json();
-  }
+    return apiRequest<HazardTrend[]>(`${ANALYTICS_BASE_PATH}/trends?days=${days}`);
+  },
 
+  /**
+   * Get statistics by administrative region
+   */
   async getRegionStats(): Promise<RegionStats[]> {
-    const response = await fetch(`${this.baseUrl}/regions`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch region stats: ${response.statusText}`);
-    }
-    return response.json();
-  }
+    return apiRequest<RegionStats[]>(`${ANALYTICS_BASE_PATH}/regions`);
+  },
 
+  /**
+   * Get hazard type distribution (count and percentage)
+   */
   async getDistribution(): Promise<HazardTypeDistribution[]> {
-    const response = await fetch(`${this.baseUrl}/distribution`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch distribution: ${response.statusText}`);
-    }
-    return response.json();
-  }
+    return apiRequest<HazardTypeDistribution[]>(`${ANALYTICS_BASE_PATH}/distribution`);
+  },
 
+  /**
+   * Get breakdown by source type (RSS vs citizen reports)
+   */
+  async getSourceBreakdown(): Promise<SourceBreakdown[]> {
+    return apiRequest<SourceBreakdown[]>(`${ANALYTICS_BASE_PATH}/source-breakdown`);
+  },
+
+  /**
+   * Get recent hazard alerts
+   * @param limit Number of alerts to retrieve
+   */
   async getRecentAlerts(limit: number = 10): Promise<RecentAlert[]> {
-    const response = await fetch(`${this.baseUrl}/recent-alerts?limit=${limit}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch recent alerts: ${response.statusText}`);
-    }
-    return response.json();
-  }
-}
-
-export const analyticsApi = new AnalyticsAPI();
+    return apiRequest<RecentAlert[]>(`${ANALYTICS_BASE_PATH}/recent-alerts?limit=${limit}`);
+  },
+};

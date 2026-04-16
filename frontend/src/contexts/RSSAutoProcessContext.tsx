@@ -76,13 +76,11 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
   const processFeeds = useCallback(async (): Promise<void> => {
     // Skip if already processing
     if (isProcessingRef.current) {
-      console.log('[RSS Auto-Process] Skipping - already processing');
       return;
     }
 
     isProcessingRef.current = true;
     setIsProcessing(true);
-    console.log('[RSS Auto-Process] Starting background processing...');
 
     try {
       const response = await fetch(`${RSS_API_BASE}/process`, {
@@ -102,7 +100,6 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
       }
 
       const data = await response.json();
-      console.log('[RSS Auto-Process] Request accepted:', data.message);
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: rssQueryKeys.feeds() });
@@ -158,8 +155,7 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     }
 
     // Schedule first run
-    const nextRun = scheduleNextRun();
-    console.log(`[RSS Auto-Process] Enabled - Next run at ${nextRun.toLocaleTimeString()}`);
+    scheduleNextRun();
 
     // Set up the processing interval
     autoProcessIntervalRef.current = setInterval(() => {
@@ -190,7 +186,6 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     }
     setNextRunTime(null);
     setCountdown('');
-    console.log('[RSS Auto-Process] Disabled');
   }, []);
 
   /**

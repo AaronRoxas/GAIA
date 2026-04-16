@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, ScaleControl, LayersControl, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, ZoomControl, ScaleControl, LayersControl, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { OpenStreetMapProvider } from 'leaflet-geosearch';
 import { fetchValidatedHazards, HazardResponse } from '../services/hazardsApi';
@@ -10,28 +10,36 @@ import { Alert } from '../components/ui/alert';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { createCustomClusterIcon } from '../components/map/clusterIcon';
+import { getHazardMarkerIcon } from '../components/map/hazardMarkerIcon';
 import { HeatmapLayer, useHeatmapSettings } from '../components/map/HeatmapLayer';
+import { HazardInfoPanel } from '../components/map/HazardInfoPanel';
 import { MapOnboarding } from '../components/map/MapOnboarding';
 import { FilterPanel } from '../components/filters/FilterPanel';
 import { BoundaryLayer } from '../components/map/BoundaryLayer';
 import { ReportGenerator } from '../components/reports/ReportGenerator';
 import { useHazardFilters } from '../hooks/useHazardFilters';
 import { 
-  Menu,
-  X,
-  Search,
-  ChevronLeft,
-  ChevronUp,
-  ChevronDown,
-  MapPin,
-  ExternalLink,
-  RefreshCw,
-  Layers,
-  Map as MapIcon,
-  Settings,
-  FileText,
-  AlertTriangle,
-} from 'lucide-react';
+  SidebarSkeleton, 
+  FloatingControlsSkeleton,
+  HazardCountSkeleton,
+} from '../components/skeletons/MapSkeleton';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faBars, 
+  faTimes, 
+  faSearch, 
+  faChevronLeft, 
+  faChevronUp, 
+  faChevronDown,
+  faMapPin, 
+  faExternalLinkAlt, 
+  faRotateRight, 
+  faLayerGroup, 
+  faMap, 
+  faCog, 
+  faFile, 
+  faExclamationTriangle,
+} from '@fortawesome/free-solid-svg-icons';
 import { 
   HAZARD_ICON_REGISTRY, 
   HazardIcon,
@@ -56,9 +64,13 @@ interface Hazard {
   longitude: number;
   confidence_score: number;
   source_type: string;
+  source_url?: string;
+  source_title?: string;
   validated: boolean;
   created_at: string;
   source_content?: string;
+  validated_at?: string;
+  validated_by?: string;
 }
 
 /**
@@ -74,9 +86,13 @@ function mapResponseToHazard(response: HazardResponse): Hazard {
     longitude: response.longitude,
     confidence_score: response.confidence_score,
     source_type: response.source_type,
+    source_url: response.source_url || undefined,
+    source_title: response.source_title || undefined,
+    source_content: response.source_content || undefined,
     validated: response.validated,
     created_at: response.created_at,
-    source_content: response.source_content || undefined,
+    validated_at: response.validated_at || undefined,
+    validated_by: response.validated_by || undefined,
   };
 }
 
@@ -96,12 +112,7 @@ interface NominatimResult {
   };
 }
 
-const severityColors: Record<string, string> = {
-  critical: 'bg-red-500',
-  severe: 'bg-orange-500',
-  moderate: 'bg-yellow-500',
-  minor: 'bg-green-500',
-};
+// Severity colors now defined in HazardInfoPanel component
 
 /**
  * PublicMap Component
@@ -134,15 +145,169 @@ const severityColors: Record<string, string> = {
  * - Keyboard navigation for all interactive elements
  * - Reduced motion support
  */
+
+/**
+ * SearchController - Module-scope component to control map from selected location
+ * Flies to the selected search result and fits bounds if available
+ * Placed at module scope to maintain persistent refs across PublicMap re-renders (GV-01)
+ */
+const SearchController: React.FC<{ 
+  location: { lat: number; lon: number } | null;
+  bounds: L.LatLngBoundsExpression | null;
+  boundaryLevel: string | null;
+  isFollowing: boolean;
+  onStopFollowing: () => void;
+}> = ({ location, bounds, boundaryLevel, isFollowing, onStopFollowing }) => {
+  const map = useMap();
+  const previousLocationRef = useRef<{ lat: number; lon: number } | null>(null);
+  const hasFlownRef = useRef(false);
+  // Track whether an animation is in progress to ignore events during animation
+  const isAnimatingRef = useRef(false);
+
+  useEffect(() => {
+    // Only fly to location if following is enabled
+    if (isFollowing && location && 
+        (!previousLocationRef.current || 
+         previousLocationRef.current.lat !== location.lat || 
+         previousLocationRef.current.lon !== location.lon ||
+         !hasFlownRef.current)) {
+      
+      // Mark that animation is in progress
+      isAnimatingRef.current = true;
+      
+      // If we have boundary bounds, use fitBounds for better UX
+      if (bounds) {
+        // Adaptive padding based on boundary level
+        const paddingOptions: { [key: string]: [number, number] } = {
+          municipality: [50, 50],
+          province: [30, 30],
+          region: [20, 20],
+          default: [40, 40]
+        };
+        
+        const padding = paddingOptions[boundaryLevel as keyof typeof paddingOptions] || paddingOptions.default;
+        
+        map.fitBounds(bounds, {
+          padding,
+          animate: true,
+          duration: 1.5
+        });
+      } else {
+        // Fallback to flyTo with fixed zoom if no bounds available
+        map.flyTo([location.lat, location.lon], 15, {
+          duration: 1.5
+        });
+      }
+      
+      // Update the ref to track this location
+      previousLocationRef.current = location;
+      hasFlownRef.current = true;
+      
+      // Clear animation flag when moveend fires
+      const handleMoveEnd = () => {
+        isAnimatingRef.current = false;
+      };
+      
+      map.on('moveend', handleMoveEnd);
+      
+      // Cleanup: remove listener on unmount or when dependencies change
+      return () => {
+        map.off('moveend', handleMoveEnd);
+        // Explicitly clear animation flag to prevent stale state
+        isAnimatingRef.current = false;
+      };
+    }
+  }, [location, bounds, boundaryLevel, map, isFollowing]);
+
+  // Detect user interaction (drag, zoom) to auto-disable following
+  useEffect(() => {
+    if (!isFollowing) return;
+
+    const handleUserInteraction = () => {
+      // Only disable following if user manually moved the map
+      // (not during the initial flyTo animation)
+      if (hasFlownRef.current && !isAnimatingRef.current) {
+        onStopFollowing();
+      }
+    };
+
+    // Listen for map drag and zoom events
+    map.on('dragstart', handleUserInteraction);
+    map.on('zoomstart', handleUserInteraction);
+
+    return () => {
+      map.off('dragstart', handleUserInteraction);
+      map.off('zoomstart', handleUserInteraction);
+    };
+  }, [map, isFollowing, onStopFollowing]);
+
+  // Reset hasFlownRef when location changes
+  useEffect(() => {
+    if (location && previousLocationRef.current && 
+        (previousLocationRef.current.lat !== location.lat || 
+         previousLocationRef.current.lon !== location.lon)) {
+      hasFlownRef.current = false;
+    }
+  }, [location]);
+
+  return null;
+};
+
+/**
+ * ZoomTracker - Module-scope component to track current zoom level
+ * Updates zoom level for heatmap auto-disable feature
+ * Placed at module scope to maintain persistent refs across PublicMap re-renders (GV-04)
+ */
+const ZoomTracker: React.FC<{ onZoomChange: (zoom: number) => void }> = ({ onZoomChange }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    const updateZoom = () => {
+      onZoomChange(map.getZoom());
+    };
+
+    // Set initial zoom
+    updateZoom();
+
+    // Listen for zoom changes
+    map.on('zoomend', updateZoom);
+
+    return () => {
+      map.off('zoomend', updateZoom);
+    };
+  }, [map, onZoomChange]);
+
+  return null;
+};
+
+/**
+ * MapInstanceSetter - Module-scope component to capture Leaflet map instance
+ * Stores the map instance in a ref for external component access (e.g., HazardInfoPanel zoom)
+ * Placed at module scope to persist across PublicMap re-renders
+ */
+const MapInstanceSetter: React.FC<{ mapRef: React.MutableRefObject<L.Map | null> }> = ({ mapRef }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map, mapRef]);
+  
+  return null;
+};
+
 const PublicMap: React.FC = () => {
   const { user } = useAuth(); // Get authenticated user
   const [hazards, setHazards] = useState<Hazard[]>([]);
+  const [selectedHazard, setSelectedHazard] = useState<Hazard | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const [isLegendVisible, setIsLegendVisible] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(false);
+  
+  // Map instance ref for accessing Leaflet map methods
+  const mapInstanceRef = useRef<L.Map | null>(null);
   
   // Accessibility: Live region announcements
   const [announcement, setAnnouncement] = useState<string>('');
@@ -309,115 +474,6 @@ const PublicMap: React.FC = () => {
     // Extract city/municipality name from display_name (first part before comma)
     const locationName = suggestion.display_name.split(',')[0].trim();
     setSearchedLocationName(locationName);
-    // eslint-disable-next-line
-    console.log('[PublicMap] Searched location:', locationName);
-  };
-
-  // SearchController component to control map from selected location
-  const SearchController: React.FC<{ 
-    location: { lat: number; lon: number } | null;
-    bounds: L.LatLngBoundsExpression | null;
-    boundaryLevel: string | null;
-    isFollowing: boolean;
-    onStopFollowing: () => void;
-  }> = ({ location, bounds, boundaryLevel, isFollowing, onStopFollowing }) => {
-    const map = useMap();
-    const previousLocationRef = useRef<{ lat: number; lon: number } | null>(null);
-    const hasFlownRef = useRef(false);
-
-    useEffect(() => {
-      // Only fly to location if following is enabled
-      if (isFollowing && location && 
-          (!previousLocationRef.current || 
-           previousLocationRef.current.lat !== location.lat || 
-           previousLocationRef.current.lon !== location.lon ||
-           !hasFlownRef.current)) {
-        
-        // If we have boundary bounds, use fitBounds for better UX
-        if (bounds) {
-          // Adaptive padding based on boundary level
-          const paddingOptions: { [key: string]: [number, number] } = {
-            municipality: [50, 50],
-            province: [30, 30],
-            region: [20, 20],
-            default: [40, 40]
-          };
-          
-          const padding = paddingOptions[boundaryLevel as keyof typeof paddingOptions] || paddingOptions.default;
-          
-          map.fitBounds(bounds, {
-            padding,
-            animate: true,
-            duration: 1.5
-          });
-        } else {
-          // Fallback to flyTo with fixed zoom if no bounds available
-          map.flyTo([location.lat, location.lon], 15, {
-            duration: 1.5
-          });
-        }
-        
-        // Update the ref to track this location
-        previousLocationRef.current = location;
-        hasFlownRef.current = true;
-      }
-    }, [location, bounds, boundaryLevel, map, isFollowing]);
-
-    // Detect user interaction (drag, zoom) to auto-disable following
-    useEffect(() => {
-      if (!isFollowing) return;
-
-      const handleUserInteraction = () => {
-        // Only disable following if user manually moved the map
-        // (not during the initial flyTo animation)
-        if (hasFlownRef.current) {
-          onStopFollowing();
-        }
-      };
-
-      // Listen for map drag and zoom events
-      map.on('dragstart', handleUserInteraction);
-      map.on('zoomstart', handleUserInteraction);
-
-      return () => {
-        map.off('dragstart', handleUserInteraction);
-        map.off('zoomstart', handleUserInteraction);
-      };
-    }, [map, isFollowing, onStopFollowing]);
-
-    // Reset hasFlownRef when location changes
-    useEffect(() => {
-      if (location && previousLocationRef.current && 
-          (previousLocationRef.current.lat !== location.lat || 
-           previousLocationRef.current.lon !== location.lon)) {
-        hasFlownRef.current = false;
-      }
-    }, [location]);
-
-    return null;
-  };
-
-  // ZoomTracker component - tracks current zoom level for heatmap auto-disable (GV-04)
-  const ZoomTracker: React.FC<{ onZoomChange: (zoom: number) => void }> = ({ onZoomChange }) => {
-    const map = useMap();
-
-    useEffect(() => {
-      const updateZoom = () => {
-        onZoomChange(map.getZoom());
-      };
-
-      // Set initial zoom
-      updateZoom();
-
-      // Listen for zoom changes
-      map.on('zoomend', updateZoom);
-
-      return () => {
-        map.off('zoomend', updateZoom);
-      };
-    }, [map, onZoomChange]);
-
-    return null;
   };
 
   // Hazard icons and colors are now accessed from HAZARD_ICON_REGISTRY
@@ -488,137 +544,161 @@ const PublicMap: React.FC = () => {
                 aria-expanded={isSidebarOpen}
                 aria-controls="sidebar-filters"
               >
-                <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" aria-hidden="true" />
+                <FontAwesomeIcon icon={faTimes} className="text-base sm:text-lg text-gray-600" aria-hidden="true" />
               </button>
             </div>
           </header>
 
           {/* Scrollable Content Area */}
           <div className="flex-1 overflow-y-auto overscroll-contain">
-            {/* Search Location */}
-            <div className="p-4 border-b border-gray-200">
-              <label htmlFor="location-search" className="sr-only">Search for a location in the Philippines</label>
-              <div className="relative" role="search">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <Search className="w-5 h-5 text-gray-400" aria-hidden="true" />
-                </div>
-                <input
-                  id="location-search"
-                  type="search"
-                  placeholder="Search Location (Philippines)"
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  onFocus={() => searchQuery && setShowSuggestions(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setShowSuggestions(false);
-                    }
-                  }}
-                  className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:border-transparent transition-shadow"
-                  aria-describedby="search-hint"
-                  aria-autocomplete="list"
-                  aria-controls="search-suggestions"
-                  aria-expanded={showSuggestions && searchSuggestions.length > 0}
-                  autoComplete="off"
-                />
-                <span id="search-hint" className="sr-only">
-                  Type at least 3 characters to search. Use arrow keys to navigate suggestions.
-                </span>
-                <button 
-                  type="button"
-                  aria-label={isSearching ? 'Searching...' : 'Search location'}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-[#0a2a4d] hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
-                  onClick={() => searchQuery && searchLocation(searchQuery)}
-                  disabled={isSearching}
-                >
-                  {isSearching ? (
-                    <RefreshCw className="w-5 h-5 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Search className="w-5 h-5" aria-hidden="true" />
+            {/* Show skeleton during loading, actual content when loaded */}
+            {loading ? (
+              <SidebarSkeleton />
+            ) : (
+              <>
+                {/* Search Location */}
+                <div className="p-4 border-b border-gray-200">
+                  <label htmlFor="location-search" className="sr-only">Search for a location in the Philippines</label>
+                  <div className="relative" role="search">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                      <FontAwesomeIcon icon={faSearch} className="text-base text-gray-400" aria-hidden="true" />
+                    </div>
+                    <input
+                      id="location-search"
+                      type="search"
+                      placeholder="Search Location (Philippines)"
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                      onFocus={() => searchQuery && setShowSuggestions(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setShowSuggestions(false);
+                        }
+                      }}
+                      className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:border-transparent transition-shadow"
+                      aria-describedby="search-hint"
+                      aria-autocomplete="list"
+                      aria-controls="search-suggestions"
+                      aria-expanded={showSuggestions && searchSuggestions.length > 0}
+                      autoComplete="off"
+                    />
+                    <span id="search-hint" className="sr-only">
+                      Type at least 3 characters to search. Use arrow keys to navigate suggestions.
+                    </span>
+                    <button 
+                      type="button"
+                      aria-label={isSearching ? 'Searching...' : 'Search location'}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-[#0a2a4d] hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
+                      onClick={() => searchQuery && searchLocation(searchQuery)}
+                      disabled={isSearching}
+                    >
+                      {isSearching ? (
+                        <FontAwesomeIcon icon={faRotateRight} className="text-base animate-spin" aria-hidden="true" />
+                      ) : (
+                        <FontAwesomeIcon icon={faSearch} className="text-base" aria-hidden="true" />
+                      )}
+                    </button>
+                    
+                    {/* Search Suggestions Dropdown */}
+                    {showSuggestions && searchSuggestions.length > 0 && (
+                      <ul
+                        id="search-suggestions"
+                        role="listbox"
+                        aria-label="Location suggestions"
+                        className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto"
+                      >
+                        {searchSuggestions.map((suggestion) => (
+                          <li key={suggestion.place_id} role="option" aria-selected={false}>
+                            <button
+                              onClick={() => handleSelectSuggestion(suggestion)}
+                              className="w-full text-left px-4 py-3 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-b-0 transition-colors"
+                            >
+                              <div className="flex items-start gap-3">
+                                <FontAwesomeIcon icon={faMapPin} className="text-sm text-gray-400 mt-0.5 shrink-0" aria-hidden="true" />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {suggestion.display_name.split(',')[0]}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {suggestion.display_name}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  
+                  {/* Stop Following Button - shown when following active */}
+                  {isFollowingSearch && selectedLocation && (
+                    <button
+                      type="button"
+                      onClick={() => setIsFollowingSearch(false)}
+                      className="mt-3 w-full px-4 py-2.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+                      aria-live="polite"
+                    >
+                      <FontAwesomeIcon icon={faTimes} className="text-xs" aria-hidden="true" />
+                      Stop Following Location
+                    </button>
                   )}
-                </button>
-                
-                {/* Search Suggestions Dropdown */}
-                {showSuggestions && searchSuggestions.length > 0 && (
-                  <ul
-                    id="search-suggestions"
-                    role="listbox"
-                    aria-label="Location suggestions"
-                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto"
-                  >
-                    {searchSuggestions.map((suggestion) => (
-                      <li key={suggestion.place_id} role="option" aria-selected={false}>
-                        <button
-                          onClick={() => handleSelectSuggestion(suggestion)}
-                          className="w-full text-left px-4 py-3 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-b-0 transition-colors"
-                        >
-                          <div className="flex items-start gap-3">
-                            <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" aria-hidden="true" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {suggestion.display_name.split(',')[0]}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate">
-                                {suggestion.display_name}
-                              </p>
-                            </div>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              
-              {/* Stop Following Button - shown when following active */}
-              {isFollowingSearch && selectedLocation && (
-                <button
-                  type="button"
-                  onClick={() => setIsFollowingSearch(false)}
-                  className="mt-3 w-full px-4 py-2.5 bg-amber-50 border border-amber-300 text-amber-800 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
-                  aria-live="polite"
-                >
-                  <X className="w-4 h-4" aria-hidden="true" />
-                  Stop Following Location
-                </button>
-              )}
-            </div>
+                </div>
 
-            {/* FilterPanel Component (FP-01, FP-02, FP-03, FP-04) */}
-            <div className="p-4">
-              <FilterPanel 
-                hazards={hazards}
-                className="h-full"
-                onExpandChange={setIsSidebarExpanded}
-              />
-            </div>
+                {/* FilterPanel Component (FP-01, FP-02, FP-03, FP-04) */}
+                <div className="p-4">
+                  <FilterPanel 
+                    hazards={hazards}
+                    className="h-full"
+                    onExpandChange={setIsSidebarExpanded}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Active Hazards Count - Fixed at bottom */}
           <div className="p-4 border-t border-gray-200 bg-white shrink-0">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 sm:p-4 border border-blue-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm sm:text-base text-gray-700">
-                    <strong className="text-[#0a2a4d] text-lg sm:text-xl">{filteredHazards.length}</strong>
-                    <span className="ml-1">hazard{filteredHazards.length !== 1 ? 's' : ''} visible</span>
-                  </p>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    {hazards.length - filteredHazards.length > 0 && (
-                      <span className="text-amber-600 font-medium">
-                        {hazards.length - filteredHazards.length} hidden by filters
-                      </span>
-                    )}
-                    {hazards.length - filteredHazards.length === 0 && 'All hazards shown'}
-                  </p>
+            {loading ? (
+              <HazardCountSkeleton />
+            ) : (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 sm:p-4 border border-blue-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm sm:text-base text-gray-700">
+                      <strong className="text-[#0a2a4d] text-lg sm:text-xl">{filteredHazards.length}</strong>
+                      <span className="ml-1">hazard{filteredHazards.length !== 1 ? 's' : ''} visible</span>
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                      {hazards.length - filteredHazards.length > 0 && (
+                        <span className="text-amber-600 font-medium">
+                          {hazards.length - filteredHazards.length} hidden by filters
+                        </span>
+                      )}
+                      {hazards.length - filteredHazards.length === 0 && 'All hazards shown'}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="hidden sm:flex bg-white text-[#0a2a4d] border-[#0a2a4d]">
+                    Live
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="hidden sm:flex bg-white text-[#0a2a4d] border-[#0a2a4d]">
-                  Live
-                </Badge>
               </div>
-            </div>
+            )}
           </div>
         </aside>
+
+        {/* Hazard Info Panel - Slide-in details panel (GV-02) */}
+        <HazardInfoPanel
+          hazard={selectedHazard}
+          isOpen={selectedHazard !== null}
+          onClose={() => setSelectedHazard(null)}
+          onZoomTo={(lat, lon) => {
+            if (mapInstanceRef.current) {
+              mapInstanceRef.current.flyTo([lat, lon], 16, { duration: 1.5 });
+            }
+            setSelectedHazard(null);
+          }}
+        />
 
         {/* Sidebar Toggle Button */}
         <button
@@ -634,10 +714,10 @@ const PublicMap: React.FC = () => {
           aria-controls="sidebar-filters"
         >
           {isSidebarOpen ? (
-            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 group-hover:text-[#0a2a4d]" aria-hidden="true" />
+            <FontAwesomeIcon icon={faChevronLeft} className="text-base sm:text-lg text-gray-700 group-hover:text-[#0a2a4d]" aria-hidden="true" />
           ) : (
             <>
-              <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700 group-hover:text-[#0a2a4d]" aria-hidden="true" />
+              <FontAwesomeIcon icon={faBars} className="text-base sm:text-lg text-gray-700 group-hover:text-[#0a2a4d]" aria-hidden="true" />
               <span className="sr-only sm:not-sr-only sm:ml-2 sm:text-sm sm:font-medium sm:text-gray-700 sm:group-hover:text-[#0a2a4d]">
                 Filters
               </span>
@@ -673,8 +753,8 @@ const PublicMap: React.FC = () => {
               data-map-control="true"
             >
               {isMobileControlsOpen
-                ? <X className="w-5 h-5 text-gray-700" aria-hidden="true" />
-                : <Layers className="w-5 h-5 text-gray-700" aria-hidden="true" />
+                ? <FontAwesomeIcon icon={faTimes} className="text-base text-gray-700" aria-hidden="true" />
+                : <FontAwesomeIcon icon={faLayerGroup} className="text-base text-gray-700" aria-hidden="true" />
               }
             </button>
           )}
@@ -691,110 +771,116 @@ const PublicMap: React.FC = () => {
             role="region"
             aria-label="Map controls and legend"
           >
-            {/* Report Generator Button (RG-02) - Only for authenticated users */}
-            {user && (
-              <div className="p-3 border-b border-gray-100">
-                <ReportGenerator 
-                  hazards={filteredHazards}
-                  mapContainerRef={mapContainerRef}
-                  onReportGenerated={() => {
-                    setAnnouncement('Report generated successfully.');
-                  }}
-                  triggerButton={
-                    <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
-                      <FileText className="w-4 h-4" />
-                      Generate Report
-                    </button>
-                  }
-                />
+            {loading ? (
+              <div className="p-3 sm:p-4">
+                <FloatingControlsSkeleton />
               </div>
-            )}
+            ) : (
+              <>
+                {/* Report Generator Button (RG-02) - Only for authenticated users */}
+                {user && (
+                  <div className="p-3 border-b border-gray-100">
+                    <ReportGenerator 
+                      hazards={filteredHazards}
+                      mapContainerRef={mapContainerRef}
+                      onReportGenerated={() => {
+                        setAnnouncement('Report generated successfully.');
+                      }}
+                      triggerButton={
+                        <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
+                          <FontAwesomeIcon icon={faFile} className="text-xs" />
+                          Generate Report
+                        </button>
+                      }
+                    />
+                  </div>
+                )}
 
-            {/* Legend Section */}
-            <div className="p-3 sm:p-4 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 id="legend-heading" className="text-sm sm:text-base font-semibold text-gray-800">
-                  Legend
-                </h2>
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant="outline" 
-                    className="text-xs bg-blue-50 text-blue-700 border-blue-200"
-                    aria-label={`${filteredHazards.length} active hazards`}
-                  >
-                    {filteredHazards.length} active
-                  </Badge>
-                  <button
-                    onClick={() => setIsLegendVisible(!isLegendVisible)}
-                    className="p-1.5 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
-                    aria-expanded={isLegendVisible}
-                    aria-controls="legend-content"
-                    aria-label={isLegendVisible ? 'Collapse legend' : 'Expand legend'}
-                  >
-                    {isLegendVisible ? (
-                      <ChevronUp className="w-4 h-4 text-gray-500" aria-hidden="true" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-500" aria-hidden="true" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              {isLegendVisible && (
-                <ul 
-                  id="legend-content"
-                  className="space-y-1 max-h-[200px] overflow-y-auto mt-3 -mx-1 px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
-                  aria-label="Hazard types and counts"
-                >
-                  {Object.entries(HAZARD_ICON_REGISTRY).map(([key, config]) => {
-                    const count = filteredHazards.filter(h => h.hazard_type === key).length;
-                    const hasCount = count > 0;
-                    return (
-                      <li
-                        key={key}
-                        className={`flex items-center justify-between p-1.5 rounded-lg transition-colors ${
-                          hasCount ? 'hover:bg-gray-50 cursor-default' : 'opacity-40'
-                        }`}
-                        aria-label={`${config.label}: ${count} ${count === 1 ? 'hazard' : 'hazards'}`}
+                {/* Legend Section */}
+                <div className="p-3 sm:p-4 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <h2 id="legend-heading" className="text-sm sm:text-base font-semibold text-gray-800">
+                      Legend
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline" 
+                        className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                        aria-label={`${filteredHazards.length} active hazards`}
                       >
-                        <div className="flex items-center space-x-2">
-                          <div 
-                            className="flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0"
-                            style={{ 
-                              backgroundColor: hasCount ? config.bgColor : '#f3f4f6', 
-                              color: hasCount ? config.color : '#9ca3af' 
-                            }}
-                            aria-hidden="true"
+                        {filteredHazards.length} active
+                      </Badge>
+                      <button
+                        onClick={() => setIsLegendVisible(!isLegendVisible)}
+                        className="p-1.5 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
+                        aria-expanded={isLegendVisible}
+                        aria-controls="legend-content"
+                        aria-label={isLegendVisible ? 'Collapse legend' : 'Expand legend'}
+                      >
+                        {isLegendVisible ? (
+                          <FontAwesomeIcon icon={faChevronUp} className="text-xs text-gray-500" aria-hidden="true" />
+                        ) : (
+                          <FontAwesomeIcon icon={faChevronDown} className="text-xs text-gray-500" aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  {isLegendVisible && (
+                    <ul 
+                      id="legend-content"
+                      className="space-y-1 max-h-[200px] overflow-y-auto mt-3 -mx-1 px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+                      aria-label="Hazard types and counts"
+                    >
+                      {Object.entries(HAZARD_ICON_REGISTRY).map(([key, config]) => {
+                        const count = filteredHazards.filter(h => h.hazard_type === key).length;
+                        const hasCount = count > 0;
+                        return (
+                          <li
+                            key={key}
+                            className={`flex items-center justify-between p-1.5 rounded-lg transition-colors ${
+                              hasCount ? 'hover:bg-gray-50 cursor-default' : 'opacity-40'
+                            }`}
+                            aria-label={`${config.label}: ${count} ${count === 1 ? 'hazard' : 'hazards'}`}
                           >
-                            <HazardIcon hazardType={key} size={16} />
-                          </div>
-                          <span className={`text-xs font-medium ${hasCount ? 'text-gray-700' : 'text-gray-400'}`}>
-                            {config.label}
-                          </span>
-                        </div>
-                        <Badge 
-                          variant={hasCount ? "secondary" : "outline"} 
-                          className={`text-xs h-5 min-w-[1.75rem] justify-center ${
-                            hasCount 
-                              ? 'bg-gray-100 text-gray-700' 
-                              : 'bg-transparent text-gray-400 border-gray-200'
-                          }`}
-                        >
-                          {count}
-                        </Badge>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
+                            <div className="flex items-center space-x-2">
+                              <div 
+                                className="flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0"
+                                style={{ 
+                                  backgroundColor: hasCount ? config.bgColor : '#f3f4f6', 
+                                  color: hasCount ? config.color : '#9ca3af' 
+                                }}
+                                aria-hidden="true"
+                              >
+                                <HazardIcon hazardType={key} size={16} />
+                              </div>
+                              <span className={`text-xs font-medium ${hasCount ? 'text-gray-700' : 'text-gray-400'}`}>
+                                {config.label}
+                              </span>
+                            </div>
+                            <Badge 
+                              variant={hasCount ? "secondary" : "outline"} 
+                              className={`text-xs h-5 min-w-[1.75rem] justify-center ${
+                                hasCount 
+                                  ? 'bg-gray-100 text-gray-700' 
+                                  : 'bg-transparent text-gray-400 border-gray-200'
+                              }`}
+                            >
+                              {count}
+                            </Badge>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
 
-            {/* Map Controls Section - Clustering & Heatmap */}
+                {/* Map Controls Section - Clustering & Heatmap */}
             <div className="p-3 sm:p-4 space-y-3">
               {/* Clustering Toggle */}
               <div className="flex items-center justify-between" data-tour="cluster-section">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-blue-50 rounded-md">
-                    <Layers className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                    <FontAwesomeIcon icon={faLayerGroup} className="text-xs text-blue-600" aria-hidden="true" />
                   </div>
                   <span id="clustering-label" className="text-sm font-medium text-gray-700">
                     Clustering
@@ -831,8 +917,9 @@ const PublicMap: React.FC = () => {
               <div className="flex items-center justify-between" data-tour="heatmap-section">
                 <div className="flex items-center gap-2">
                   <div className={`p-1.5 rounded-md ${currentZoom > heatmapSettings.maxZoom ? 'bg-gray-100' : 'bg-orange-50'}`}>
-                    <MapIcon 
-                      className={`w-4 h-4 ${currentZoom > heatmapSettings.maxZoom ? 'text-gray-400' : 'text-orange-600'}`} 
+                    <FontAwesomeIcon 
+                      className={`text-xs ${currentZoom > heatmapSettings.maxZoom ? 'text-gray-400' : 'text-orange-600'}`}
+                      icon={faMap} 
                       aria-hidden="true" 
                     />
                   </div>
@@ -884,7 +971,7 @@ const PublicMap: React.FC = () => {
                 className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors pt-1"
                 aria-expanded={showSettings}
               >
-                <Settings className="w-3.5 h-3.5" aria-hidden="true" />
+                <FontAwesomeIcon icon={faCog} className="text-xs" aria-hidden="true" />
                 <span>{showSettings ? 'Hide settings' : 'Heatmap settings'}</span>
               </button>
 
@@ -924,18 +1011,20 @@ const PublicMap: React.FC = () => {
                 </div>
               )}
             </div>
+            </>
+          )}
           </Card>
 
-          {/* Error Alert - Enhanced Styling */}
+          {/* Error Alert - Centered Positioning */}
           {isError && (
             <div
-              className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1100] max-w-md w-full px-4"
+              className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1100] max-w-md w-full px-4"
               role="alert"
               aria-live="assertive"
             >
               <Alert variant="destructive" className="bg-red-50 border-red-300 shadow-lg">
                 <div className="flex items-start space-x-3">
-                  <AlertTriangle className="h-5 w-5 mt-0.5 text-red-600 shrink-0" aria-hidden="true" />
+                  <FontAwesomeIcon icon={faExclamationTriangle} className="text-base mt-0.5 text-red-600 shrink-0" aria-hidden="true" />
                   <div>
                     <p className="text-red-800 font-medium">Error Loading Data</p>
                     <p className="text-red-700 text-sm mt-1">{queryError?.message || 'Failed to load hazard data. Please try again later.'}</p>
@@ -954,13 +1043,13 @@ const PublicMap: React.FC = () => {
           {/* Loading State - Enhanced Accessibility */}
           {loading && hazards.length === 0 && (
             <div 
-              className="absolute inset-0 flex items-center justify-center bg-gray-50/90 backdrop-blur-sm z-[999]"
+              className="fixed inset-0 flex items-center justify-center bg-gray-50/90 backdrop-blur-sm z-[999]"
               role="status"
               aria-live="polite"
               aria-busy="true"
             >
               <Card className="p-6 sm:p-8 shadow-xl border border-gray-200">
-                <div className="flex flex-col items-center space-y-4">
+                <div className="flex flex-col items-center justify-center space-y-4">
                   <div 
                     className="animate-spin rounded-full h-12 w-12 sm:h-14 sm:w-14 border-4 border-gray-200 border-t-[#0a2a4d]" 
                     aria-hidden="true"
@@ -1004,6 +1093,9 @@ const PublicMap: React.FC = () => {
             
             {/* Zoom Tracker - updates current zoom for heatmap auto-disable */}
             <ZoomTracker onZoomChange={setCurrentZoom} />
+            
+            {/* Map Instance Setter - Captures Leaflet map for external component access */}
+            <MapInstanceSetter mapRef={mapInstanceRef} />
             
             {/* Heatmap Layer (GV-04) - Auto-disables at zoom > 12 */}
             <HeatmapLayer
@@ -1066,50 +1158,14 @@ const PublicMap: React.FC = () => {
                   <Marker
                     key={hazard.id}
                     position={[hazard.latitude, hazard.longitude]}
+                    icon={getHazardMarkerIcon(hazard.hazard_type, hazard.severity)}
                     // @ts-expect-error - Custom option for cluster coloring (react-leaflet-cluster extension)
                     options={{ hazardType: hazard.hazard_type }}
-                  >
-                    <Popup maxWidth={300}>
-                  <div className="p-2 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-lg capitalize">
-                        {hazard.hazard_type.replace(/_/g, ' ')}
-                      </h3>
-                      <Badge
-                        className={`${severityColors[hazard.severity] || 'bg-gray-500'} text-white`}
-                      >
-                        {hazard.severity}
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-1 text-sm">
-                      <p>
-                        <strong>Location:</strong> {hazard.location_name}
-                      </p>
-                      <p>
-                        <strong>Source:</strong> {hazard.source_type.replace(/_/g, ' ')}
-                      </p>
-                      <p>
-                        <strong>Confidence:</strong> {(hazard.confidence_score * 100).toFixed(0)}%
-                      </p>
-                      <p className="text-gray-600">
-                        <strong>Detected:</strong>{' '}
-                        {new Date(hazard.created_at).toLocaleString('en-PH', {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })}
-                      </p>
-                    </div>
-
-                    {hazard.source_content && (
-                      <p className="text-sm text-gray-700 pt-2 border-t">
-                        {hazard.source_content}
-                      </p>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+                    eventHandlers={{
+                      click: () => setSelectedHazard(hazard),
+                    }}
+                  />
+                ))}
               </MarkerClusterGroup>
             ) : (
               // Individual markers when clustering disabled
@@ -1117,47 +1173,11 @@ const PublicMap: React.FC = () => {
                 <Marker
                   key={hazard.id}
                   position={[hazard.latitude, hazard.longitude]}
-                >
-                  <Popup maxWidth={300}>
-                    <div className="p-2 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-lg capitalize">
-                          {hazard.hazard_type.replace(/_/g, ' ')}
-                        </h3>
-                        <Badge
-                          className={`${severityColors[hazard.severity] || 'bg-gray-500'} text-white`}
-                        >
-                          {hazard.severity}
-                        </Badge>
-                      </div>
-
-                      <div className="space-y-1 text-sm">
-                        <p>
-                          <strong>Location:</strong> {hazard.location_name}
-                        </p>
-                        <p>
-                          <strong>Source:</strong> {hazard.source_type.replace(/_/g, ' ')}
-                        </p>
-                        <p>
-                          <strong>Confidence:</strong> {(hazard.confidence_score * 100).toFixed(0)}%
-                        </p>
-                        <p className="text-gray-600">
-                          <strong>Detected:</strong>{' '}
-                          {new Date(hazard.created_at).toLocaleString('en-PH', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
-                        </p>
-                      </div>
-
-                      {hazard.source_content && (
-                        <p className="text-sm text-gray-700 pt-2 border-t">
-                          {hazard.source_content}
-                        </p>
-                      )}
-                    </div>
-                  </Popup>
-                </Marker>
+                  icon={getHazardMarkerIcon(hazard.hazard_type, hazard.severity)}
+                  eventHandlers={{
+                    click: () => setSelectedHazard(hazard),
+                  }}
+                />
               ))
             )}
           </MapContainer>
@@ -1191,7 +1211,7 @@ const PublicMap: React.FC = () => {
 
             {/* Last Updated & Auto-refresh */}
             <div className="flex items-center gap-2 text-gray-500">
-              <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+              <FontAwesomeIcon icon={faRotateRight} className="text-xs" aria-hidden="true" />
               <span>
                 Updated: {lastUpdated.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
               </span>
@@ -1205,9 +1225,17 @@ const PublicMap: React.FC = () => {
               className="flex items-center gap-1.5 text-[#005a9c] hover:text-[#003d66] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#005a9c] focus:ring-offset-2 rounded px-2 py-1 -mx-2 transition-colors"
               aria-label="Report a hazard - opens citizen report form"
             >
-              <AlertTriangle className="w-4 h-4" aria-hidden="true" />
+              <FontAwesomeIcon icon={faExclamationTriangle} className="text-xs" aria-hidden="true" />
               <span>Report a Hazard</span>
-              <ExternalLink className="w-3 h-3" aria-hidden="true" />
+              <FontAwesomeIcon icon={faExternalLinkAlt} className="text-[0.65rem]" aria-hidden="true" />
+            </Link>
+            <Link
+              to="/track"
+              className="flex items-center gap-1.5 text-[#005a9c] hover:text-[#003d66] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#005a9c] focus:ring-offset-2 rounded px-2 py-1 -mx-2 transition-colors"
+              aria-label="Track report status page"
+            >
+              <span>Track Report</span>
+              <FontAwesomeIcon icon={faExternalLinkAlt} className="text-[0.65rem]" aria-hidden="true" />
             </Link>
           </div>
         </div>

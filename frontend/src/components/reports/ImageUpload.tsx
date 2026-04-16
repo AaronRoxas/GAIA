@@ -4,7 +4,7 @@
  * 
  * Features:
  * - Drag-and-drop file upload
- * - File type validation (JPEG/PNG only)
+ * - File type validation (JPEG/PNG/JFIF/HEIC/HEIF)
  * - File size validation (<5MB)
  * - Image preview with remove button
  * - EXIF metadata extraction (GPS, timestamp, device info)
@@ -39,11 +39,30 @@ interface ImageMetadata {
 // ============================================================================
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/heic', 'image/heif'];
+const HEIC_HEIF_TYPES = ['image/heic', 'image/heif'];
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+/**
+ * Detect if file is HEIC/HEIF by MIME type or extension fallback
+ */
+function isHeicFile(filename: string, mimeType: string): boolean {
+  // Check if MIME type is already HEIC/HEIF
+  if (HEIC_HEIF_TYPES.includes(mimeType)) {
+    return true;
+  }
+  
+  // Fallback: check file extension if MIME type is empty or generic
+  if (!mimeType || mimeType === 'application/octet-stream') {
+    const ext = filename.toLowerCase().split('.').pop();
+    return ext === 'heic' || ext === 'heif';
+  }
+  
+  return false;
+}
 
 /**
  * Convert EXIF GPS format to decimal degrees
@@ -143,6 +162,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [metadata, setMetadata] = useState<ImageMetadata | null>(null);
@@ -154,9 +174,12 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
   // ============================================================================
 
   const validateFile = (file: File): string | null => {
-    // Check file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return 'Only JPEG and PNG images are allowed';
+    // Check file type (with HEIC/HEIF extension fallback)
+    const isHeic = isHeicFile(file.name, file.type);
+    const isStandardType = ALLOWED_TYPES.includes(file.type);
+    
+    if (!isHeic && !isStandardType) {
+      return 'Only JPEG, PNG, JFIF, HEIC, and HEIF images are allowed';
     }
 
     // Check file size
@@ -173,6 +196,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
 
   const handleFileSelect = useCallback(async (file: File) => {
     setError(null);
+    setWarning(null);
     setMetadata(null);
 
     // Validate file
@@ -180,6 +204,11 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
     if (validationError) {
       setError(validationError);
       return;
+    }
+
+    // Warn about HEIC/HEIF support limitations (separate from error state)
+    if (HEIC_HEIF_TYPES.includes(file.type) || isHeicFile(file.name, file.type)) {
+      setWarning('HEIC/HEIF images may not preview in all browsers and EXIF/GPS extraction may be unavailable. Please use JPEG or PNG for best compatibility.');
     }
 
     // Create preview URL
@@ -219,6 +248,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
     setSelectedFile(null);
     setPreviewUrl(null);
     setError(null);
+    setWarning(null);
     setMetadata(null);
     onFileSelect(undefined);
     
@@ -338,6 +368,14 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
             )}
           </div>
         )}
+
+        {/* Warning Display (non-error) */}
+        {warning && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm flex items-start gap-2">
+            <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-amber-800">{warning}</p>
+          </div>
+        )}
       </div>
     );
   }
@@ -362,7 +400,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
         <input
           ref={fileInputRef}
           type="file"
-          accept={ALLOWED_TYPES.join(',')}
+          accept={`${ALLOWED_TYPES.join(',')},.jfif,.heic,.heif`}
           onChange={handleInputChange}
           disabled={disabled}
           className="hidden"

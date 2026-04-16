@@ -106,6 +106,7 @@ export const adminApi = {
   auditLogs: {
     list: (params?: {
       user_email?: string;
+      event?: string;
       action?: string;
       resource_type?: string;
       start_date?: string;
@@ -116,6 +117,8 @@ export const adminApi = {
     }) => {
       const queryParams = new URLSearchParams();
       if (params?.user_email) queryParams.append('user_email', params.user_email);
+      // Both event and action are sent to backend independently
+      if (params?.event) queryParams.append('event', params.event);
       if (params?.action) queryParams.append('action', params.action);
       if (params?.resource_type) queryParams.append('resource_type', params.resource_type);
       if (params?.start_date) queryParams.append('start_date', params.start_date);
@@ -135,7 +138,7 @@ export const adminApi = {
     
     update: (key: string, value: string) => apiRequest(`/api/v1/admin/system-config/${key}`, {
       method: 'PATCH',
-      body: JSON.stringify({ value }),
+      body: JSON.stringify({ config_value: value }),
     }),
   },
 

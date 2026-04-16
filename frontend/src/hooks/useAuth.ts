@@ -65,15 +65,12 @@ async function logAuthEvent(
     });
     
     if (!response.ok) {
-      console.warn('[useAuth] Failed to log auth event:', response.status);
       return {};
     }
     
     const data = await response.json();
-    console.log(`[useAuth] Auth event logged: ${eventType}`);
     return { last_login: data.last_login };
   } catch (error) {
-    console.warn('[useAuth] Error logging auth event:', error);
     return {};
   }
 }
@@ -82,40 +79,25 @@ async function logAuthEvent(
  * Fetch user profile from database with schema specification
  */
 async function fetchUserProfile(userId: string): Promise<UserProfile | null> {
-  const startTime = performance.now();
+  // 5-second timeout to prevent hangs
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Profile fetch timeout after 5s')), 5000)
+  );
   
-  try {
-    console.log('[useAuth] Fetching profile for user:', userId);
-    
-    // 5-second timeout to prevent hangs
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Profile fetch timeout after 5s')), 5000)
-    );
-    
-    const fetchPromise = supabase
-      .schema('gaia')
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+  const fetchPromise = supabase
+    .schema('gaia')
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
-    const duration = performance.now() - startTime;
-    console.log(`[useAuth] Profile fetch took ${duration.toFixed(2)}ms`);
-
-    if (error) {
-      console.error('[useAuth] Error fetching user profile:', error);
-      throw error;
-    }
-
-    console.log('[useAuth] Profile fetched successfully for user:', userId);
-    return data as UserProfile;
-  } catch (error) {
-    const duration = performance.now() - startTime;
-    console.error(`[useAuth] Exception in fetchUserProfile after ${duration.toFixed(2)}ms:`, error);
+  if (error) {
     throw error;
   }
+
+  return data as UserProfile;
 }
 
 /**
@@ -240,9 +222,8 @@ export function useSignIn() {
       // This ensures only one active session per user at a time
       try {
         await supabase.auth.signOut({ scope: 'others' });
-        console.log('[useAuth] Other sessions invalidated (single-session enforcement)');
       } catch (signOutError) {
-        console.warn('[useAuth] Could not invalidate other sessions:', signOutError);
+        void signOutError;
         // Continue with login even if this fails
       }
       
@@ -281,10 +262,6 @@ export function useSignIn() {
       // Invalidate and refetch current user and profile
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.currentUser() });
       queryClient.setQueryData(queryKeys.auth.profile(data.user.id), data.profile);
-      console.log('[useAuth] Sign-in successful, cache updated');
-    },
-    onError: (error) => {
-      console.error('[useAuth] Sign-in error:', error);
     },
   });
 }
@@ -320,10 +297,6 @@ export function useSignOut() {
       // Clear all cached auth data
       queryClient.removeQueries({ queryKey: queryKeys.auth.all });
       queryClient.clear(); // Clear entire cache for security
-      console.log('[useAuth] Sign-out successful, cache cleared');
-    },
-    onError: (error) => {
-      console.error('[useAuth] Sign-out error:', error);
     },
   });
 }
