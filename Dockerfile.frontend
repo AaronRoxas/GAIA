@@ -1,5 +1,5 @@
 # Multi-stage build for GAIA Frontend (React PWA)
-FROM node:20-alpine AS builder
+FROM node:20-alpine AS development
 
 # Set working directory
 WORKDIR /app
@@ -7,32 +7,38 @@ WORKDIR /app
 # Copy package files
 COPY frontend/package*.json ./
 
-RUN npm install
-
-# Install ALL dependencies (including devDependencies for build)
+# Install dependencies
 RUN npm ci
 
 # Copy application code
 COPY frontend/ .
 
-# Build the application
+# Build production assets
 RUN npm run build
 
-# Production stage with nginx
-FROM nginx:alpine
+# Production stage with Nginx
+FROM nginx:stable-alpine AS production
 
-# Copy custom nginx configuration
-COPY docker/frontend/nginx.conf /etc/nginx/conf.d/default.conf
+# Copy built assets from development stage
+COPY --from=development /app/build /usr/share/nginx/html
 
-# Copy built application from builder
-COPY --from=builder /app/build /usr/share/nginx/html
+# Copy Nginx configuration for SPA
+RUN echo 'server { \
+  listen 3000; \
+  root /usr/share/nginx/html; \
+  index index.html; \
+  location / { \
+    try_files $uri $uri/ /index.html; \
+  } \
+}' > /etc/nginx/conf.d/default.conf
 
-# Expose port
+# Expose port for production
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:3000/ || exit 1
+# Health check to detect and restart unresponsive containers
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# Start nginx
+# Start Nginx
 CMD ["nginx", "-g", "daemon off;"]
+

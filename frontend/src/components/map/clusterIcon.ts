@@ -1,11 +1,11 @@
 /**
  * Custom Cluster Icon Creator for react-leaflet-cluster
- * 
+ *
  * Creates cluster markers with:
  * - Background color based on dominant hazard type
  * - Count badge showing number of hazards in cluster
  * - Size scaling based on count (small/medium/large)
- * 
+ *
  * Module: GV-03 (Marker Clustering)
  * Change: add-advanced-map-features
  */
@@ -13,14 +13,9 @@
 import L from 'leaflet';
 import { HAZARD_ICON_REGISTRY } from '../../constants/hazard-icons';
 
-// Generate hazard colors from centralized registry
-const hazardColors: Record<string, string> = Object.entries(HAZARD_ICON_REGISTRY).reduce(
-  (acc, [key, config]) => {
-    acc[key] = config.color;
-    return acc;
-  },
-  {} as Record<string, string>
-);
+// ============================================================================
+// TYPE DEFINITIONS & HELPERS
+// ============================================================================
 
 interface ClusterMarker extends L.Marker {
   getAllChildMarkers?: () => Array<L.Marker & { options?: { hazardType?: string } }>;
@@ -83,7 +78,7 @@ function getClusterDimensions(sizeClass: string): [number, number] {
 }
 
 /**
- * Creates custom cluster icon with hazard type coloring
+ * Creates custom cluster icon with hazard type coloring and count badge
  * @param cluster - Leaflet MarkerCluster object
  * @returns Custom DivIcon for the cluster
  */
@@ -93,9 +88,11 @@ export function createCustomClusterIcon(cluster: ClusterMarker): L.DivIcon {
   const dominantType = getDominantHazardType(childMarkers);
   const sizeClass = getClusterSizeClass(count);
   const [width, height] = getClusterDimensions(sizeClass);
-  const color = hazardColors[dominantType] || hazardColors.other;
-  
-  // Create HTML for cluster icon
+  const dominantConfig = HAZARD_ICON_REGISTRY[dominantType as keyof typeof HAZARD_ICON_REGISTRY] 
+    || HAZARD_ICON_REGISTRY.other;
+  const color = dominantConfig.color;
+
+  // Create HTML for cluster icon: count number centered in colored circle
   const html = `
     <div class="cluster-icon cluster-${sizeClass}" style="
       width: ${width}px;
@@ -110,11 +107,13 @@ export function createCustomClusterIcon(cluster: ClusterMarker): L.DivIcon {
       font-weight: bold;
       color: white;
       font-size: ${sizeClass === 'small' ? '12px' : sizeClass === 'medium' ? '14px' : '16px'};
+      line-height: 1;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     ">
       ${count}
     </div>
   `;
-  
+
   return L.divIcon({
     html,
     className: 'custom-cluster-icon',
@@ -142,9 +141,11 @@ export function createClusterTooltip(cluster: ClusterMarker): string {
   const sortedTypes = Object.entries(typeCounts)
     .sort((a, b) => b[1] - a[1])
     .map(([type, count]) => {
-      const displayName = type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const typeKey = type as keyof typeof HAZARD_ICON_REGISTRY;
+      const config = HAZARD_ICON_REGISTRY[typeKey] || HAZARD_ICON_REGISTRY.other;
+      const displayName = config.label;
       return `<div style="padding: 2px 0;">
-        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${hazardColors[type] || hazardColors.other}; margin-right: 6px;"></span>
+        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${config.color}; margin-right: 6px;"></span>
         ${displayName}: ${count}
       </div>`;
     })

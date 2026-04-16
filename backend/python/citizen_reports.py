@@ -54,7 +54,7 @@ class ReportSubmissionResponse(BaseModel):
     """Response after successful report submission"""
     tracking_id: str = Field(..., description="Unique tracking ID for the report")
     message: str = Field(..., description="Confirmation message")
-    status: str = Field(default="pending_verification", description="Initial status")
+    status: str = Field(default="unverified", description="Initial status")
     submitted_at: datetime = Field(..., description="Timestamp of submission")
 
 
@@ -309,7 +309,10 @@ async def submit_citizen_report(
     if image and image.filename:
         try:
             # Security: Validate file type and extension
-            ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+            # Note: JFIF files are identified as image/jpeg (JFIF is a JPEG variant)
+            # Removed non-IANA 'image/jfif' MIME type; JPEG/JFIF files use 'image/jpeg'
+            # HEIC/HEIF disabled in production due to known parser vulnerabilities
+            ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'jfif'}
             ALLOWED_MIME_TYPES = {'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'}
             
             # Validate MIME type
@@ -437,12 +440,27 @@ async def submit_citizen_report(
         logger.info("Encrypting PII fields for storage")
         report_data = encrypt_pii_fields(report_data)
         
-        result = supabase.schema("gaia").from_("citizen_reports").insert(report_data).execute()
-        
-        if not result.data:
-            raise Exception("Database insert failed - no data returned")
-        
-        logger.info(f"Citizen report created: {tracking_id} (PII encrypted)")
+        # Insert report and validate result
+        try:
+            result = supabase.schema("gaia").from_("citizen_reports").insert(report_data).execute()
+            # Validate insert result
+            if not result or not result.data:
+                error_msg = f"Database insert returned no data. Status: {getattr(result, 'status_code', 'unknown')}"
+                logger.error(error_msg)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to store report in database. Please try again."
+                )
+            logger.info(f"Citizen report created: {tracking_id} (PII encrypted)")
+        except HTTPException:
+            raise
+        except Exception as e:
+            error_msg = f"Failed to insert citizen report: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to submit report. Please try again later."
+            )
         # Log public submission activity (anonymous user)
         # Note: Do NOT log actual PII values, only metadata
         try:
@@ -480,10 +498,13 @@ async def submit_citizen_report(
         return ReportSubmissionResponse(
             tracking_id=tracking_id,
             message="Thank you for your report! It will be reviewed by authorities.",
-            status="pending_verification",
+            status="unverified",
             submitted_at=datetime.utcnow()
         )
         
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is (they have proper status codes and messages)
+        raise
     except Exception as e:
         logger.error(f"Failed to create citizen report: {e}")
         raise HTTPException(
@@ -551,8 +572,8 @@ async def track_citizen_report(tracking_id: str, request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error tracking citizen report: {e}")
+        logger.exception("Error tracking citizen report")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"Error retrieving report status": str(e)},
+            detail="Error retrieving report status",
         )
