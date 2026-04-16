@@ -239,8 +239,6 @@ async def submit_citizen_report(
                 )
         except HTTPException:
             raise
-        except HTTPException:
-            raise
         except Exception as e:
             logger.warning(f"Cooldown check failed (continuing): {e}")
     
@@ -504,6 +502,9 @@ async def submit_citizen_report(
             submitted_at=datetime.utcnow()
         )
         
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is (they have proper status codes and messages)
+        raise
     except Exception as e:
         logger.error(f"Failed to create citizen report: {e}")
         raise HTTPException(
@@ -571,8 +572,8 @@ async def track_citizen_report(tracking_id: str, request: Request):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error tracking citizen report: {e}")
+        logger.exception("Error tracking citizen report")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"Error retrieving report status": str(e)},
+            detail="Error retrieving report status",
         )

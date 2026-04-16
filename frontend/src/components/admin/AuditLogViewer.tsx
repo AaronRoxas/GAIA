@@ -24,7 +24,7 @@ import {
   ColumnFiltersState,
 } from '@tanstack/react-table';
 import { useQuery } from '@tanstack/react-query';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { Search, Download, Filter, CheckCircle2, XCircle, Eye } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -138,8 +138,8 @@ const AuditLogViewer: React.FC = () => {
       if (actionFilter !== 'all') params.event = actionFilter;
       if (resourceTypeFilter !== 'all') params.resource_type = resourceTypeFilter;
       if (successFilter !== null) params.success = successFilter;
-      if (dateRange.from) params.start_date = startOfDay(dateRange.from).toISOString();
-      if (dateRange.to) params.end_date = endOfDay(dateRange.to).toISOString();
+      if (dateRange.from) params.start_date = startOfDay(parseISO(dateRange.from.toISOString().split('T')[0])).toISOString();
+      if (dateRange.to) params.end_date = endOfDay(parseISO(dateRange.to.toISOString().split('T')[0])).toISOString();
 
       return await adminApi.auditLogs.list(params);
     },

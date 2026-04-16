@@ -117,8 +117,9 @@ export const adminApi = {
     }) => {
       const queryParams = new URLSearchParams();
       if (params?.user_email) queryParams.append('user_email', params.user_email);
+      // Both event and action are sent to backend independently
       if (params?.event) queryParams.append('event', params.event);
-      if (params?.action && !params?.event) queryParams.append('action', params.action);
+      if (params?.action) queryParams.append('action', params.action);
       if (params?.resource_type) queryParams.append('resource_type', params.resource_type);
       if (params?.start_date) queryParams.append('start_date', params.start_date);
       if (params?.end_date) queryParams.append('end_date', params.end_date);

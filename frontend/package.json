@@ -43,7 +43,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "2.1.1",
     "date-fns": "^4.1.0",
-    "date-fns-tz": "^3.2.0",
+    "@date-fns/tz": "^1.4.1",
     "dompurify": "^3.3.3",
     "exif-js": "^2.3.0",
     "html2canvas": "^1.4.1",
@@ -92,8 +92,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "cross-env CI=false react-scripts build",
-    "test": "react-scripts test",
+    "build": "react-scripts build",
+    "test": "cross-env TZ=Asia/Manila react-scripts test",
     "test:vitest": "vitest --run",
     "test:vitest:watch": "vitest",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
@@ -112,7 +112,7 @@
       "^sonner$": "<rootDir>/node_modules/sonner/dist/index.js"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(sonner|@radix-ui|react-leaflet|@react-leaflet|leaflet|leaflet-geosearch)/)"
+      "node_modules/(?!(sonner|@radix-ui|react-leaflet|@react-leaflet|leaflet|leaflet-geosearch|date-fns|@date-fns/tz)/)"
     ]
   },
   "browserslist": {

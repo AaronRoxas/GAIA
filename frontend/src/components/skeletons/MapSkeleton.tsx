@@ -216,7 +216,6 @@ export const SidebarSkeleton: React.FC = () => {
     </div>
   );
 };
-
 /**
  * Skeleton loader for map controls floating panel
  */
@@ -224,6 +223,9 @@ export const FloatingControlsSkeleton: React.FC = () => {
   return (
     <div 
       className="space-y-3"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading map controls"
     >
       {/* Clustering toggle */}
       <div className="flex items-center justify-between p-3 bg-gray-100 rounded animate-pulse">

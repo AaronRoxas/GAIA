@@ -1,13 +1,15 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import sys
 from types import SimpleNamespace
-import unittest.mock as mock
 
 import pytest
 
-# Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend", "python"))
+# Add project root and backend/python so backend package and lib.* imports both resolve.
+PROJECT_ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+BACKEND_PY = os.path.join(PROJECT_ROOT, "backend", "python")
+sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, BACKEND_PY)
 
 from backend.python import analytics_api
 
@@ -50,12 +52,19 @@ class _FakeSupabase:
             return _FakeQuery(self.hazards)
         return _FakeQuery([])
 
+    def rpc(self, *_args, **_kwargs):
+        # Simulate missing RPC in schema cache to exercise fallback path.
+        raise Exception({
+            "code": "PGRST202",
+            "message": "Could not find the function gaia.get_source_breakdown",
+            "details": "schema cache miss",
+        })
+
 
 @pytest.mark.asyncio
 async def test_trends_include_current_day(monkeypatch):
-    # Freeze time to prevent flakiness around midnight
-    FIXED_TIME = datetime(2026, 4, 13, 15, 30, 0)
-    now = FIXED_TIME
+    now = datetime.now()
+    today = now.strftime("%Y-%m-%d")
     
     monkeypatch.setattr(
         analytics_api,
@@ -64,7 +73,7 @@ async def test_trends_include_current_day(monkeypatch):
             hazards=[
                 {
                     "hazard_type": "flood",
-                    "detected_at": now.isoformat(),
+                    "detected_at": (now - timedelta(hours=1)).isoformat(),
                     "source_type": "rss",
                 }
             ]
@@ -76,12 +85,10 @@ async def test_trends_include_current_day(monkeypatch):
 
     monkeypatch.setattr(analytics_api, "get_or_set", passthrough)
     
-    # Monkeypatch datetime.now to return fixed time
-    with mock.patch.object(analytics_api.datetime, "now", return_value=FIXED_TIME):
-        trends = await analytics_api.get_hazard_trends(days=7)
+    trends = await analytics_api.get_hazard_trends(days=7)
     
     assert len(trends) == 7
-    assert trends[-1].date == now.strftime("%Y-%m-%d")
+    assert trends[-1].date == today
 
 
 @pytest.mark.asyncio

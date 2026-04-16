@@ -110,12 +110,16 @@ export function HazardInfoPanel({
     }
   }, [isOpen, isClosing, handleClose]);
 
-  // Implement focus trap
+  // Save previous focus when panel opens/closes
+  useEffect(() => {
+    if (isOpen && document.activeElement && document.activeElement instanceof HTMLElement) {
+      previousFocusRef.current = document.activeElement;
+    }
+  }, [isOpen]);
+
+  // Implement focus trap - only depends on isOpen to avoid resetting focus when hazard changes
   useEffect(() => {
     if (!isOpen || !panelRef.current) return;
-
-    // Save the previously focused element
-    previousFocusRef.current = document.activeElement as HTMLElement;
 
     // Get all focusable elements in the panel
     const focusableElements = panelRef.current.querySelectorAll<HTMLElement>(
@@ -124,7 +128,7 @@ export function HazardInfoPanel({
     const firstElement = focusableElements[0];
     const lastElement = focusableElements[focusableElements.length - 1];
 
-    // Focus the first element when panel opens, or fall back to close button if no hazard
+    // Focus the first focusable element when the panel opens
     if (firstElement) {
       firstElement.focus();
     }
@@ -171,7 +175,7 @@ export function HazardInfoPanel({
         previousFocusRef.current?.focus();
       };
     }
-  }, [isOpen, hazard]);
+  }, [isOpen]);
 
   // No overflow handling needed - panel is absolutely positioned and doesn't affect body layout
   // The backdrop overlay prevents interaction with content behind the panel
@@ -229,7 +233,7 @@ export function HazardInfoPanel({
         }
       `}</style>
 
-      {/* Backdrop overlay - always in DOM */}
+      {/* Backdrop overlay - always in DOM (purely decorative, close handled by panel button) */}
       <div
         onClick={isOpen && !isClosing ? handleClose : undefined}
         className={`
@@ -237,12 +241,10 @@ export function HazardInfoPanel({
           ${isOpen && !isClosing ? 'hazard-backdrop-visible bg-black/30' : 'hazard-backdrop-hidden bg-transparent'}
         `}
         aria-hidden="true"
-        role={isOpen && !isClosing ? "button" : undefined}
-        tabIndex={isOpen && !isClosing ? -1 : undefined}
       />
     
 
-      {/* Slide-in Panel - always in DOM, hidden with translateX */}
+      {/* Info Panel - opacity fade (hidden with opacity, visible with opacity-100) */}
       <aside
         ref={panelRef}
         className={`
@@ -315,7 +317,7 @@ export function HazardInfoPanel({
                   <div className="flex items-center justify-center mb-2">
                     <FontAwesomeIcon icon={faMapPin} className="text-green-600 text-sm" aria-hidden="true" />
                   </div>
-                  <p className="text-xs text-gray-900 font-mono text-[10px]">
+                  <p className="text-xs text-gray-900 font-mono">
                     {hazard.latitude.toFixed(3)}, <br /> {hazard.longitude.toFixed(3)}
                   </p>
                   <p className="text-xs text-gray-600 mt-1">Location</p>

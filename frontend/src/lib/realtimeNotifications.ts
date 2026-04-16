@@ -54,11 +54,17 @@ export function useRealtimeHazards() {
   const queryClient = useQueryClient();
   const { addNotification } = useNotificationStore();
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const isSettingUpRef = useRef(false);
   const pollIntervalRef = useRef<number | null>(null);
   const lastSeenRef = useRef<string | null>(null);
   
   // LRU cache for seen alerts with TTL (max 1000 entries, 30 min expiry)
   const seenAlertsRef = useRef<Map<string, number>>(new Map());
+  
+  // Store handler refs to keep callbacks up-to-date
+  const addNotificationRef = useRef(addNotification);
+  const notifyBrowserRef = useRef<typeof notifyBrowser | null>(null);
+  const emitHazardAlertRef = useRef<typeof emitHazardAlert | null>(null);
 
   const notifyBrowser = useCallback((hazard: { id: string; hazard_type: string; location_name: string; severity?: string }) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
@@ -131,7 +137,8 @@ export function useRealtimeHazards() {
     const normalizedSeverity = (hazard.severity || 'unknown').toLowerCase();
     const shouldEscalate = isHighSeverity(normalizedSeverity);
 
-    addNotification({
+    // Use ref to get latest addNotification handler
+    addNotificationRef.current?.({
       type: 'hazard',
       severity: shouldEscalate ? 'error' : 'warning',
       title: `New ${hazard.hazard_type} detected`,
@@ -152,18 +159,26 @@ export function useRealtimeHazards() {
         }
       }
     });
-    notifyBrowser(hazard);
-  }, [addNotification, notifyBrowser]);
+    // Use ref to get latest notifyBrowser handler
+    notifyBrowserRef.current?.(hazard);
+  }, []);
+
+  // Update refs whenever dependencies change
+  useEffect(() => {
+    addNotificationRef.current = addNotification;
+    notifyBrowserRef.current = notifyBrowser;
+    emitHazardAlertRef.current = emitHazardAlert;
+  }, [addNotification, notifyBrowser, emitHazardAlert]);
 
   useEffect(() => {
-    // Prevent duplicate subscriptions
-    if (channelRef.current) {
+    // Prevent duplicate subscriptions while a channel is joined or joining.
+    if (isSettingUpRef.current || channelRef.current?.state === 'joined' || channelRef.current?.state === 'joining') {
       // eslint-disable-next-line no-console
       console.log('[Realtime] Already subscribed to hazards:validated');
-      return () => {
-        // No-op cleanup for early return
-      };
+      return;
     }
+
+    let isMounted = true;
 
     const startPollingFallback = () => {
       // Avoid duplicate pollers
@@ -210,16 +225,21 @@ export function useRealtimeHazards() {
     };
 
     const setupChannel = async () => {
+      isSettingUpRef.current = true;
       try {
         // Set auth token for private channel (required for RLS)
         const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        
         if (session?.access_token) {
           await supabase.realtime.setAuth(session.access_token);
+          if (!isMounted) return;
         } else {
           // No active session — unauthenticated users cannot subscribe to
           // postgres_changes. Fall back to polling silently instead of showing
           // a confusing "Real-time notifications unavailable" error toast.
           startPollingFallback();
+          isSettingUpRef.current = false;
           return;
         }
 
@@ -243,7 +263,7 @@ export function useRealtimeHazards() {
 
               console.log('[Realtime] New hazard:', hazard);
 
-            emitHazardAlert(hazard);
+            emitHazardAlertRef.current?.(hazard);
 
             // Invalidate queries to refresh UI
             queryClient.invalidateQueries({ queryKey: ['hazards'] });
@@ -263,8 +283,10 @@ export function useRealtimeHazards() {
             // eslint-disable-next-line no-console
             console.log('[Realtime] Hazard updated:', hazard);
 
-            // Only notify if it actually became validated
-            if (oldHazard && !oldHazard.validated && hazard.validated) {
+            // Only treat as transition when we have explicit false -> true evidence.
+            const becameValidated = Boolean(oldHazard && oldHazard.validated === false && hazard.validated === true);
+            
+            if (becameValidated) {
               toast.info(
                 `Hazard report validated: ${hazard.hazard_type} in ${hazard.location_name}`,
                 {
@@ -289,6 +311,7 @@ export function useRealtimeHazards() {
               case 'SUBSCRIBED':
                 // eslint-disable-next-line no-console
                 console.log('[Realtime] ✅ Connected to hazards:validated channel');
+                isSettingUpRef.current = false;
                 // Stop any polling fallback when channel is connected
                 if (pollIntervalRef.current) {
                   clearInterval(pollIntervalRef.current as unknown as number);
@@ -298,6 +321,7 @@ export function useRealtimeHazards() {
               case 'CHANNEL_ERROR':
                 // eslint-disable-next-line no-console
                 console.warn('[Realtime] ⚠️ Channel error (falling back to polling):', err);
+                isSettingUpRef.current = false;
                 toast.warning('Real-time notifications unavailable', {
                   description: 'Hazard updates will refresh every 30 seconds'
                 });
@@ -307,10 +331,12 @@ export function useRealtimeHazards() {
               case 'TIMED_OUT':
                 // eslint-disable-next-line no-console
                 console.warn('[Realtime] ⏱️ Connection timed out, auto-retrying...');
+                isSettingUpRef.current = false;
                 break;
               case 'CLOSED':
                 // eslint-disable-next-line no-console
                 console.log('[Realtime] 🔌 Channel closed');
+                isSettingUpRef.current = false;
                 // Start polling fallback when closed
                 startPollingFallback();
                 break;
@@ -321,7 +347,10 @@ export function useRealtimeHazards() {
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error('[Realtime] Failed to setup hazard channel:', error);
+        isSettingUpRef.current = false;
         toast.error('Failed to connect to real-time notifications');
+        // Start polling fallback when setup fails
+        startPollingFallback();
       }
     };
 
@@ -329,6 +358,8 @@ export function useRealtimeHazards() {
 
     // Cleanup on unmount
     return () => {
+      isMounted = false;
+      isSettingUpRef.current = false;
       if (channelRef.current) {
         // eslint-disable-next-line no-console
         console.log('[Realtime] Unsubscribing from hazards:validated');
@@ -366,23 +397,28 @@ export function useRealtimeRSSFeeds() {
       return;
     }
 
-    // Prevent duplicate subscriptions
-    if (channelRef.current) {
+    // Prevent duplicate subscriptions - only fully-joined channels block retries
+    if (channelRef.current?.state === 'joined') {
       // eslint-disable-next-line no-console
       console.log('[Realtime] Already subscribed to rss:feeds');
       return;
     }
 
+    let isMounted = true;
+
     const setupChannel = async () => {
       try {
         // Set auth token for private channel
         const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        
         if (!session?.access_token) {
           // eslint-disable-next-line no-console
           console.log('[Realtime] No active session; skipping RSS feed subscription');
           return;
         }
         await supabase.realtime.setAuth(session.access_token);
+        if (!isMounted) return;
 
         const channel = supabase
           .channel('rss:feeds')
@@ -428,9 +464,11 @@ export function useRealtimeRSSFeeds() {
 
               if (!feed) return;
 
+              const displayName = feed?.name || feed?.url || `feed ${feed?.id || 'unknown'}`;
+
               console.log('[Realtime] RSS feed deleted:', feed);
 
-            toast.warning(`RSS feed removed: ${feed.name}`, {
+            toast.warning(`RSS feed removed: ${displayName}`, {
               duration: 4000
             });
 
@@ -459,19 +497,28 @@ export function useRealtimeRSSFeeds() {
             }
           });
 
-        channelRef.current = channel;
+        if (isMounted) {
+          channelRef.current = channel;
+        } else {
+          channel.unsubscribe();
+        }
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error('[Realtime] Failed to setup RSS channel:', error);
+        if (isMounted) {
+          toast.error('Failed to connect to RSS feed notifications');
+        }
       }
     };
 
     setupChannel();
 
     return () => {
+      isMounted = false;
       if (channelRef.current) {
         // eslint-disable-next-line no-console
         console.log('[Realtime] Unsubscribing from rss:feeds');
+        channelRef.current.unsubscribe();
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }

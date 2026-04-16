@@ -239,7 +239,6 @@ const UserManagement: React.FC = () => {
           table: 'user_profiles',
         },
         () => {
-          console.log('[UserManagement] User profile changed, refetching...');
           refetch(); // Only refetch when actual database changes occur
         }
       )
@@ -542,17 +541,17 @@ const UserManagement: React.FC = () => {
             </CardDescription>
           </div>
           <div className="flex gap-2">
+            {canViewUsers && (
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            )}
             {isMasterAdmin && (
-              <>
-                <Button variant="outline" size="sm" onClick={() => refetch()}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
-                </Button>
-                <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create User
-                </Button>
-              </>
+              <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create User
+              </Button>
             )}
           </div>
         </div>

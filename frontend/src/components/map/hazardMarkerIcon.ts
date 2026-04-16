@@ -15,8 +15,20 @@ import L, { DivIcon } from 'leaflet';
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { getHazardIcon } from '../../constants/hazard-icons';
 
+// HTML escape helper to prevent XSS injection via ariaLabel
+const escapeHtml = (text: string): string => {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  return text.replace(/[&<>"']/g, (char) => map[char]);
+};
+
 // Configuration for marker caching and eviction
-const MAX_ENTRIES = 200; // Cache up to 200 icons (12 types × 3 severities × 5 zoom levels)
+const MAX_ENTRIES = 200; // Cache up to 200 icons (12 hazard types × 3 severities = 36 combinations)
 const markerCache = new Map<string, DivIcon>();
 
 /**
@@ -35,12 +47,12 @@ function iconToSvgString(iconDef: IconDefinition, size: number = 14): string {
 
     // Handle both string and array SVG path formats
     const pathElement = Array.isArray(svgPathData)
-      ? `<path d="${svgPathData[0]}" fill="currentColor"/>${
-          svgPathData.length > 1 ? `<path d="${svgPathData[1]}" fill="currentColor"/>` : ''
+      ? `<path d="${svgPathData[0]}" fill="white"/>${
+          svgPathData.length > 1 ? `<path d="${svgPathData[1]}" fill="white"/>` : ''
         }`
       : `<path d="${svgPathData}" fill="white"/>`;
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${size}" height="${size}" style="display:block; fill:white; drop-shadow(0 0 2px rgba(0,0,0,0.3))">
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" width="${size}" height="${size}" style="display:block; filter: drop-shadow(0 0 2px rgba(0,0,0,0.3))">
       ${pathElement}
     </svg>`;
   } catch {
@@ -52,8 +64,8 @@ function iconToSvgString(iconDef: IconDefinition, size: number = 14): string {
  * Fallback SVG when icon conversion fails (simple exclamation mark)
  */
 function getDefaultIconSvg(size: number): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" style="display:block; fill:white;">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" style="display:block;">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="white"/>
   </svg>`;
 }
 
@@ -122,7 +134,7 @@ export function getHazardMarkerIcon(
       justify-content: center;
       flex-shrink: 0;
       overflow: hidden;
-    " title="${config.ariaLabel}">
+    " title="${escapeHtml(config.ariaLabel)}">
       ${iconSvg}
     </div>`,
     iconSize: [24, 24],

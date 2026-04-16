@@ -259,7 +259,6 @@ const CitizenReportForm: React.FC = () => {
 
     // Check honeypot (should be empty)
     if (formData.website) {
-      console.log('Bot detected via honeypot');
       return;
     }
 

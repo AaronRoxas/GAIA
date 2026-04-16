@@ -567,7 +567,7 @@ const ReportTriage: React.FC = () => {
       setActionType(null);
 
       if (actionType === 'validate') {
-        toast.success(`Report ${trackingId} validated`, {
+        toast.success(`Report ${trackingId} approved`, {
           description: 'The report has been approved and added to the hazard map.',
         });
       } else {

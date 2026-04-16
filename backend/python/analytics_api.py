@@ -377,23 +377,70 @@ async def get_source_breakdown():
     """
     cache_key = generate_cache_key("analytics:source-breakdown")
 
+    def _is_rpc_unavailable_error(rpc_error: Exception) -> bool:
+        """Return True only for known RPC-unavailable signatures (e.g., PGRST202)."""
+        payload = rpc_error.args[0] if getattr(rpc_error, "args", None) else None
+
+        if isinstance(payload, dict):
+            code = str(payload.get("code") or "")
+            message = str(payload.get("message") or "")
+            details = str(payload.get("details") or "")
+        else:
+            code = str(getattr(rpc_error, "code", "") or "")
+            message = str(getattr(rpc_error, "message", "") or "")
+            details = str(getattr(rpc_error, "details", "") or "")
+
+        combined = f"{code} {message} {details} {rpc_error}".lower()
+        return (
+            "pgrst202" in combined
+            or "could not find the function" in combined
+            or "schema cache" in combined
+            or "rpc unavailable" in combined
+        )
+
     async def fetch_source_breakdown():
-        total_response = supabase.schema("gaia").from_('hazards').select('id', count='exact').execute()
-        total = total_response.count or 0
+        source_rows = []
+
+        try:
+            # Preferred path: server-side aggregation via RPC
+            response = supabase.schema("gaia").rpc('get_source_breakdown', {}).execute()
+            source_rows = response.data or []
+        except Exception as rpc_error:
+            if not _is_rpc_unavailable_error(rpc_error):
+                logger.error(f"get_source_breakdown RPC failed with non-recoverable error: {rpc_error}")
+                raise
+
+            logger.warning(f"get_source_breakdown RPC unavailable, using fallback aggregation: {rpc_error}")
+            # Fallback path: read source_type values and aggregate in Python
+            fallback_response = supabase.schema("gaia").from_('hazards').select('source_type').execute()
+            fallback_counts = {}
+            for item in fallback_response.data or []:
+                source_type = (item.get('source_type') or 'unknown').strip().lower()
+                fallback_counts[source_type] = fallback_counts.get(source_type, 0) + 1
+            source_rows = [
+                {"source_type": source_type, "count": count}
+                for source_type, count in fallback_counts.items()
+            ]
+
+        if not source_rows:
+            return []
+
+        # Normalize source_type first, then compute totals from normalized buckets.
+        # This keeps percentages consistent when RPC rows differ only by case/whitespace.
+        aggregated_counts = {}
+        for item in source_rows:
+            source_type = (item.get('source_type') or 'unknown').strip().lower()
+            count = item.get('count', 0)
+            aggregated_counts[source_type] = aggregated_counts.get(source_type, 0) + count
+
+        total = sum(aggregated_counts.values())
 
         if total == 0:
             return []
 
-        response = supabase.schema("gaia").from_('hazards').select('source_type').execute()
-
-        source_counts: Dict[str, int] = {}
-        for item in response.data:
-            source_type = (item.get('source_type') or 'unknown').strip().lower()
-            source_counts[source_type] = source_counts.get(source_type, 0) + 1
-
         breakdown = []
-        for source_type, count in source_counts.items():
-            percentage = (count / total) * 100
+        for source_type, count in aggregated_counts.items():
+            percentage = (count / total) * 100 if total > 0 else 0
             breakdown.append({
                 "source_type": source_type,
                 "count": count,
@@ -404,7 +451,7 @@ async def get_source_breakdown():
         return breakdown
 
     try:
-        data = await get_or_set(cache_key, fetch_source_breakdown, ttl=CACHE_TTLS.get("analytics:distribution", 120))
+        data = await get_or_set(cache_key, fetch_source_breakdown, ttl=CACHE_TTLS.get("analytics:source-breakdown", 120))
         return [SourceBreakdown(**item) for item in data]
 
     except Exception as e:

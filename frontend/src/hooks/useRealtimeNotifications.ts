@@ -54,16 +54,27 @@ export function useRealtimeHazards() {
   const queryClient = useQueryClient();
   const { addNotification } = useNotificationStore();
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const setupInProgressRef = useRef(false);
   const pollIntervalRef = useRef<number | null>(null);
   const lastSeenRef = useRef<string | null>(null);
   const seenAlertsRef = useRef<Set<string>>(new Set());
+  const MAX_SEEN_ALERTS = 1000;
 
   const notifyBrowser = useCallback((hazard: { id: string; hazard_type: string; location_name: string; severity?: string }) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
 
-    const notification = new Notification(`High severity ${hazard.hazard_type} detected`, {
-      body: `${hazard.location_name} (${(hazard.severity || 'unknown').toUpperCase()})`,
+    const severityLevel = (hazard.severity || 'unknown').toLowerCase();
+    const severityMap: Record<string, string> = {
+      'critical': 'Critical severity',
+      'high': 'High severity',
+      'moderate': 'Moderate severity',
+      'low': 'Low severity',
+    };
+    const title = severityMap[severityLevel] || `${severityLevel.charAt(0).toUpperCase() + severityLevel.slice(1)} severity`;
+
+    const notification = new Notification(`${title} ${hazard.hazard_type} detected`, {
+      body: `${hazard.location_name} (${severityLevel.toUpperCase()})`,
       tag: `hazard-${hazard.id}`,
     });
 
@@ -86,6 +97,16 @@ export function useRealtimeHazards() {
     const alertKey = `${hazard.id}:${hazard.created_at || ''}`;
     if (seenAlertsRef.current.has(alertKey)) return;
     seenAlertsRef.current.add(alertKey);
+
+    // Enforce bounded cache
+    if (seenAlertsRef.current.size > MAX_SEEN_ALERTS) {
+      const iterator = seenAlertsRef.current.values();
+      const batch = 100;
+      for (let i = 0; i < batch; i++) {
+        const { value } = iterator.next();
+        if (value) seenAlertsRef.current.delete(value);
+      }
+    }
 
     const normalizedSeverity = (hazard.severity || 'unknown').toLowerCase();
     const shouldEscalate = isHighSeverity(normalizedSeverity);
@@ -115,12 +136,14 @@ export function useRealtimeHazards() {
   }, [addNotification, notifyBrowser]);
 
   useEffect(() => {
-    // Prevent duplicate subscriptions
-    // Check if channel is already subscribed using the status callback
-    // instead of checking .state property which has type mismatch
+    // Prevent duplicate subscriptions via both completed channel and in-progress setup
     if (channelRef.current) {
-      // eslint-disable-next-line no-console
       console.log('[Realtime] Already subscribed to hazards:validated');
+      return;
+    }
+
+    if (setupInProgressRef.current) {
+      console.log('[Realtime] Setup already in progress for hazards:validated');
       return;
     }
 
@@ -169,6 +192,7 @@ export function useRealtimeHazards() {
     };
 
     const setupChannel = async () => {
+      setupInProgressRef.current = true;
       try {
         // Set auth token for private channel (required for RLS)
         const { data: { session } } = await supabase.auth.getSession();
@@ -281,6 +305,8 @@ export function useRealtimeHazards() {
         // eslint-disable-next-line no-console
         console.error('[Realtime] Failed to setup hazard channel:', error);
         toast.error('Failed to connect to real-time notifications');
+      } finally {
+        setupInProgressRef.current = false;
       }
     };
 
@@ -310,6 +336,7 @@ export function useRealtimeRSSFeeds() {
   const queryClient = useQueryClient();
   const { userProfile } = useAuth();
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const setupInProgressRef = useRef(false);
   
   // Only subscribe if user is admin (using userProfile role from database, not Auth user role)
   const isAdmin = userProfile?.role === 'master_admin' || userProfile?.role === 'validator';
@@ -321,16 +348,20 @@ export function useRealtimeRSSFeeds() {
       return;
     }
 
-    // Prevent duplicate subscriptions
-    // Check if channel is already subscribed using the status callback
-    // instead of checking .state property which has type mismatch
+    // Prevent duplicate subscriptions via both completed channel and in-progress setup
     if (channelRef.current) {
       // eslint-disable-next-line no-console
       console.log('[Realtime] Already subscribed to rss:feeds');
       return;
     }
 
+    if (setupInProgressRef.current) {
+      console.log('[Realtime] Setup already in progress for rss:feeds');
+      return;
+    }
+
     const setupChannel = async () => {
+      setupInProgressRef.current = true;
       try {
         // Set auth token for private channel
         const { data: { session } } = await supabase.auth.getSession();
@@ -417,6 +448,8 @@ export function useRealtimeRSSFeeds() {
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error('[Realtime] Failed to setup RSS channel:', error);
+      } finally {
+        setupInProgressRef.current = false;
       }
     };
 

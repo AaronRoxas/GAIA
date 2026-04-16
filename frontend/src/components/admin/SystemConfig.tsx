@@ -96,7 +96,7 @@ const SystemConfig: React.FC = () => {
     }
 
     if (config.value_type === 'number') {
-      const numValue = parseFloat(trimmedValue);
+      const numValue = Number(trimmedValue);
       if (isNaN(numValue)) {
         setValidationStatus('invalid');
         return false;
@@ -133,21 +133,36 @@ const SystemConfig: React.FC = () => {
     setIsSaving(true);
 
     try {
-      // Validate number type and min/max
+      const trimmedValue = values.config_value.trim();
+
+      // Validate boolean type
+      if (selectedConfig.value_type === 'boolean') {
+        if (trimmedValue !== 'true' && trimmedValue !== 'false') {
+          form.setError('config_value', { message: 'Value must be exactly "true" or "false"' });
+          setValidationStatus('invalid');
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Validate number type and min/max with strict numeric checking
       if (selectedConfig.value_type === 'number') {
-        const numValue = parseFloat(values.config_value);
+        const numValue = Number(trimmedValue);
         if (isNaN(numValue)) {
           form.setError('config_value', { message: 'Value must be a valid number' });
+          setValidationStatus('invalid');
           setIsSaving(false);
           return;
         }
         if (selectedConfig.min_value !== null && numValue < selectedConfig.min_value) {
           form.setError('config_value', { message: `Value must be >= ${selectedConfig.min_value}` });
+          setValidationStatus('invalid');
           setIsSaving(false);
           return;
         }
         if (selectedConfig.max_value !== null && numValue > selectedConfig.max_value) {
           form.setError('config_value', { message: `Value must be <= ${selectedConfig.max_value}` });
+          setValidationStatus('invalid');
           setIsSaving(false);
           return;
         }

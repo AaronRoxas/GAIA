@@ -4,8 +4,11 @@ from types import SimpleNamespace
 
 import pytest
 
-# Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend", "python"))
+# Add project root and backend/python so backend package and lib.* imports both resolve.
+PROJECT_ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+BACKEND_PY = os.path.join(PROJECT_ROOT, "backend", "python")
+sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, BACKEND_PY)
 
 from backend.python import admin_api  # noqa: E402
 
@@ -54,6 +57,8 @@ class _FakeQuery:
         for key, value in self.is_calls:
             if value is None:
                 filtered = [row for row in filtered if row.get(key) is None]
+            else:
+                filtered = [row for row in filtered if row.get(key) == value]
         return _FakeResponse(filtered)
 
 

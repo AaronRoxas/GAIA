@@ -213,6 +213,8 @@ const SearchController: React.FC<{
       // Cleanup: remove listener on unmount or when dependencies change
       return () => {
         map.off('moveend', handleMoveEnd);
+        // Explicitly clear animation flag to prevent stale state
+        isAnimatingRef.current = false;
       };
     }
   }, [location, bounds, boundaryLevel, map, isFollowing]);

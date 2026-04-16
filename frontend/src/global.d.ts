@@ -1,12 +1,7 @@
 /**
  * Global TypeScript Declarations
- * Provides type definitions for CSS module imports and plain CSS
+ * Project mandates TailwindCSS with design tokens, no CSS modules
  */
-
-declare module '*.module.css' {
-  const content: Record<string, string>;
-  export default content;
-}
 
 declare module '*.css' {
   // Plain CSS module - allows side-effect imports like: import './index.css'

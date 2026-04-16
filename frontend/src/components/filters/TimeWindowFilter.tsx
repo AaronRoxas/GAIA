@@ -19,15 +19,41 @@
  * - Timezone handling (Philippine Time GMT+8)
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, Clock } from 'lucide-react';
-import { format, fromZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns';
+import { tz } from '@date-fns/tz/tz';
+import { tzOffset } from '@date-fns/tz/tzOffset';
+import { cn } from '../../lib/utils';
 import { Card } from '../ui/card';
 import type { TimeWindow, CustomDateRange } from '../../hooks/useHazardFilters';
+
+const MANILA_TZ = 'Asia/Manila';
+
+function formatInManila(value: Date, pattern: string): string {
+  return format(value, pattern, { in: tz(MANILA_TZ) });
+}
+
+function manilaWallClockToUtc(dateString: string, endOfDay = false): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  const hour = endOfDay ? 23 : 0;
+  const minute = endOfDay ? 59 : 0;
+  const second = endOfDay ? 59 : 0;
+  const millisecond = endOfDay ? 999 : 0;
+
+  const wallClockTimestamp = Date.UTC(year, month - 1, day, hour, minute, second, millisecond);
+  const offsetMinutes = tzOffset(MANILA_TZ, new Date(wallClockTimestamp));
+  return new Date(wallClockTimestamp - offsetMinutes * 60 * 1000);
+}
 
 // ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
+
+export interface PresetOption {
+  value: TimeWindow;
+  label: string;
+}
 
 export interface TimeWindowFilterProps {
   timeWindow: TimeWindow;
@@ -42,7 +68,7 @@ export interface TimeWindowFilterProps {
 // ============================================================================
 
 /** Preset time window options for quick filtering */
-const PRESET_OPTIONS: Array<{ value: TimeWindow; label: string }> = [
+const PRESET_OPTIONS: PresetOption[] = [
   { value: 'all', label: 'All Time' },
   { value: '24h', label: 'Last 24h' },
   { value: '7d', label: 'Last 7 Days' },
@@ -67,7 +93,7 @@ function formatTimeWindow(window: TimeWindow, customRange?: CustomDateRange): st
       return 'Last 30 days';
     case 'custom':
       if (customRange) {
-        return `${format(customRange.start, 'MMM d')} - ${format(customRange.end, 'MMM d')}`;
+        return `${formatInManila(customRange.start, 'MMM d')} - ${formatInManila(customRange.end, 'MMM d')}`;
       }
       return 'Custom range';
     case 'all':
@@ -88,14 +114,25 @@ export function TimeWindowFilter({
 }: TimeWindowFilterProps) {
   const [showCustomRange, setShowCustomRange] = useState(timeWindow === 'custom');
   const [startDate, setStartDate] = useState<string>(
-    customDateRange ? format(customDateRange.start, 'yyyy-MM-dd') : ''
+    customDateRange ? formatInManila(customDateRange.start, 'yyyy-MM-dd') : ''
   );
   const [endDate, setEndDate] = useState<string>(
-    customDateRange ? format(customDateRange.end, 'yyyy-MM-dd') : ''
+    customDateRange ? formatInManila(customDateRange.end, 'yyyy-MM-dd') : ''
   );
   const [dateError, setDateError] = useState<string>('');
   // Track previous time window to restore on cancel
   const prevTimeWindowRef = useRef<TimeWindow | null>(null);
+
+  // Update date inputs when customDateRange prop changes
+  useEffect(() => {
+    if (customDateRange) {
+      setStartDate(formatInManila(customDateRange.start, 'yyyy-MM-dd'));
+      setEndDate(formatInManila(customDateRange.end, 'yyyy-MM-dd'));
+    } else {
+      setStartDate('');
+      setEndDate('');
+    }
+  }, [customDateRange]);
 
   /**
    * Handle preset button click
@@ -121,15 +158,9 @@ export function TimeWindowFilter({
       return;
     }
     
-    // Parse dates as Philippine Time (GMT+8)
-    const MANILA_TZ = 'Asia/Manila';
-    
-    // Start date at 00:00:00 in Philippine Time, converted to UTC
-    // fromZonedTime converts FROM a zoned time TO UTC
-    const startDateObj = fromZonedTime(new Date(startDate + 'T00:00:00'), MANILA_TZ);
-    
-    // End date at 23:59:59.999 in Philippine Time, converted to UTC
-    const endDateObj = fromZonedTime(new Date(endDate + 'T23:59:59.999'), MANILA_TZ);
+    // Convert Manila wall-clock dates to UTC timestamps.
+    const startDateObj = manilaWallClockToUtc(startDate, false);
+    const endDateObj = manilaWallClockToUtc(endDate, true);
     
     if (startDateObj.getTime() > endDateObj.getTime()) {
       setDateError('Start date must be before end date');
@@ -149,9 +180,11 @@ export function TimeWindowFilter({
    */
   const handleCustomRangeCancel = () => {
     setShowCustomRange(false);
-    // Restore previous time window instead of forcing 'all'
+    // Restore previous time window or fallback to 'all'
     if (prevTimeWindowRef.current && prevTimeWindowRef.current !== 'custom') {
       onTimeWindowChange(prevTimeWindowRef.current);
+    } else {
+      onTimeWindowChange('all');
     }
   };
 
@@ -207,17 +240,15 @@ export function TimeWindowFilter({
                 onClick={() => handlePresetClick(option.value)}
                 disabled={disabled}
                 aria-pressed={isActive}
-                className={`
-                  px-3 py-2.5 rounded-lg border-2 transition-all
-                  text-sm font-medium
-                  ${
-                    isActive
-                      ? 'border-orange-500 bg-orange-50 text-orange-900 shadow-sm'
-                      : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50'
-                  }
-                  ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1
-                `}
+                className={cn(
+                  'px-3 py-2.5 rounded-lg border-2 transition-all',
+                  'text-sm font-medium',
+                  isActive
+                    ? 'border-orange-500 bg-orange-50 text-orange-900 shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50',
+                  disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+                  'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1'
+                )}
               >
                 {option.label}
               </button>
@@ -240,7 +271,12 @@ export function TimeWindowFilter({
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  disabled={disabled}
+                  className={cn(
+                    'w-full px-2.5 py-1.5 border border-slate-300 rounded-md text-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-orange-500',
+                    disabled && 'opacity-50 cursor-not-allowed bg-slate-100'
+                  )}
                 />
               </div>
               <div>
@@ -250,7 +286,12 @@ export function TimeWindowFilter({
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  disabled={disabled}
+                  className={cn(
+                    'w-full px-2.5 py-1.5 border border-slate-300 rounded-md text-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-orange-500',
+                    disabled && 'opacity-50 cursor-not-allowed bg-slate-100'
+                  )}
                 />
               </div>
             </div>
@@ -262,14 +303,23 @@ export function TimeWindowFilter({
             <div className="flex gap-2">
               <button
                 onClick={handleCustomRangeSubmit}
-                disabled={!startDate || !endDate}
-                className="flex-1 px-3 py-2 bg-orange-600 text-white text-xs font-medium rounded-md hover:bg-orange-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                disabled={!startDate || !endDate || disabled}
+                className={cn(
+                  'flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors',
+                  'bg-orange-600 text-white hover:bg-orange-700',
+                  'disabled:bg-slate-300 disabled:cursor-not-allowed'
+                )}
               >
                 Apply
               </button>
               <button
                 onClick={handleCustomRangeCancel}
-                className="flex-1 px-3 py-2 bg-slate-200 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-300 transition-colors"
+                disabled={disabled}
+                className={cn(
+                  'flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors',
+                  'bg-slate-200 text-slate-700 hover:bg-slate-300',
+                  'disabled:opacity-50 disabled:cursor-not-allowed'
+                )}
               >
                 Cancel
               </button>

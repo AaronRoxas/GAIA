@@ -47,6 +47,24 @@ const HEIC_HEIF_TYPES = ['image/heic', 'image/heif'];
 // ============================================================================
 
 /**
+ * Detect if file is HEIC/HEIF by MIME type or extension fallback
+ */
+function isHeicFile(filename: string, mimeType: string): boolean {
+  // Check if MIME type is already HEIC/HEIF
+  if (HEIC_HEIF_TYPES.includes(mimeType)) {
+    return true;
+  }
+  
+  // Fallback: check file extension if MIME type is empty or generic
+  if (!mimeType || mimeType === 'application/octet-stream') {
+    const ext = filename.toLowerCase().split('.').pop();
+    return ext === 'heic' || ext === 'heif';
+  }
+  
+  return false;
+}
+
+/**
  * Convert EXIF GPS format to decimal degrees
  */
 function convertDMSToDD(degrees: number, minutes: number, seconds: number, direction: string): number {
@@ -156,8 +174,11 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
   // ============================================================================
 
   const validateFile = (file: File): string | null => {
-    // Check file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    // Check file type (with HEIC/HEIF extension fallback)
+    const isHeic = isHeicFile(file.name, file.type);
+    const isStandardType = ALLOWED_TYPES.includes(file.type);
+    
+    if (!isHeic && !isStandardType) {
       return 'Only JPEG, PNG, JFIF, HEIC, and HEIF images are allowed';
     }
 
@@ -186,8 +207,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
     }
 
     // Warn about HEIC/HEIF support limitations (separate from error state)
-    if (HEIC_HEIF_TYPES.includes(file.type)) {
-      setWarning('HEIC/HEIF images may not preview in all browsers. Please use JPEG or PNG for best compatibility.');
+    if (HEIC_HEIF_TYPES.includes(file.type) || isHeicFile(file.name, file.type)) {
+      setWarning('HEIC/HEIF images may not preview in all browsers and EXIF/GPS extraction may be unavailable. Please use JPEG or PNG for best compatibility.');
     }
 
     // Create preview URL

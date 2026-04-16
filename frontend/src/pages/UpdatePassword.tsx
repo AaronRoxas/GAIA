@@ -33,19 +33,25 @@ const UpdatePassword: React.FC = () => {
         if (code) {
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           if (exchangeError) throw exchangeError;
+          // Remove sensitive token from URL after successful exchange
+          window.history.replaceState({}, document.title, window.location.pathname);
         } else if (accessToken && refreshToken) {
           const { error: setSessionError } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
           if (setSessionError) throw setSessionError;
+          // Remove sensitive tokens from URL after successful session set
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
 
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
 
         if (!session) {
-          navigate('/reset-password', { replace: true });
+          if (active) {
+            navigate('/reset-password', { replace: true });
+          }
           return;
         }
 
@@ -53,7 +59,9 @@ const UpdatePassword: React.FC = () => {
           setValidatingToken(false);
         }
       } catch {
-        navigate('/reset-password', { replace: true });
+        if (active) {
+          navigate('/reset-password', { replace: true });
+        }
       }
     };
 

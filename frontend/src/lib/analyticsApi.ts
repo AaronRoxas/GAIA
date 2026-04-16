@@ -9,13 +9,15 @@
 
 import { apiRequest } from './api';
 
+const ANALYTICS_BASE_PATH = '/api/v1/analytics';
+
 export interface HazardStats {
   total_hazards: number;
   active_hazards: number;
   resolved_hazards: number;
   unverified_reports: number;
   avg_confidence: number;
-  avg_time_to_action?: number;
+  avg_time_to_action: number | null;
 }
 
 export interface HazardTrend {
@@ -69,7 +71,7 @@ export const analyticsApi = {
    * Get overall hazard statistics
    */
   async getStats(): Promise<HazardStats> {
-    return apiRequest<HazardStats>('/api/analytics/stats');
+    return apiRequest<HazardStats>(`${ANALYTICS_BASE_PATH}/stats`);
   },
 
   /**
@@ -77,28 +79,28 @@ export const analyticsApi = {
    * @param days Number of days to retrieve (7-90)
    */
   async getTrends(days: number = 30): Promise<HazardTrend[]> {
-    return apiRequest<HazardTrend[]>(`/api/analytics/trends?days=${days}`);
+    return apiRequest<HazardTrend[]>(`${ANALYTICS_BASE_PATH}/trends?days=${days}`);
   },
 
   /**
    * Get statistics by administrative region
    */
   async getRegionStats(): Promise<RegionStats[]> {
-    return apiRequest<RegionStats[]>('/api/analytics/regions');
+    return apiRequest<RegionStats[]>(`${ANALYTICS_BASE_PATH}/regions`);
   },
 
   /**
    * Get hazard type distribution (count and percentage)
    */
   async getDistribution(): Promise<HazardTypeDistribution[]> {
-    return apiRequest<HazardTypeDistribution[]>('/api/analytics/distribution');
+    return apiRequest<HazardTypeDistribution[]>(`${ANALYTICS_BASE_PATH}/distribution`);
   },
 
   /**
    * Get breakdown by source type (RSS vs citizen reports)
    */
   async getSourceBreakdown(): Promise<SourceBreakdown[]> {
-    return apiRequest<SourceBreakdown[]>('/api/analytics/sources');
+    return apiRequest<SourceBreakdown[]>(`${ANALYTICS_BASE_PATH}/source-breakdown`);
   },
 
   /**
@@ -106,6 +108,6 @@ export const analyticsApi = {
    * @param limit Number of alerts to retrieve
    */
   async getRecentAlerts(limit: number = 10): Promise<RecentAlert[]> {
-    return apiRequest<RecentAlert[]>(`/api/analytics/recent?limit=${limit}`);
+    return apiRequest<RecentAlert[]>(`${ANALYTICS_BASE_PATH}/recent-alerts?limit=${limit}`);
   },
 };
