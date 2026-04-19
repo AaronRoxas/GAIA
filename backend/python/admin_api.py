@@ -1030,23 +1030,23 @@ async def validate_citizen_report(
         except Exception as log_error:
             logger.warning(f"Failed to log audit: {log_error}")
         
-        # 6. Enqueue SMS notification if contact_phone provided (CR-06 SMS Notifications)
-        contact_phone = report.get('contact_phone')
-        logger.debug(f"SMS check for report {safe_tracking_id}: contact_phone={contact_phone}, send_sms_notification={send_sms_notification is not None}")
+        # 6. Enqueue SMS notification if contact_number provided (CR-06 SMS Notifications)
+        contact_number = report.get('contact_number')
+        logger.debug(f"SMS check for report {safe_tracking_id}: contact_number={contact_number}, send_sms_notification={send_sms_notification is not None}")
         
-        if contact_phone and send_sms_notification:
+        if contact_number and send_sms_notification:
             try:
                 send_sms_notification.delay(
                     report_id=report['id'],
                     status='ACCEPTED',
                     tracking_number=tracking_id,
-                    phone_number=contact_phone
+                    phone_number=contact_number
                 )
                 logger.info(f"SMS notification enqueued for report {safe_tracking_id}")
             except Exception as sms_error:
                 logger.warning(f"Failed to enqueue SMS for report {safe_tracking_id}: {sms_error}")
-        elif not contact_phone:
-            logger.debug(f"SMS skipped: no contact_phone for report {safe_tracking_id}")
+        elif not contact_number:
+            logger.debug(f"SMS skipped: no contact_number for report {safe_tracking_id}")
         else:
             logger.debug(f"SMS skipped: send_sms_notification not available for report {safe_tracking_id}")
         
@@ -1164,23 +1164,23 @@ async def reject_citizen_report(
         except Exception as log_error:
             logger.warning(f"Failed to log audit: {log_error}")
         
-        # 5. Enqueue SMS notification if contact_phone provided (CR-06 SMS Notifications)
-        contact_phone = report.get('contact_phone')
-        logger.debug(f"SMS check for report {safe_tracking_id}: contact_phone={contact_phone}, send_sms_notification={send_sms_notification is not None}")
+        # 5. Enqueue SMS notification if contact_number provided (CR-06 SMS Notifications)
+        contact_number = report.get('contact_number')
+        logger.debug(f"SMS check for report {safe_tracking_id}: contact_number={contact_number}, send_sms_notification={send_sms_notification is not None}")
         
-        if contact_phone and send_sms_notification:
+        if contact_number and send_sms_notification:
             try:
                 send_sms_notification.delay(
                     report_id=report['id'],
                     status='REJECTED',
                     tracking_number=tracking_id,
-                    phone_number=contact_phone
+                    phone_number=contact_number
                 )
                 logger.info(f"SMS notification enqueued for rejected report {safe_tracking_id}")
             except Exception as sms_error:
                 logger.warning(f"Failed to enqueue SMS for report {safe_tracking_id}: {sms_error}")
-        elif not contact_phone:
-            logger.debug(f"SMS skipped: no contact_phone for report {safe_tracking_id}")
+        elif not contact_number:
+            logger.debug(f"SMS skipped: no contact_number for report {safe_tracking_id}")
         else:
             logger.debug(f"SMS skipped: send_sms_notification not available for report {safe_tracking_id}")
         
