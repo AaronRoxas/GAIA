@@ -407,11 +407,13 @@ def send_sms_notification(self, report_id: str, status: str, tracking_number: st
             try:
                 from backend.python.lib.supabase_client import supabase
                 supabase.schema('gaia').table('audit_logs').insert({
+                    'event_type': 'system_notification',
+                    'severity': 'info',
                     'action': 'sms_notification_sent',
                     'resource': 'citizen_report',
-                    'resource_id': report_id,
                     'status': 'success',
-                    'details': {
+                    'message': f'SMS sent to citizen report {report_id}',
+                    'metadata': {
                         'message_id': result.get('message_id'),
                         'report_status': status,
                         'tracking_number': tracking_number
@@ -444,11 +446,13 @@ def send_sms_notification(self, report_id: str, status: str, tracking_number: st
         try:
             from backend.python.lib.supabase_client import supabase
             supabase.schema('gaia').table('audit_logs').insert({
+                'event_type': 'system_notification',
+                'severity': 'error',
                 'action': 'sms_notification_failed',
                 'resource': 'citizen_report',
-                'resource_id': report_id,
-                'status': 'error',
-                'details': {
+                'status': 'failure',
+                'message': f'SMS delivery failed for citizen report {report_id}',
+                'metadata': {
                     'error': str(e),
                     'retry_count': self.request.retries
                 }
