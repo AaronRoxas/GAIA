@@ -196,8 +196,7 @@ class SMSService:
             )
 
             message_id = response.get('MessageId')
-            masked_phone = self._mask_phone_for_logging(normalized_phone)
-            logger.info(f'SMS sent successfully to {masked_phone} (MessageId: {message_id})')
+            logger.info(f'SMS sent successfully (MessageId: {message_id})')
 
             return {
                 'status': 'success',
