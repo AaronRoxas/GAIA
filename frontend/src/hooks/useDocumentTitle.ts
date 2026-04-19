@@ -39,7 +39,7 @@ export function useDocumentTitle(customTitle?: string) {
       const matchingRoute = Object.keys(routeTitles).find(
         route => route !== '/' && pathname.startsWith(route)
       );
-      title = matchingRoute ? routeTitles[matchingRoute] : 'GAIA - Geospatial AI-driven Assessment';
+      title = matchingRoute ? routeTitles[matchingRoute] : 'AGAILA';
     }
     
     // Use custom title if provided

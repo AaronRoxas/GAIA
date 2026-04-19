@@ -6,7 +6,7 @@ export const HeroSection: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="relative bg-white min-h-[70vh] md:min-h-[calc(100vh-101px)] overflow-hidden w-full flex items-center justify-center">
+    <section className="relative bg-white min-h-[60vh] sm:min-h-[70vh] md:min-h-[calc(100vh-101px)] overflow-hidden w-full flex items-center justify-center">
       {/* Full-Width Background Container - Covers entire viewport */}
       <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none" aria-hidden="true">
         {/* Combined Background: Grid Plane + Heatmap Overlay - Centered and extending beyond viewport */}
@@ -25,7 +25,7 @@ export const HeroSection: React.FC = () => {
       </div>
 
       {/* Content Container - Centered with max-width for content positioning */}
-      <div className="relative z-10 w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-16 flex flex-col items-center gap-10 sm:gap-[72px] py-12 sm:py-16 md:py-[100px]">
+      <div className="relative z-10 w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-16 flex flex-col items-center gap-8 sm:gap-[72px] py-10 sm:py-16 md:py-[100px]">
         {/* Decorative Hazard Pins - Exact Figma positioning relative to 1280px container */}
         <div className="hidden md:block">
           <div
@@ -78,15 +78,15 @@ export const HeroSection: React.FC = () => {
         </div>
 
         {/* Hero Content */}
-        <div className="flex flex-col items-center gap-6 sm:gap-[48px] w-full max-w-[740px]">
-          <h1 className="font-lato font-bold text-[32px] sm:text-[44px] md:text-[56px] lg:text-[64px] leading-[1.1] tracking-[-0.5px] sm:tracking-[-0.8px] md:tracking-[-1.1px] lg:tracking-[-1.28px] text-[#005a9c] text-center">
+        <div className="flex flex-col items-center gap-5 sm:gap-[48px] w-full max-w-[740px]">
+          <h1 className="font-lato font-bold text-[28px] sm:text-[44px] md:text-[56px] lg:text-[64px] leading-[1.15] sm:leading-[1.1] tracking-[-0.5px] sm:tracking-[-0.8px] md:tracking-[-1.1px] lg:tracking-[-1.28px] text-[#005a9c] text-center text-balance">
             Empower Your Response. Protect Your Community.
           </h1>
 
-          <div className="flex flex-wrap gap-[12px] sm:gap-[16px] items-center justify-center">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-[10px] sm:gap-[16px] items-stretch sm:items-center justify-center w-full sm:w-auto">
             <button
               type="button"
-              className="bg-[#FF7A00] text-white hover:bg-[#e96d00] px-[16px] py-[8px] text-[14px] font-lato font-semibold rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7A00]"
+              className="bg-[#FF7A00] text-white hover:bg-[#e96d00] px-[20px] sm:px-[16px] py-[10px] sm:py-[8px] text-[15px] sm:text-[14px] font-lato font-semibold rounded-[8px] sm:rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7A00]"
               onClick={() => navigate("/report")}
               aria-label="Report a Hazard"
             >
@@ -94,7 +94,7 @@ export const HeroSection: React.FC = () => {
             </button>
             <button
               type="button"
-              className="bg-[#0a2a4d] text-white hover:bg-[#0a2a4d]/90 px-[16px] py-[8px] text-[14px] font-lato font-medium rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0a2a4d]"
+              className="bg-[#0a2a4d] text-white hover:bg-[#0a2a4d]/90 px-[20px] sm:px-[16px] py-[10px] sm:py-[8px] text-[15px] sm:text-[14px] font-lato font-medium rounded-[8px] sm:rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0a2a4d]"
               onClick={() => navigate("/map")}
               aria-label="View Live Hazard Map"
             >
@@ -102,7 +102,7 @@ export const HeroSection: React.FC = () => {
             </button>
             <button
               type="button"
-              className="border border-[#005a9c] border-solid text-[#005a9c] hover:bg-[#005a9c] hover:text-white px-[16px] py-[8px] text-[14px] font-lato font-medium rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#005a9c]"
+              className="border border-[#005a9c] border-solid text-[#005a9c] hover:bg-[#005a9c] hover:text-white px-[20px] sm:px-[16px] py-[10px] sm:py-[8px] text-[15px] sm:text-[14px] font-lato font-medium rounded-[8px] sm:rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#005a9c]"
               onClick={() => {
                 document
                   .getElementById("how-it-works-section")
@@ -117,7 +117,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Glassmorphism Card with Showcase Image */}
         <div
-          className="w-full max-w-[709px] h-[260px] sm:h-[340px] md:h-[415px] rounded-[24px] sm:rounded-[32px] backdrop-blur-[4.7px] bg-[rgba(26,66,224,0.2)] border border-[rgba(255,255,255,0.4)] opacity-80 overflow-hidden p-2 sm:p-3 md:p-4"
+          className="w-full max-w-[709px] h-[200px] sm:h-[340px] md:h-[415px] rounded-[20px] sm:rounded-[32px] backdrop-blur-[4.7px] bg-[rgba(26,66,224,0.2)] border border-[rgba(255,255,255,0.4)] opacity-80 overflow-hidden p-2 sm:p-3 md:p-4"
           style={{
             boxShadow:
               "inset 2.15px 1.72px 8.6px 0px rgba(255,255,255,0.15), inset 1.15px 0.92px 4.3px 0px rgba(255,255,255,0.15)",
@@ -126,7 +126,7 @@ export const HeroSection: React.FC = () => {
           <img
             src={landingAssets.hero.showcaseImage}
             alt="Showcase of GAIA's live hazard map with real-time data filtering and AI classification features."
-            className="w-full h-full rounded-[calc(24px-0.5rem)] sm:rounded-[calc(32px-0.75rem)]"
+            className="w-full h-full object-cover rounded-[calc(20px-0.5rem)] sm:rounded-[calc(32px-0.75rem)]"
             loading="eager"
           />
         </div>
