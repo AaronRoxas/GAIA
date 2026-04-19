@@ -62,6 +62,46 @@ class SystemStatusResponse(BaseModel):
 _startup_time = datetime.now()
 
 
+async def check_backend_api() -> ServiceStatusResponse:
+    """Report the backend API's own liveness and the public hostname it serves.
+
+    This proves the status page is reading live data from the real backend
+    (e.g. agaila.me) rather than a placeholder.
+    """
+    start_time = datetime.now()
+    try:
+        env = os.getenv("ENV", "development")
+        api_host = os.getenv("API_PUBLIC_HOST") or os.getenv("API_HOST") or "unknown"
+        api_port = os.getenv("API_PORT", "")
+        app_version = os.getenv("APP_VERSION", "dev")
+        response_time = (datetime.now() - start_time).total_seconds() * 1000
+
+        return ServiceStatusResponse(
+            name="Backend API",
+            status=ServiceStatus.OPERATIONAL,
+            message=f"API responding ({env})",
+            last_checked=datetime.now(),
+            response_time_ms=round(response_time, 2),
+            details={
+                "environment": env,
+                "host": api_host,
+                "port": api_port,
+                "version": app_version,
+            },
+        )
+    except Exception as e:
+        response_time = (datetime.now() - start_time).total_seconds() * 1000
+        logger.error(f"Backend API check failed: {str(e)}")
+        return ServiceStatusResponse(
+            name="Backend API",
+            status=ServiceStatus.DEGRADED,
+            message=f"Self-check failed: {str(e)}",
+            last_checked=datetime.now(),
+            response_time_ms=round(response_time, 2),
+            details={"error": str(e)},
+        )
+
+
 async def check_supabase_database() -> ServiceStatusResponse:
     """Check Supabase database connectivity"""
     start_time = datetime.now()
@@ -93,33 +133,76 @@ async def check_supabase_database() -> ServiceStatusResponse:
 
 
 async def check_supabase_realtime() -> ServiceStatusResponse:
-    """Check Supabase Realtime connectivity"""
+    """Check Supabase Realtime connectivity with an actual HTTP probe.
+
+    Hits the Realtime REST health-like endpoint on the project's Supabase URL.
+    Any response below HTTP 500 means the Realtime server is reachable and
+    responding (even a 401/404 indicates the service is up).
+    """
     start_time = datetime.now()
-    try:
-        # Check if Realtime is available by attempting to create a channel
-        # Note: This is a lightweight check, actual subscription would require more setup
-        response_time = (datetime.now() - start_time).total_seconds() * 1000
-        
-        # For now, we'll assume Realtime is operational if database is operational
-        # In production, you might want to actually test a Realtime subscription
+    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    anon_key = os.getenv("SUPABASE_ANON_KEY", "") or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    if not supabase_url:
         return ServiceStatusResponse(
             name="Supabase Realtime",
-            status=ServiceStatus.OPERATIONAL,
-            message="Realtime service available",
+            status=ServiceStatus.DOWN,
+            message="SUPABASE_URL not configured",
+            last_checked=datetime.now(),
+            response_time_ms=0,
+            details={"configured": False},
+        )
+
+    realtime_probe_url = f"{supabase_url}/realtime/v1/api/tenants/health"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            headers = {"apikey": anon_key} if anon_key else {}
+            response = await client.get(realtime_probe_url, headers=headers)
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
+
+            if response.status_code < 500:
+                return ServiceStatusResponse(
+                    name="Supabase Realtime",
+                    status=ServiceStatus.OPERATIONAL,
+                    message=f"Realtime service reachable (HTTP {response.status_code})",
+                    last_checked=datetime.now(),
+                    response_time_ms=round(response_time, 2),
+                    details={
+                        "endpoint": realtime_probe_url,
+                        "http_status": response.status_code,
+                    },
+                )
+            return ServiceStatusResponse(
+                name="Supabase Realtime",
+                status=ServiceStatus.DEGRADED,
+                message=f"Realtime service returned HTTP {response.status_code}",
+                last_checked=datetime.now(),
+                response_time_ms=round(response_time, 2),
+                details={
+                    "endpoint": realtime_probe_url,
+                    "http_status": response.status_code,
+                },
+            )
+    except httpx.TimeoutException:
+        response_time = (datetime.now() - start_time).total_seconds() * 1000
+        return ServiceStatusResponse(
+            name="Supabase Realtime",
+            status=ServiceStatus.DOWN,
+            message="Realtime probe timed out",
             last_checked=datetime.now(),
             response_time_ms=round(response_time, 2),
-            details={"service": "realtime"}
+            details={"endpoint": realtime_probe_url, "error": "timeout"},
         )
     except Exception as e:
         response_time = (datetime.now() - start_time).total_seconds() * 1000
         logger.error(f"Supabase Realtime check failed: {str(e)}")
         return ServiceStatusResponse(
             name="Supabase Realtime",
-            status=ServiceStatus.DEGRADED,
-            message=f"Realtime check failed: {str(e)}",
+            status=ServiceStatus.DOWN,
+            message=f"Realtime probe failed: {str(e)}",
             last_checked=datetime.now(),
             response_time_ms=round(response_time, 2),
-            details={"error": str(e)}
+            details={"endpoint": realtime_probe_url, "error": str(e)},
         )
 
 
@@ -204,21 +287,102 @@ async def check_ai_geo_ner() -> ServiceStatusResponse:
 
 
 async def check_rss_processor() -> ServiceStatusResponse:
-    """Check RSS Processor availability"""
+    """Check RSS Processor real operational status.
+
+    Looks at the most recent entry in ``gaia.rss_processing_logs`` to determine
+    whether the processor is actually producing runs. A missing or very stale
+    last-run timestamp is treated as degraded/down regardless of whether the
+    processor class itself is importable.
+    """
     start_time = datetime.now()
+    default_feeds_count = (
+        len(RSSProcessor.DEFAULT_FEEDS) if hasattr(RSSProcessor, "DEFAULT_FEEDS") else 0
+    )
+
     try:
-        # Check if RSS processor is available
-        default_feeds_count = len(RSSProcessor.DEFAULT_FEEDS) if hasattr(RSSProcessor, 'DEFAULT_FEEDS') else 0
-        
+        last_run_result = await asyncio.to_thread(
+            lambda: supabase.schema("gaia")
+            .table("rss_processing_logs")
+            .select("processed_at, status, items_processed, items_added")
+            .order("processed_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+
         response_time = (datetime.now() - start_time).total_seconds() * 1000
-        
+        rows = last_run_result.data or []
+
+        if not rows:
+            return ServiceStatusResponse(
+                name="RSS Processor",
+                status=ServiceStatus.DEGRADED,
+                message="No processing runs recorded yet",
+                last_checked=datetime.now(),
+                response_time_ms=round(response_time, 2),
+                details={
+                    "default_feeds_count": default_feeds_count,
+                    "last_run": None,
+                },
+            )
+
+        last_run = rows[0]
+        processed_at_str = last_run.get("processed_at")
+        last_run_status = last_run.get("status")
+        items_processed = last_run.get("items_processed") or 0
+        items_added = last_run.get("items_added") or 0
+
+        minutes_since_last_run: Optional[float] = None
+        try:
+            processed_at_dt = datetime.fromisoformat(
+                processed_at_str.replace("Z", "+00:00")
+            ) if processed_at_str else None
+            if processed_at_dt is not None:
+                now_ref = datetime.now(processed_at_dt.tzinfo) if processed_at_dt.tzinfo else datetime.now()
+                minutes_since_last_run = (now_ref - processed_at_dt).total_seconds() / 60.0
+        except Exception:
+            minutes_since_last_run = None
+
+        details = {
+            "default_feeds_count": default_feeds_count,
+            "last_run_at": processed_at_str,
+            "last_run_status": last_run_status,
+            "items_processed": items_processed,
+            "items_added": items_added,
+            "minutes_since_last_run": (
+                round(minutes_since_last_run, 1) if minutes_since_last_run is not None else None
+            ),
+        }
+
+        # Heuristic thresholds: pipeline is expected to run at least hourly.
+        if minutes_since_last_run is None:
+            status = ServiceStatus.DEGRADED
+            message = "Unable to determine time of last processing run"
+        elif minutes_since_last_run > 180:
+            status = ServiceStatus.DOWN
+            message = (
+                f"No RSS runs in the last "
+                f"{int(minutes_since_last_run)} minutes"
+            )
+        elif minutes_since_last_run > 90 or last_run_status not in {"success", "partial"}:
+            status = ServiceStatus.DEGRADED
+            message = (
+                f"Last run {int(minutes_since_last_run)}m ago "
+                f"(status: {last_run_status})"
+            )
+        else:
+            status = ServiceStatus.OPERATIONAL
+            message = (
+                f"Last run {int(minutes_since_last_run)}m ago — "
+                f"{items_processed} items, {items_added} new"
+            )
+
         return ServiceStatusResponse(
             name="RSS Processor",
-            status=ServiceStatus.OPERATIONAL,
-            message="RSS processor available",
+            status=status,
+            message=message,
             last_checked=datetime.now(),
             response_time_ms=round(response_time, 2),
-            details={"default_feeds_count": default_feeds_count}
+            details=details,
         )
     except Exception as e:
         response_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -229,7 +393,7 @@ async def check_rss_processor() -> ServiceStatusResponse:
             message=f"Check failed: {str(e)}",
             last_checked=datetime.now(),
             response_time_ms=round(response_time, 2),
-            details={"error": str(e)}
+            details={"default_feeds_count": default_feeds_count, "error": str(e)},
         )
 
 
@@ -355,6 +519,7 @@ async def get_system_status():
     async def fetch_status():
         # Run all checks concurrently
         checks = [
+            check_backend_api(),
             check_supabase_database(),
             check_supabase_realtime(),
             check_ai_classifier(),
@@ -380,11 +545,20 @@ async def get_system_status():
             else:
                 services.append(result)
 
-        # Determine overall status
+        # Determine overall status. Critical dependencies (Backend API and
+        # Supabase Database) being DOWN implies overall DOWN; otherwise fall
+        # back to DEGRADED for any non-operational check.
         statuses = [s.status for s in services]
-        if ServiceStatus.DOWN in statuses:
-            overall_status = ServiceStatus.DEGRADED
-        elif ServiceStatus.DEGRADED in statuses:
+        critical_names = {"Backend API", "Supabase Database"}
+        critical_down = any(
+            s.name in critical_names and s.status == ServiceStatus.DOWN
+            for s in services
+        )
+        all_down = statuses and all(s == ServiceStatus.DOWN for s in statuses)
+
+        if critical_down or all_down:
+            overall_status = ServiceStatus.DOWN
+        elif any(s in (ServiceStatus.DOWN, ServiceStatus.DEGRADED) for s in statuses):
             overall_status = ServiceStatus.DEGRADED
         elif all(s == ServiceStatus.OPERATIONAL for s in statuses):
             overall_status = ServiceStatus.OPERATIONAL

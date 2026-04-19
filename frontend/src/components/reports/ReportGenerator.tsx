@@ -47,13 +47,23 @@ interface Hazard {
   hazard_type: string;
   severity: string;
   location_name: string;
+  admin_division?: string;
   latitude: number;
   longitude: number;
   confidence_score: number;
   source_type: string;
+  source_url?: string;
+  source_title?: string;
+  status?: 'active' | 'resolved' | 'archived' | string;
   validated: boolean;
+  validated_by?: string;
   created_at: string;
   source_content?: string;
+  // Citizen-report style tracking id (when the hazard originated from a
+  // citizen submission).  Included here so the PDF can render a stable
+  // "reporter ID" column without leaking PII.
+  tracking_id?: string;
+  reporter_id?: string;
 }
 
 interface ReportGeneratorProps {
@@ -112,8 +122,8 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
   onReportGenerated,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [reportTitle, setReportTitle] = useState('GAIA Hazard Report');
-  const [generatedBy, setGeneratedBy] = useState('GAIA System');
+  const [reportTitle, setReportTitle] = useState('AGAILA Hazard Report');
+  const [generatedBy, setGeneratedBy] = useState('AGAILA System');
   const [includeMap, setIncludeMap] = useState(true);
   const [currentStep, setCurrentStep] = useState<ReportStep>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -219,18 +229,35 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       const sanitizedGeneratedBy = sanitizeText(generatedBy);
 
       const reportRequest = {
-        hazards: hazards.map(h => ({
-          id: h.id,
-          hazard_type: h.hazard_type,
-          severity: h.severity,
-          location_name: h.location_name,
-          latitude: h.latitude,
-          longitude: h.longitude,
-          confidence_score: h.confidence_score,
-          source_type: h.source_type,
-          created_at: h.created_at,
-          source_content: h.source_content || null,
-        })),
+        hazards: hazards.map(h => {
+          // Prefer an explicit citizen tracking_id, then an explicit reporter_id,
+          // then fall back to the validator user id, and finally a short hazard
+          // id prefix so the PDF always has something analyst-friendly.
+          const reporterId =
+            h.tracking_id ||
+            h.reporter_id ||
+            h.validated_by ||
+            (h.id ? `haz-${h.id.substring(0, 8)}` : null);
+
+          return {
+            id: h.id,
+            hazard_type: h.hazard_type,
+            severity: h.severity,
+            location_name: h.location_name,
+            admin_division: h.admin_division || null,
+            latitude: h.latitude,
+            longitude: h.longitude,
+            confidence_score: h.confidence_score,
+            source_type: h.source_type,
+            source_url: h.source_url || null,
+            source_title: h.source_title || null,
+            status: h.status || (h.validated ? 'validated' : 'active'),
+            validated: h.validated,
+            reporter_id: reporterId,
+            created_at: h.created_at,
+            source_content: h.source_content || null,
+          };
+        }),
         metadata: {
           title: sanitizedTitle,
           generated_by: sanitizedGeneratedBy,
@@ -289,7 +316,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       // Sanitize filename to prevent XSS and path traversal
       const safeTitle = sanitizeFilename(sanitizedTitle || 'report');
-      const filename = `gaia_${safeTitle}_${timestamp}.pdf`;
+      const filename = `${safeTitle}_${timestamp}.pdf`;
       link.download = filename;
       
       document.body.appendChild(link);
@@ -420,7 +447,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                 id="report-title"
                 value={reportTitle}
                 onChange={(e) => setReportTitle(e.target.value)}
-                placeholder="GAIA Hazard Report"
+                placeholder="AGAILA Hazard Report"
                 maxLength={200}
               />
             </div>
@@ -433,7 +460,7 @@ export const ReportGenerator: React.FC<ReportGeneratorProps> = ({
                 id="generated-by"
                 value={generatedBy}
                 onChange={(e) => setGeneratedBy(e.target.value)}
-                placeholder="GAIA System"
+                placeholder="AGAILA System"
                 maxLength={100}
               />
             </div>
