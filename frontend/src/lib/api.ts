@@ -7,7 +7,14 @@
 
 import { supabase } from './supabase';
 
-export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// In production (Vercel), REACT_APP_API_URL is intentionally an empty string
+// so that fetch calls become relative (e.g. "/api/v1/status") and are then
+// proxied to the real backend at https://agaila.me via vercel.json rewrites.
+// In development, when the variable is unset, fall back to the local API server.
+export const API_BASE_URL =
+  process.env.REACT_APP_API_URL !== undefined
+    ? process.env.REACT_APP_API_URL
+    : 'http://localhost:8000';
 
 /**
  * Makes an authenticated API request to the backend

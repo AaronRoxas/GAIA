@@ -1239,7 +1239,7 @@ async def delete_rss_article(
     try:
         # First verify the article exists and is an RSS article
         check_result = supabase.schema('gaia').table('hazards') \
-            .select('id, title, source') \
+            .select('id, source_title, source') \
             .eq('id', article_id) \
             .eq('source_type', 'rss') \
             .execute()
@@ -1266,7 +1266,7 @@ async def delete_rss_article(
         await log_admin_action(
             user=current_user,
             action="rss_article_deleted",
-            action_description=f"Deleted RSS article '{old_data.get('title', 'Unknown')}'",
+            action_description=f"Deleted RSS article '{old_data.get('source_title', 'Unknown')}'",
             resource_type="hazards",
             resource_id=article_id,
             old_values=old_data,
@@ -1312,13 +1312,13 @@ async def bulk_delete_rss_articles(
         
         # First verify all articles exist and are RSS articles
         check_result = supabase.schema('gaia').table('hazards') \
-            .select('id, title') \
+            .select('id, source_title') \
             .in_('id', ids) \
             .eq('source_type', 'rss') \
             .execute()
         
         found_ids = [item['id'] for item in check_result.data]
-        titles = [item.get('title', 'Unknown') for item in check_result.data]
+        titles = [item.get('source_title', 'Unknown') for item in check_result.data]
         not_found_ids = [id for id in ids if id not in found_ids]
         
         if not found_ids:
