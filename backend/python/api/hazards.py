@@ -141,7 +141,16 @@ async def get_hazards(
 
         async def fetch_hazards():
             # Build query
-            query = supabase.schema("gaia").from_("hazards").select("*")
+            # DQG-01: exclude rows flagged as duplicates so the public map never
+            # renders two pins for the same canonical article. The unique index
+            # uq_hazards_rss_url_title prevents *new* duplicates, but legacy
+            # rows collapsed by the cleanup migration must also be hidden here.
+            query = (
+                supabase.schema("gaia")
+                .from_("hazards")
+                .select("*")
+                .eq("is_duplicate", False)
+            )
 
             # Apply filters
             if hazard_types:
@@ -323,8 +332,14 @@ async def get_hazard_by_id(
         cache_key = generate_cache_key("hazards:detail", hazard_id)
 
         async def fetch_hazard():
+            # DQG-01: never surface a row that was collapsed as a duplicate.
             response = await asyncio.to_thread(
-                lambda: supabase.schema("gaia").from_("hazards").select("*").eq("id", hazard_id).execute()
+                lambda: supabase.schema("gaia")
+                .from_("hazards")
+                .select("*")
+                .eq("id", hazard_id)
+                .eq("is_duplicate", False)
+                .execute()
             )
             if not response.data or len(response.data) == 0:
                 # Return a sentinel dict instead of None so get_or_set can cache
