@@ -891,6 +891,7 @@ async def validate_citizen_report(
     **Module**: AC-04 (Unverified Report Triage)
     **Action**: Sets status to 'verified', marks validated_by, creates hazard record
     """
+    safe_tracking_id = tracking_id.replace('\r', '').replace('\n', '')
     try:
         # 1. Fetch the citizen report
         report_response = supabase.schema("gaia").from_("citizen_reports") \
@@ -1035,11 +1036,11 @@ async def validate_citizen_report(
                     tracking_number=tracking_id,
                     phone_number=report.get('contact_phone')
                 )
-                logger.info(f"SMS notification enqueued for report {tracking_id}")
+                logger.info(f"SMS notification enqueued for report {safe_tracking_id}")
             except Exception as sms_error:
-                logger.warning(f"Failed to enqueue SMS for report {tracking_id}: {sms_error}")
+                logger.warning(f"Failed to enqueue SMS for report {safe_tracking_id}: {sms_error}")
         
-        logger.info(f"User {current_user.email} validated report {tracking_id}")
+        logger.info(f"User {current_user.email} validated report {safe_tracking_id}")
         
         return ReportTriageActionResponse(
             tracking_id=tracking_id,
@@ -1053,7 +1054,7 @@ async def validate_citizen_report(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error validating report {tracking_id}: {str(e)}")
+        logger.error(f"Error validating report {safe_tracking_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to validate report: {str(e)}"
