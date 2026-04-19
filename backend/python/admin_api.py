@@ -1152,14 +1152,13 @@ async def reject_citizen_report(
         # 5. Enqueue SMS notification if contact_phone provided (CR-06 SMS Notifications)
         if report.get('contact_phone') and send_sms_notification:
             try:
-                masked_phone = _mask_phone_for_logging(report.get('contact_phone'))
                 send_sms_notification.delay(
                     report_id=report['id'],
                     status='REJECTED',
                     tracking_number=tracking_id,
                     phone_number=report.get('contact_phone')
                 )
-                logger.info(f"SMS notification enqueued for rejected report {tracking_id} ({masked_phone})")
+                logger.info(f"SMS notification enqueued for rejected report {tracking_id}")
             except Exception as sms_error:
                 logger.warning(f"Failed to enqueue SMS for report {tracking_id}: {sms_error}")
         
