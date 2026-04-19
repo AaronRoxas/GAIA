@@ -28,6 +28,11 @@ services:
       # Field Encryption (RA 10173 - Philippine Data Protection Act)
       - GAIA_ENCRYPTION_KEY=${GAIA_ENCRYPTION_KEY}
       - GAIA_ENCRYPTION_SALT=${GAIA_ENCRYPTION_SALT}
+      # SMS Notification (CR-06)
+      - AWS_SNS_REGION=${AWS_SNS_REGION:-ap-southeast-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
     volumes:
       - ai-models:/app/models  # Named volume for AI models cache
     networks:
@@ -99,6 +104,11 @@ services:
       - CLIMATE_NLI_MODEL_PATH=${CLIMATE_NLI_MODEL_PATH:-MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33}
       - GEO_NER_MODEL_PATH=${GEO_NER_MODEL_PATH:-dslim/bert-base-NER}
       - RSS_FEEDS=${RSS_FEEDS:-https://www.gmanetwork.com/news/rss/news/}
+      # SMS Notification (CR-06)
+      - AWS_SNS_REGION=${AWS_SNS_REGION:-ap-southeast-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
     volumes:
       - ai-models:/app/models
     networks:
@@ -123,6 +133,11 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - ENV=production
+      # SMS Notification (CR-06)
+      - AWS_SNS_REGION=${AWS_SNS_REGION:-ap-southeast-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
     networks:
       - gaia-network
     depends_on:
