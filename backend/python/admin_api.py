@@ -49,7 +49,35 @@ from backend.python.middleware.redis_cache import (
 
 logger = logging.getLogger(__name__)
 
+# Import Celery SMS task for notifications
+try:
+    from backend.python.celery_worker import send_sms_notification
+except ImportError:
+    send_sms_notification = None  # SMS service may not be available in test environments
+
 # Supabase client imported from centralized configuration
+
+# Helper function for secure phone logging
+def _mask_phone_for_logging(phone_number: Optional[str]) -> str:
+    """
+    Mask phone number for safe logging (PII protection).
+    
+    Args:
+        phone_number: Phone number to mask (or None)
+    
+    Returns:
+        Masked version showing only last 2 digits (e.g., "***9939") or "<redacted>"
+    """
+    if not phone_number:
+        return "<redacted>"
+    
+    phone_str = str(phone_number).strip()
+    if not phone_str:
+        return "<redacted>"
+    
+    if len(phone_str) >= 2:
+        return "*" * (len(phone_str) - 2) + phone_str[-2:]
+    return "*" * len(phone_str)
 
 # Create router
 router = APIRouter(
@@ -863,6 +891,7 @@ async def validate_citizen_report(
     **Module**: AC-04 (Unverified Report Triage)
     **Action**: Sets status to 'verified', marks validated_by, creates hazard record
     """
+    safe_tracking_id = tracking_id.replace('\r', '').replace('\n', '')
     try:
         # 1. Fetch the citizen report
         report_response = supabase.schema("gaia").from_("citizen_reports") \
@@ -998,7 +1027,20 @@ async def validate_citizen_report(
         except Exception as log_error:
             logger.warning(f"Failed to log audit: {log_error}")
         
-        logger.info(f"User {current_user.email} validated report {tracking_id}")
+        # 6. Enqueue SMS notification if contact_phone provided (CR-06 SMS Notifications)
+        if report.get('contact_phone') and send_sms_notification:
+            try:
+                send_sms_notification.delay(
+                    report_id=report['id'],
+                    status='ACCEPTED',
+                    tracking_number=tracking_id,
+                    phone_number=report.get('contact_phone')
+                )
+                logger.info(f"SMS notification enqueued for report {safe_tracking_id}")
+            except Exception as sms_error:
+                logger.warning(f"Failed to enqueue SMS for report {safe_tracking_id}: {sms_error}")
+        
+        logger.info(f"User {current_user.email} validated report {safe_tracking_id}")
         
         return ReportTriageActionResponse(
             tracking_id=tracking_id,
@@ -1012,7 +1054,7 @@ async def validate_citizen_report(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error validating report {tracking_id}: {str(e)}")
+        logger.error(f"Error validating report {safe_tracking_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to validate report: {str(e)}"
@@ -1034,6 +1076,7 @@ async def reject_citizen_report(
     **Action**: Sets status to 'rejected', marks validated_by (rejection is a form of validation)
     """
     try:
+        safe_tracking_id = tracking_id.replace("\r", "").replace("\n", "")
         # 1. Fetch the citizen report
         report_response = supabase.schema("gaia").from_("citizen_reports") \
             .select("*") \
@@ -1108,7 +1151,20 @@ async def reject_citizen_report(
         except Exception as log_error:
             logger.warning(f"Failed to log audit: {log_error}")
         
-        logger.info(f"User {current_user.email} rejected report {tracking_id}")
+        # 5. Enqueue SMS notification if contact_phone provided (CR-06 SMS Notifications)
+        if report.get('contact_phone') and send_sms_notification:
+            try:
+                send_sms_notification.delay(
+                    report_id=report['id'],
+                    status='REJECTED',
+                    tracking_number=tracking_id,
+                    phone_number=report.get('contact_phone')
+                )
+                logger.info(f"SMS notification enqueued for rejected report {safe_tracking_id}")
+            except Exception as sms_error:
+                logger.warning(f"Failed to enqueue SMS for report {safe_tracking_id}: {sms_error}")
+        
+        logger.info(f"User {current_user.email} rejected report {safe_tracking_id}")
         
         return ReportTriageActionResponse(
             tracking_id=tracking_id,
@@ -1122,7 +1178,7 @@ async def reject_citizen_report(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error rejecting report {tracking_id}: {str(e)}")
+        logger.error(f"Error rejecting report {safe_tracking_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to reject report: {str(e)}"

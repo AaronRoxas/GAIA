@@ -164,6 +164,7 @@ async def submit_citizen_report(
     description: str = Form(..., min_length=10, max_length=2000, description="Hazard description"),
     name: str = Form(..., min_length=2, max_length=100, description="Reporter's name"),
     contact_number: str = Form(..., description="Reporter's contact number (Philippine phone number)"),
+    contact_phone: Optional[str] = Form(None, description="Optional phone number for SMS notifications (encrypted & single-use for SMS delivery)"),
     latitude: float = Form(..., ge=-90, le=90, description="Latitude coordinate (required, from map picker/GPS)"),
     longitude: float = Form(..., ge=-180, le=180, description="Longitude coordinate (required, from map picker/GPS)"),
     contact_method: Optional[str] = Form(None, description="Optional contact method"),
@@ -178,6 +179,7 @@ async def submit_citizen_report(
     - **description**: Detailed description of the hazard (10-2000 characters)
     - **name**: Reporter's full name (required, 2-100 characters)
     - **contact_number**: Reporter's Philippine phone number (required, validated)
+    - **contact_phone**: Optional phone for SMS notifications (stored encrypted for single-use SMS delivery)
     - **latitude/longitude**: GPS coordinates (required, from map picker or GPS)
     - **contact_method**: Optional contact information
     - **image**: Optional photo of the hazard
@@ -352,7 +354,7 @@ async def submit_citizen_report(
             
             # Get public URL - manually construct with proper URL encoding for security
             # Format: {SUPABASE_URL}/storage/v1/object/public/{bucket}/{path}
-            from lib.supabase_client import SUPABASE_URL
+            from backend.python.lib.supabase_client import SUPABASE_URL
             from urllib.parse import quote
             
             # Security: URL encode the path to prevent injection attacks
@@ -401,6 +403,7 @@ async def submit_citizen_report(
             "location_name": location_name,
             "name": name,  # Will be encrypted below
             "contact_number": contact_number,  # Will be encrypted below
+            "contact_phone": contact_phone,  # Will be encrypted below (optional single-use SMS delivery)
             "contact_method": contact_method,  # Will be encrypted below
             "image_url": [image_url] if image_url else None,  # Convert string to array for TEXT[] column
             "image_metadata": image_metadata,
@@ -436,7 +439,7 @@ async def submit_citizen_report(
         report_data["image_metadata"] = image_metadata
         
         # 8. Encrypt PII fields before database storage (RA 10173 compliance)
-        # Fields: name, contact_number, contact_method
+        # Fields: name, contact_number, contact_phone (encrypted for storage, decrypted transiently for SMS)
         logger.info("Encrypting PII fields for storage")
         report_data = encrypt_pii_fields(report_data)
         
@@ -461,6 +464,12 @@ async def submit_citizen_report(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to submit report. Please try again later."
             )
+        # TODO: SMS delivery cleanup: contact_phone (encrypted) is used during admin approval/rejection.
+        # Implementation reference: backend.python.celery_worker.send_sms_notification
+        # After successful SMS delivery, contact_phone must be removed/zeroed from the database record
+        # to comply with data minimization (RA 10173). Error handling: retry contact_phone removal up to 3x
+        # before logging failure. See celery_worker.py send_sms_notification task for delivery handler.
+        
         # Log public submission activity (anonymous user)
         # Note: Do NOT log actual PII values, only metadata
         try:
