@@ -42,10 +42,16 @@ class RSSProcessorEnhanced:
     - Input sanitization (HTML cleaning)
     - Philippine boundary validation
     
-    Duplicate Detection Strategies:
-    1. Exact URL match (fastest)
-    2. Content hash match (within time window)
-    3. Geographic + temporal proximity (5km radius, configurable time window)
+    Duplicate Detection Strategies (short-circuit in order):
+    0. Combined (normalized URL + normalized title) lookup — canonical check.
+       Backed by a database UNIQUE index so the invariant also holds against
+       concurrent workers.
+    1. Exact URL match (raw string, fastest path).
+    1b. Normalized URL match across all history.
+    2. Exact article title match (case/whitespace-normalized).
+    3. Content hash match (within duplicate_time_window).
+    4. Fuzzy title similarity within the time window.
+    5. Geographic + temporal proximity (5km radius, same hazard type).
     """
     
     # Default Philippine news RSS feeds
@@ -535,40 +541,57 @@ class RSSProcessorEnhanced:
         try:
             time_threshold = datetime.utcnow() - timedelta(hours=self.duplicate_time_window)
 
-            # Strategy 1: Check exact URL (fastest)
+            normalized_url = self._normalize_url(url) if url else ''
+            normalized_title = (
+                ' '.join(content_data['title'].lower().split())
+                if content_data.get('title') else ''
+            )
+
+            # Strategy 0: Canonical (normalized URL + normalized title) match.
+            # This is the exact invariant enforced by the DB unique index
+            # uq_hazards_rss_url_title, so it is the authoritative pre-check
+            # and runs across all history (not time-windowed).
+            if normalized_url and normalized_title:
+                response = supabase.schema('gaia').from_('hazards') \
+                    .select('id') \
+                    .eq('source_url_normalized', normalized_url) \
+                    .eq('source_title', normalized_title) \
+                    .limit(1) \
+                    .execute()
+                if response.data:
+                    return True, response.data[0]['id']
+
+            # Strategy 1: Check exact URL (fastest; handles legacy rows that
+            # predate the normalized column backfill).
             if url:
                 response = supabase.schema('gaia').from_('hazards').select('id').eq('source_url', url).limit(1).execute()
                 if response.data:
                     return True, response.data[0]['id']
 
-                # Strategy 1b: Check normalized URL (strips tracking params)
-                normalized_url = self._normalize_url(url)
-                if normalized_url and normalized_url != url:
-                    response = supabase.schema('gaia').from_('hazards').select('id, source_url') \
-                        .gte('detected_at', time_threshold.isoformat()) \
-                        .eq('source_type', 'rss') \
-                        .limit(500) \
+                # Strategy 1b: Check normalized URL across all history using the
+                # indexed source_url_normalized column (no time window, no row cap).
+                if normalized_url:
+                    response = supabase.schema('gaia').from_('hazards') \
+                        .select('id') \
+                        .eq('source_url_normalized', normalized_url) \
+                        .limit(1) \
                         .execute()
                     if response.data:
-                        for row in response.data:
-                            if self._normalize_url(row.get('source_url', '')) == normalized_url:
-                                return True, row['id']
-            
+                        return True, response.data[0]['id']
+
             # Strategy 2: Check exact article title (no time window - exact title = always duplicate)
-            if content_data.get('title'):
-                normalized_title = ' '.join(content_data['title'].lower().split())
-                
+            if normalized_title:
                 # Check in-memory batch set first (catches same-batch duplicates across feeds)
                 if hasattr(self, '_batch_seen_titles') and normalized_title in self._batch_seen_titles:
                     logger.info(f"Batch-level duplicate title: '{normalized_title[:60]}'")
                     return True, None
-                
+
                 response = supabase.schema('gaia').from_('hazards') \
                     .select('id') \
                     .eq('source_title', normalized_title) \
                     .limit(1) \
                     .execute()
-                
+
                 if response.data:
                     return True, response.data[0]['id']
             
@@ -715,7 +738,9 @@ class RSSProcessorEnhanced:
             
             # Normalize title for consistent duplicate detection (lowercase, remove extra whitespace)
             normalized_title = ' '.join(content_data['title'].lower().split()) if content_data.get('title') else ''
-            
+            raw_url = entry.get('link', '') or ''
+            normalized_url = self._normalize_url(raw_url)
+
             # Build hazard data for database
             hazard_data = {
                 'hazard_type': db_hazard_type,
@@ -729,7 +754,8 @@ class RSSProcessorEnhanced:
                 'confidence_score': confidence_score,
                 'model_version': classifier.get_active_model(),
                 'source_type': 'rss',
-                'source_url': entry.get('link', ''),
+                'source_url': raw_url,
+                'source_url_normalized': normalized_url or None,
                 'source_title': normalized_title,  # Store normalized for duplicate detection
                 'source_content': content_data['text'][:1000],  # Limit to 1000 chars
                 'source_published_at': published_date.isoformat() if published_date else None,
@@ -740,10 +766,23 @@ class RSSProcessorEnhanced:
                 'content_hash': content_hash,
                 'source': feed_url  # Track which feed it came from
             }
-            
-            # Insert into database
-            response = supabase.schema('gaia').from_('hazards').insert(hazard_data).execute()
-            
+
+            # Insert into database. If a concurrent worker wins the race and
+            # inserts the same (normalized URL, normalized title) first, the
+            # uq_hazards_rss_url_title unique index below will raise here and
+            # we treat it as a duplicate rather than an error.
+            try:
+                response = supabase.schema('gaia').from_('hazards').insert(hazard_data).execute()
+            except Exception as insert_err:
+                if self._is_unique_violation(insert_err):
+                    self.stats['duplicates_detected'] += 1
+                    logger.info(
+                        "Unique-constraint dedup caught concurrent duplicate "
+                        f"for '{normalized_title[:80]}' ({normalized_url})"
+                    )
+                    return None
+                raise
+
             if response.data and len(response.data) > 0:
                 hazard_id = response.data[0]['id']
                 logger.info(f"Database insert successful: {hazard_id}")
@@ -755,6 +794,21 @@ class RSSProcessorEnhanced:
         except Exception as e:
             logger.error(f"Error saving hazard to database: {str(e)}", exc_info=True)
             return None
+
+    @staticmethod
+    def _is_unique_violation(err: Exception) -> bool:
+        """
+        Best-effort detection of a PostgreSQL unique-constraint violation
+        surfaced by the Supabase Python client. The client wraps errors in
+        different classes across versions, so we rely on the well-known
+        SQLSTATE 23505 token and the index name we created.
+        """
+        text = str(err).lower()
+        return (
+            '23505' in text
+            or 'duplicate key value' in text
+            or 'uq_hazards_rss_url_title' in text
+        )
     
     def get_statistics(self) -> Dict:
         """

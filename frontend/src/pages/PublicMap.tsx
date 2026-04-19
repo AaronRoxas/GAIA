@@ -96,6 +96,110 @@ function mapResponseToHazard(response: HazardResponse): Hazard {
   };
 }
 
+/**
+ * Canonicalize a URL in the browser the same way the backend does, so
+ * client-side duplicate detection matches the DB unique index.
+ *
+ * Rules (mirrors backend gaia.normalize_source_url and
+ * RSSProcessorEnhanced._normalize_url):
+ *   - lowercase scheme and host
+ *   - strip tracking query parameters (utm_*, fbclid, gclid, ref, source, mc_*)
+ *   - drop URL fragment
+ *   - remove trailing slash (except when the path is exactly "/")
+ */
+const TRACKING_QUERY_KEYS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'fbclid', 'gclid', 'ref', 'source', 'mc_cid', 'mc_eid',
+]);
+
+function normalizeSourceUrl(raw: string | undefined): string {
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    const keep: [string, string][] = [];
+    parsed.searchParams.forEach((value, key) => {
+      if (!TRACKING_QUERY_KEYS.has(key.toLowerCase())) {
+        keep.push([key, value]);
+      }
+    });
+    parsed.hash = '';
+    const host = parsed.host.toLowerCase();
+    let path = parsed.pathname || '';
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.slice(0, -1);
+    }
+    const qs = keep.length
+      ? '?' + keep.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+      : '';
+    return `${parsed.protocol.toLowerCase().replace(/:$/, '')}://${host}${path}${qs}`;
+  } catch {
+    return raw.trim().toLowerCase().replace(/\/+$/, '');
+  }
+}
+
+function normalizeTitle(raw: string | undefined): string {
+  if (!raw) return '';
+  return raw.trim().toLowerCase().split(/\s+/).join(' ');
+}
+
+/**
+ * Defensive client-side deduplication for map markers.
+ *
+ * The database unique index (uq_hazards_rss_url_title) already guarantees
+ * that new rss rows cannot share both URL and headline, and the hazards API
+ * filters out is_duplicate=TRUE rows. This function is a safety net for:
+ *   - rows ingested before the unique index existed
+ *   - mixed source_types that legitimately skip the unique index
+ *   - cached API responses that haven't picked up a recent cleanup
+ *
+ * When two hazards share a normalized (url, title) pair, we keep the one
+ * that was validated first / detected earliest so the map is stable across
+ * refreshes.
+ */
+function dedupeHazards(items: Hazard[]): Hazard[] {
+  const seen = new Map<string, Hazard>();
+  const untracked: Hazard[] = [];
+
+  for (const h of items) {
+    const url = normalizeSourceUrl(h.source_url);
+    const title = normalizeTitle(h.source_title);
+
+    // Only rows with BOTH url and title can participate in dedup — that is
+    // the exact shape of the DB unique index. Anything else passes through
+    // as-is so we don't accidentally merge distinct citizen reports.
+    if (!url || !title) {
+      untracked.push(h);
+      continue;
+    }
+
+    const key = `${url}\u0001${title}`;
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, h);
+      continue;
+    }
+
+    // Prefer the earliest detected row (matches DB cleanup rule) and, as a
+    // tiebreaker, the validated one. Falls back to higher confidence.
+    const existingTime = Date.parse(existing.created_at || '') || 0;
+    const candidateTime = Date.parse(h.created_at || '') || 0;
+    const existingScore =
+      (existing.validated ? 1_000_000 : 0) + (existing.confidence_score || 0);
+    const candidateScore =
+      (h.validated ? 1_000_000 : 0) + (h.confidence_score || 0);
+
+    const candidateWins =
+      candidateTime < existingTime ||
+      (candidateTime === existingTime && candidateScore > existingScore);
+
+    if (candidateWins) {
+      seen.set(key, h);
+    }
+  }
+
+  return [...seen.values(), ...untracked];
+}
+
 interface NominatimResult {
   place_id: number | string;  // GeoSearch can return string or number
   lat: string;
@@ -354,13 +458,24 @@ const PublicMap: React.FC = () => {
     refetchOnWindowFocus: false,
   });
 
-  // Sync query data into local hazards state and update accessibility announcements
+  // Sync query data into local hazards state and update accessibility announcements.
+  // Client-side dedupe is a defense-in-depth safety net: the backend unique
+  // index already prevents new (url, title) duplicates, but we collapse any
+  // stragglers here so the marker count and pin count always agree.
   useEffect(() => {
     if (hazardData) {
       const mapped = hazardData.map(mapResponseToHazard);
-      setHazards(mapped);
+      const deduped = dedupeHazards(mapped);
+      setHazards(deduped);
       setLastUpdated(new Date());
-      setAnnouncement(`Hazard data refreshed. ${mapped.length} active hazards loaded.`);
+      setAnnouncement(
+        `Hazard data refreshed. ${deduped.length} active hazards loaded.` +
+          (deduped.length !== mapped.length
+            ? ` Collapsed ${mapped.length - deduped.length} duplicate article${
+                mapped.length - deduped.length === 1 ? '' : 's'
+              }.`
+            : '')
+      );
     }
   }, [hazardData]);
 
@@ -520,16 +635,16 @@ const PublicMap: React.FC = () => {
               <Link 
                 to="/" 
                 className="flex items-center space-x-3 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-2 rounded-lg p-1 -m-1"
-                aria-label="Go to GAIA homepage"
+                aria-label="Go to AGAILA homepage"
               >
                 <img
                   src="/assets/img/GAIA.svg"
-                  alt=""
+                  alt="AGAILA Logo"
                   aria-hidden="true"
-                  className="h-10 w-10 sm:h-12 sm:w-12"
+                  className="h-10 w-24 sm:h-12 sm:w-24"
                 />
                 <div>
-                  <h1 className="text-lg sm:text-xl font-bold text-[#0a2a4d]">GAIA</h1>
+                  <h1 className="text-lg sm:text-xl font-bold text-[#0a2a4d]">AGAILA</h1>
                   <p className="text-xs sm:text-sm text-gray-600">Live Hazard Map</p>
                 </div>
               </Link>
