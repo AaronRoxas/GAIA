@@ -406,7 +406,7 @@ def send_sms_notification(self, report_id: str, status: str, tracking_number: st
             # Log delivery success to audit trail
             try:
                 from backend.python.lib.supabase_client import supabase
-                supabase.schema('gaia').table('audit_logs').insert({
+                supabase.schema('gaia').from_('audit_logs').insert({
                     'event_type': 'system_notification',
                     'severity': 'info',
                     'action': 'sms_notification_sent',
@@ -445,7 +445,7 @@ def send_sms_notification(self, report_id: str, status: str, tracking_number: st
         # Log delivery failure to audit trail
         try:
             from backend.python.lib.supabase_client import supabase
-            supabase.schema('gaia').table('audit_logs').insert({
+            supabase.schema('gaia').from_('audit_logs').insert({
                 'event_type': 'system_notification',
                 'severity': 'error',
                 'action': 'sms_notification_failed',
