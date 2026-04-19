@@ -22,6 +22,9 @@ services:
       - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY}
       # CORS Configuration - allow frontend access
       - CORS_ORIGINS=http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000
+      # Field Encryption (RA 10173 - Philippine Data Protection Act)
+      - GAIA_ENCRYPTION_KEY=${GAIA_ENCRYPTION_KEY}
+      - GAIA_ENCRYPTION_SALT=${GAIA_ENCRYPTION_SALT}
       # RSS Feed Processing (Celery + Redis)
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
