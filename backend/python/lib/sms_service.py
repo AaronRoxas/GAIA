@@ -221,7 +221,7 @@ class SMSService:
                 }
             else:
                 # Generic exception
-                logger.error(f'Unexpected error sending SMS to {masked_phone}: {error_message}')
+                logger.error(f'Unexpected error sending SMS: {error_message}')
                 return {
                     'status': 'failure',
                     'message_id': None,
