@@ -207,14 +207,13 @@ class SMSService:
         except Exception as e:
             # Handle both ClientError and other exceptions
             error_message = str(e)
-            masked_phone = self._mask_phone_for_logging(normalized_phone)
             
             # Check if it's a ClientError by looking at attributes
             if hasattr(e, 'response') and isinstance(getattr(e, 'response', None), dict):
                 # This is a ClientError
                 error_code = e.response.get('Error', {}).get('Code', 'Unknown')
                 error_text = e.response.get('Error', {}).get('Message', error_message)
-                logger.error(f'AWS SNS error ({error_code}): {error_text} for phone {masked_phone}')
+                logger.error(f'AWS SNS error ({error_code}): {error_text}')
                 return {
                     'status': 'failure',
                     'message_id': None,
