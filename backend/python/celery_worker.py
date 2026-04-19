@@ -383,22 +383,14 @@ def send_sms_notification(self, report_id: str, status: str, tracking_number: st
         # Initialize SMS service
         sms_service = SMSService()
         
-        # Build SMS message based on status
+        # Build SMS message based on status (must be ≤160 chars for SMS)
+        track_url = f"https://agaila.me/track?id={tracking_number}"
         if status == 'ACCEPTED':
-            message = (
-                f"[GAIA] ✓ Your hazard report (#{tracking_number}) has been ACCEPTED and verified. "
-                f"Emergency responders have been notified. Visit: https://agaila.me/track?id={tracking_number}"
-            )
+            message = f"[AGAILA] Report #{tracking_number} ACCEPTED. View: {track_url}"
         elif status == 'REJECTED':
-            message = (
-                f"[GAIA] ✗ Your hazard report (#{tracking_number}) could not be verified. "
-                f"Please review: https://agaila.me/track?id={tracking_number}"
-            )
+            message = f"[AGAILA] Report #{tracking_number} not verified. View: {track_url}"
         else:
-            message = (
-                f"[GAIA] Report #{tracking_number} status: {status}. "
-                f"Check: https://agaila.me/track?id={tracking_number}"
-            )
+            message = f"[AGAILA] Report #{tracking_number}: {status}. View: {track_url}"
         
         logger.info(f"Sending SMS notification for report {report_id} (status: {status})")
         
