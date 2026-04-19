@@ -1076,6 +1076,7 @@ async def reject_citizen_report(
     **Action**: Sets status to 'rejected', marks validated_by (rejection is a form of validation)
     """
     try:
+        safe_tracking_id = tracking_id.replace("\r", "").replace("\n", "")
         # 1. Fetch the citizen report
         report_response = supabase.schema("gaia").from_("citizen_reports") \
             .select("*") \
@@ -1159,11 +1160,11 @@ async def reject_citizen_report(
                     tracking_number=tracking_id,
                     phone_number=report.get('contact_phone')
                 )
-                logger.info(f"SMS notification enqueued for rejected report {tracking_id}")
+                logger.info(f"SMS notification enqueued for rejected report {safe_tracking_id}")
             except Exception as sms_error:
-                logger.warning(f"Failed to enqueue SMS for report {tracking_id}: {sms_error}")
+                logger.warning(f"Failed to enqueue SMS for report {safe_tracking_id}: {sms_error}")
         
-        logger.info(f"User {current_user.email} rejected report {tracking_id}")
+        logger.info(f"User {current_user.email} rejected report {safe_tracking_id}")
         
         return ReportTriageActionResponse(
             tracking_id=tracking_id,
@@ -1177,7 +1178,7 @@ async def reject_citizen_report(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error rejecting report {tracking_id}: {str(e)}")
+        logger.error(f"Error rejecting report {safe_tracking_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to reject report: {str(e)}"
