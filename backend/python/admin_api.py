@@ -907,6 +907,9 @@ async def validate_citizen_report(
         
         report = report_response.data[0]
         
+        # Decrypt PII fields for SMS notification (CR-06)
+        report = decrypt_pii_fields(report)
+        
         # 2. Check if already validated
         if report.get('validated_by'):
             raise HTTPException(
@@ -1028,17 +1031,24 @@ async def validate_citizen_report(
             logger.warning(f"Failed to log audit: {log_error}")
         
         # 6. Enqueue SMS notification if contact_phone provided (CR-06 SMS Notifications)
-        if report.get('contact_phone') and send_sms_notification:
+        contact_phone = report.get('contact_phone')
+        logger.debug(f"SMS check for report {safe_tracking_id}: contact_phone={contact_phone}, send_sms_notification={send_sms_notification is not None}")
+        
+        if contact_phone and send_sms_notification:
             try:
                 send_sms_notification.delay(
                     report_id=report['id'],
                     status='ACCEPTED',
                     tracking_number=tracking_id,
-                    phone_number=report.get('contact_phone')
+                    phone_number=contact_phone
                 )
                 logger.info(f"SMS notification enqueued for report {safe_tracking_id}")
             except Exception as sms_error:
                 logger.warning(f"Failed to enqueue SMS for report {safe_tracking_id}: {sms_error}")
+        elif not contact_phone:
+            logger.debug(f"SMS skipped: no contact_phone for report {safe_tracking_id}")
+        else:
+            logger.debug(f"SMS skipped: send_sms_notification not available for report {safe_tracking_id}")
         
         logger.info(f"User {current_user.email} validated report {safe_tracking_id}")
         
@@ -1090,6 +1100,9 @@ async def reject_citizen_report(
             )
         
         report = report_response.data[0]
+        
+        # Decrypt PII fields for SMS notification (CR-06)
+        report = decrypt_pii_fields(report)
         
         # 2. Check if already processed
         if report.get('validated_by'):
@@ -1152,17 +1165,24 @@ async def reject_citizen_report(
             logger.warning(f"Failed to log audit: {log_error}")
         
         # 5. Enqueue SMS notification if contact_phone provided (CR-06 SMS Notifications)
-        if report.get('contact_phone') and send_sms_notification:
+        contact_phone = report.get('contact_phone')
+        logger.debug(f"SMS check for report {safe_tracking_id}: contact_phone={contact_phone}, send_sms_notification={send_sms_notification is not None}")
+        
+        if contact_phone and send_sms_notification:
             try:
                 send_sms_notification.delay(
                     report_id=report['id'],
                     status='REJECTED',
                     tracking_number=tracking_id,
-                    phone_number=report.get('contact_phone')
+                    phone_number=contact_phone
                 )
                 logger.info(f"SMS notification enqueued for rejected report {safe_tracking_id}")
             except Exception as sms_error:
                 logger.warning(f"Failed to enqueue SMS for report {safe_tracking_id}: {sms_error}")
+        elif not contact_phone:
+            logger.debug(f"SMS skipped: no contact_phone for report {safe_tracking_id}")
+        else:
+            logger.debug(f"SMS skipped: send_sms_notification not available for report {safe_tracking_id}")
         
         logger.info(f"User {current_user.email} rejected report {safe_tracking_id}")
         
