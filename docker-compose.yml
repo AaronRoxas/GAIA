@@ -107,6 +107,12 @@ services:
       - RSS_UPDATE_INTERVAL_MINUTES=5
       - CLIMATE_NLI_MODEL_PATH=${CLIMATE_NLI_MODEL_PATH:-models/climate-nli}
       - GEO_NER_MODEL_PATH=${GEO_NER_MODEL_PATH:-models/geo-ner}
+      - AWS_SNS_REGION=${AWS_SNS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
+      - GAIA_ENCRYPTION_KEY=${GAIA_ENCRYPTION_KEY}
+      - GAIA_ENCRYPTION_SALT=${GAIA_ENCRYPTION_SALT}
     volumes:
       - ./backend/python:/app/backend/python
       - ./models:/app/models
@@ -132,6 +138,12 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - RSS_UPDATE_INTERVAL_MINUTES=5
+      - AWS_SNS_REGION=${AWS_SNS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
+      - GAIA_ENCRYPTION_KEY=${GAIA_ENCRYPTION_KEY}
+      - GAIA_ENCRYPTION_SALT=${GAIA_ENCRYPTION_SALT}
     volumes:
       - ./backend/python:/app/backend/python
     networks:

@@ -8,7 +8,7 @@ Protection Act).
 
 Encrypted Fields:
 - name (reporter's name)
-- contact_number (Philippine phone number)
+- contact_number (Philippine phone number - used for SMS notifications CR-06)
 - contact_method (optional contact info)
 
 Usage:
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # Fields that contain PII and must be encrypted
 PII_FIELDS = frozenset([
     "name",
-    "contact_number", 
+    "contact_number",  # Used for SMS notifications (CR-06)
     "contact_method",
 ])
 

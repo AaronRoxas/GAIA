@@ -383,22 +383,14 @@ def send_sms_notification(self, report_id: str, status: str, tracking_number: st
         # Initialize SMS service
         sms_service = SMSService()
         
-        # Build SMS message based on status
+        # Build SMS message based on status (must be ≤160 chars for SMS)
+        track_url = f"https://agaila.me/track?id={tracking_number}"
         if status == 'ACCEPTED':
-            message = (
-                f"[GAIA] ✓ Your hazard report (#{tracking_number}) has been ACCEPTED and verified. "
-                f"Emergency responders have been notified. Visit: https://agaila.me/track?id={tracking_number}"
-            )
+            message = f"[AGAILA] Report #{tracking_number} ACCEPTED. View: {track_url}"
         elif status == 'REJECTED':
-            message = (
-                f"[GAIA] ✗ Your hazard report (#{tracking_number}) could not be verified. "
-                f"Please review: https://agaila.me/track?id={tracking_number}"
-            )
+            message = f"[AGAILA] Report #{tracking_number} not verified. View: {track_url}"
         else:
-            message = (
-                f"[GAIA] Report #{tracking_number} status: {status}. "
-                f"Check: https://agaila.me/track?id={tracking_number}"
-            )
+            message = f"[AGAILA] Report #{tracking_number}: {status}. View: {track_url}"
         
         logger.info(f"Sending SMS notification for report {report_id} (status: {status})")
         
@@ -414,12 +406,14 @@ def send_sms_notification(self, report_id: str, status: str, tracking_number: st
             # Log delivery success to audit trail
             try:
                 from backend.python.lib.supabase_client import supabase
-                supabase.schema('gaia').table('audit_logs').insert({
+                supabase.schema('gaia').from_('audit_logs').insert({
+                    'event_type': 'system_notification',
+                    'severity': 'info',
                     'action': 'sms_notification_sent',
                     'resource': 'citizen_report',
-                    'resource_id': report_id,
                     'status': 'success',
-                    'details': {
+                    'message': f'SMS sent to citizen report {report_id}',
+                    'metadata': {
                         'message_id': result.get('message_id'),
                         'report_status': status,
                         'tracking_number': tracking_number
@@ -451,12 +445,14 @@ def send_sms_notification(self, report_id: str, status: str, tracking_number: st
         # Log delivery failure to audit trail
         try:
             from backend.python.lib.supabase_client import supabase
-            supabase.schema('gaia').table('audit_logs').insert({
+            supabase.schema('gaia').from_('audit_logs').insert({
+                'event_type': 'system_notification',
+                'severity': 'error',
                 'action': 'sms_notification_failed',
                 'resource': 'citizen_report',
-                'resource_id': report_id,
-                'status': 'error',
-                'details': {
+                'status': 'failure',
+                'message': f'SMS delivery failed for citizen report {report_id}',
+                'metadata': {
                     'error': str(e),
                     'retry_count': self.request.retries
                 }
