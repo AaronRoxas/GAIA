@@ -342,6 +342,140 @@ def process_single_feed_task(self, feed_id: str):
 
 
 # ============================================================================
+# SMS NOTIFICATION TASK (CR-06)
+# ============================================================================
+
+@celery_app.task(name='celery_worker.send_sms_notification', bind=True, max_retries=2)
+def send_sms_notification(self, report_id: str, status: str, tracking_number: str, phone_number: str):
+    """
+    Send SMS notification to citizen reporter about report status (CR-06 SMS Notifications).
+    
+    Triggered when admin validates/rejects a citizen report.
+    Uses AWS SNS for SMS delivery to Philippine phone numbers.
+    
+    Args:
+        report_id: UUID of the citizen report
+        status: Report status ('ACCEPTED' or 'REJECTED')
+        tracking_number: Report tracking number for user reference
+        phone_number: Recipient's phone number (encrypted in database, decrypted here)
+    
+    Returns:
+        dict: SMS delivery result with message_id or error
+        
+    Raises:
+        Retry: On delivery failure, retries up to max_retries with exponential backoff
+    """
+    from backend.python.lib.sms_service import SMSService
+    from backend.python.utils.field_encryption import decrypt_field
+    
+    try:
+        # Decrypt phone number for delivery (stored encrypted in DB)
+        phone_number_decrypted = decrypt_field(phone_number) if phone_number else None
+        
+        if not phone_number_decrypted:
+            logger.warning(f"No phone number available for report {report_id}, skipping SMS")
+            return {
+                'status': 'skipped',
+                'reason': 'No phone number provided',
+                'report_id': report_id
+            }
+        
+        # Initialize SMS service
+        sms_service = SMSService()
+        
+        # Build SMS message based on status (must be ≤160 chars for SMS)
+        track_url = f"https://agaila.me/track?id={tracking_number}"
+        if status == 'ACCEPTED':
+            message = f"[AGAILA] Report #{tracking_number} ACCEPTED. View: {track_url}"
+        elif status == 'REJECTED':
+            message = f"[AGAILA] Report #{tracking_number} not verified. View: {track_url}"
+        else:
+            message = f"[AGAILA] Report #{tracking_number}: {status}. View: {track_url}"
+        
+        logger.info(f"Sending SMS notification for report {report_id} (status: {status})")
+        
+        # Send SMS via AWS SNS
+        result = sms_service.send_sms(phone_number_decrypted, message)
+        
+        if result.get('status') == 'success':
+            logger.info(
+                f"SMS sent successfully for report {report_id} "
+                f"(MessageId: {result.get('message_id')})"
+            )
+            
+            # Log delivery success to audit trail
+            try:
+                from backend.python.lib.supabase_client import supabase
+                supabase.schema('gaia').from_('audit_logs').insert({
+                    'event_type': 'system_notification',
+                    'severity': 'info',
+                    'action': 'sms_notification_sent',
+                    'resource': 'citizen_report',
+                    'status': 'success',
+                    'message': f'SMS sent to citizen report {report_id}',
+                    'metadata': {
+                        'message_id': result.get('message_id'),
+                        'report_status': status,
+                        'tracking_number': tracking_number
+                    }
+                }).execute()
+            except Exception as audit_err:
+                logger.warning(f"Failed to log SMS delivery to audit: {audit_err}")
+            
+            return result
+        else:
+            # SMS delivery failed, will retry
+            error_msg = result.get('error', 'Unknown error')
+            logger.error(f"SMS delivery failed for report {report_id}: {error_msg}")
+            
+            # Retry with exponential backoff: 30s (retry 1), 60s (retry 2)
+            retry_countdown = 30 * (2 ** self.request.retries)
+            raise self.retry(
+                exc=Exception(f"SMS delivery failed: {error_msg}"),
+                countdown=retry_countdown,
+                max_retries=2
+            )
+        
+    except Exception as e:
+        logger.error(
+            f"Error sending SMS notification for report {report_id}: {str(e)}",
+            exc_info=True
+        )
+        
+        # Log delivery failure to audit trail
+        try:
+            from backend.python.lib.supabase_client import supabase
+            supabase.schema('gaia').from_('audit_logs').insert({
+                'event_type': 'system_notification',
+                'severity': 'error',
+                'action': 'sms_notification_failed',
+                'resource': 'citizen_report',
+                'status': 'failure',
+                'message': f'SMS delivery failed for citizen report {report_id}',
+                'metadata': {
+                    'error': str(e),
+                    'retry_count': self.request.retries
+                }
+            }).execute()
+        except Exception as audit_err:
+            logger.warning(f"Failed to log SMS failure to audit: {audit_err}")
+        
+        # Retry up to 2 times before giving up
+        if self.request.retries < 2:
+            retry_countdown = 30 * (2 ** self.request.retries)
+            raise self.retry(exc=e, countdown=retry_countdown)
+        else:
+            # Max retries exceeded, log final failure
+            logger.error(f"SMS delivery permanently failed for report {report_id} after 2 retries")
+            return {
+                'status': 'failed',
+                'error': str(e),
+                'report_id': report_id,
+                'retries_exhausted': True
+            }
+
+
+# ============================================================================
 # CELERY EVENTS
 # ============================================================================
 
