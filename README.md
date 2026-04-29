@@ -1,7 +1,7 @@
 <div align="center">
 
-<img src="./frontend/public/assets/img/GAIA.png" /><br />
-# GAIA: Geospatial AI-driven Assessment
+<img src="./frontend/public/assets/img/AGAILA.png" /><br />
+# AGAILA Geospatial AI-driven Assessment
 
 *AI-powered environmental hazard detection for the Philippines*
 
@@ -25,12 +25,12 @@
 
 ## Overview
 
-GAIA (Geospatial AI-driven Assessment) is a real-time environmental hazard detection and visualization system built specifically for the Philippines. The system automatically processes news feeds and citizen reports to detect, classify, and map environmental hazards including typhoons, floods, earthquakes, landslides, and wildfires.
+AGAILA is a real-time environmental hazard detection and visualization system built specifically for the Philippines. The system automatically processes news feeds and citizen reports to detect, classify, and map environmental hazards including typhoons, floods, earthquakes, landslides, and wildfires.
 
-Using state-of-the-art AI models and geospatial validation, GAIA provides disaster management agencies, local government units (LGUs), and emergency responders with actionable intelligence to support rapid response and resource allocation.
+Using state-of-the-art AI models and geospatial validation, AGAILA provides disaster management agencies, local government units (LGUs), and emergency responders with actionable intelligence to support rapid response and resource allocation.
 
 <div align="center">
-  <img src="./Project-context/img/gaia-architecture-diagram.png" alt="GAIA Architecture" width="800px" />
+  <img src="./Project-context/img/gaia-architecture-diagram.png" alt="AGAILA Architecture" width="800px" />
 </div>
 
 > **Target Time-to-Action**: Less than 5 minutes from article publication to hazard visualization on the map.
@@ -82,12 +82,12 @@ Using state-of-the-art AI models and geospatial validation, GAIA provides disast
 
 ### Quick Start with Docker
 
-The fastest way to get GAIA running locally:
+The fastest way to get AGAILA running locally:
 
 ```bash
 # Clone the repository
-git clone https://github.com/AlexisRellon/GAIA.git
-cd GAIA
+git clone https://github.com/AlexisRellon/AGAILA.git
+cd AGAILA
 
 # Copy environment files
 cp backend/.env.example backend/.env
@@ -107,7 +107,7 @@ docker-compose up --build
 
 ### Production Deployment
 
-GAIA supports multiple deployment options for different needs:
+AGAILA supports multiple deployment options for different needs:
 
 #### Option 1: Vercel + Railway (Recommended)
 
@@ -130,7 +130,7 @@ railway up
 
 #### Option 2: Railway Only
 
-GAIA supports production deployment on Railway with a single command:
+AGAILA supports production deployment on Railway with a single command:
 
 ```bash
 # Install Railway CLI
@@ -151,7 +151,7 @@ For complete deployment instructions including environment variables, database s
 
 ## Architecture
 
-GAIA follows a three-tiered serverless architecture designed for real-time processing and scalability:
+AGAILA follows a three-tiered serverless architecture designed for real-time processing and scalability:
 
 ### 1. Data Ingestion Layer
 - **RSS Aggregation**: Celery Beat scheduler triggers hourly RSS feed ingestion
