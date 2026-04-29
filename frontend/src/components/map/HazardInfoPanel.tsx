@@ -41,13 +41,13 @@ interface HazardInfoPanelProps {
   onZoomTo?: (lat: number, lon: number) => void;
 }
 
-const severityConfig = {
-  critical: { color: 'bg-red-500', textColor: 'text-red-700', bgLight: 'bg-red-50', label: 'Critical' },
-  severe: { color: 'bg-orange-500', textColor: 'text-orange-700', bgLight: 'bg-orange-50', label: 'Severe' },
-  moderate: { color: 'bg-yellow-500', textColor: 'text-yellow-700', bgLight: 'bg-yellow-50', label: 'Moderate' },
-  minor: { color: 'bg-green-500', textColor: 'text-green-700', bgLight: 'bg-green-50', label: 'Minor' },
-  unknown: { color: 'bg-gray-500', textColor: 'text-gray-700', bgLight: 'bg-gray-50', label: 'Unknown' },
-};
+// const severityConfig = {
+//   critical: { color: 'bg-red-500', textColor: 'text-red-700', bgLight: 'bg-red-50', label: 'Critical' },
+//   severe: { color: 'bg-orange-500', textColor: 'text-orange-700', bgLight: 'bg-orange-50', label: 'Severe' },
+//   moderate: { color: 'bg-yellow-500', textColor: 'text-yellow-700', bgLight: 'bg-yellow-50', label: 'Moderate' },
+//   minor: { color: 'bg-green-500', textColor: 'text-green-700', bgLight: 'bg-green-50', label: 'Minor' },
+//   unknown: { color: 'bg-gray-500', textColor: 'text-gray-700', bgLight: 'bg-gray-50', label: 'Unknown' },
+// };
 
 const hazardTypeEmoji: Record<string, string> = {
   flood: '🌊',
@@ -158,10 +158,9 @@ export function HazardInfoPanel({
 
   if (!hazard) return null;
 
-  const severity = severityConfig[hazard.severity as keyof typeof severityConfig] || severityConfig.unknown;
-  const emoji = hazardTypeEmoji[hazard.hazard_type] || '⚠️';
-  const confidencePercentage = Math.round(hazard.confidence_score * 100);
-  const createdDate = new Date(hazard.created_at);
+  // const severity = hazard ? (severityConfig[hazard.severity as keyof typeof severityConfig] || severityConfig.unknown) : severityConfig.unknown;
+  const confidencePercentage = hazard ? Math.round(hazard.confidence_score * 100) : 0;
+  const createdDate = hazard ? new Date(hazard.created_at) : new Date();
   const formattedTime = createdDate.toLocaleTimeString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -216,15 +215,55 @@ export function HazardInfoPanel({
 
         {/* Content - Scrollable */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Severity Badge */}
-          <div className={`${severity.bgLight} rounded-lg p-4`}>
-            <div className="flex items-center gap-3">
-              <div className={`${severity.color} p-2 rounded-lg`}>
-                <AlertTriangle className="w-5 h-5 text-white" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Severity Level</p>
-                <p className={`${severity.textColor} font-bold text-lg`}>{severity.label}</p>
+          {hazard ? (
+            <>
+              {/* Severity Badge */}
+              {/* <div className={`${severity.bgLight} rounded-lg p-4`}>
+                <div className="flex items-center gap-3">
+                  <div className={`${severity.color} p-2 rounded-lg flex items-center justify-center w-8 h-8`}>
+                    <FontAwesomeIcon icon={faExclamationTriangle} className="text-white text-sm" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 uppercase tracking-wide font-semibold">Severity Level</p>
+                    <p className={`${severity.textColor} font-bold text-lg`}>{severity.label}</p>
+                  </div>
+                </div>
+              </div> */}
+
+              {/* Quick Stats */}
+              <div className="grid grid-cols-3 gap-3">
+                {/* Confidence Score */}
+                <Card className="p-3 text-center border-gray-200">
+                  <div className="flex items-center justify-center mb-2">
+                    <FontAwesomeIcon icon={faChartLine} className="text-blue-600 text-sm" aria-hidden="true" />
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{confidencePercentage}%</p>
+                  <p className="text-xs text-gray-600 mt-1">Confidence</p>
+                </Card>
+
+                {/* Coordinates */}
+                <Card className="p-3 text-center border-gray-200">
+                  <div className="flex items-center justify-center mb-2">
+                    <FontAwesomeIcon icon={faMapPin} className="text-green-600 text-sm" aria-hidden="true" />
+                  </div>
+                  <p className="text-xs text-gray-900 font-mono">
+                    {hazard.latitude.toFixed(3)}, <br /> {hazard.longitude.toFixed(3)}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">Location</p>
+                </Card>
+
+                {/* Validation Status */}
+                <Card className="p-3 text-center border-gray-200">
+                  <div className="flex items-center justify-center mb-2">
+                    <FontAwesomeIcon 
+                      icon={faEye} 
+                      className={`text-sm ${hazard.validated ? 'text-purple-600' : 'text-gray-400'}`} 
+                      aria-hidden="true" 
+                    />
+                  </div>
+                  <p className="text-xs font-bold text-gray-900 uppercase">{hazard.validated ? 'Valid' : 'Pending'}</p>
+                  <p className="text-xs text-gray-600 mt-1">Status</p>
+                </Card>
               </div>
             </div>
           </div>

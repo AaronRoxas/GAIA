@@ -23,7 +23,7 @@ import {
 } from '@tanstack/react-table';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Shield, CheckCircle, XCircle, MapPin, AlertCircle, Image as ImageIcon, User, Phone } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, MapPin, AlertCircle, Image as ImageIcon, User, Phone, Clock, Copy } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -112,6 +112,38 @@ const markerIcon = new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
 });
+
+const STATUS_META: Record<string, { label: string; className: string; icon: React.ComponentType<{ className?: string }> }> = {
+  unverified: {
+    label: 'Unverified',
+    className: 'bg-amber-50 text-amber-800 border-amber-200',
+    icon: Clock,
+  },
+  verified: {
+    label: 'Verified',
+    className: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    icon: CheckCircle,
+  },
+  rejected: {
+    label: 'Rejected',
+    className: 'bg-rose-50 text-rose-800 border-rose-200',
+    icon: XCircle,
+  },
+  duplicate: {
+    label: 'Duplicate',
+    className: 'bg-slate-100 text-slate-700 border-slate-200',
+    icon: Copy,
+  },
+};
+
+const getStatusMeta = (status?: string | null) => {
+  const key = (status || 'unverified').toLowerCase();
+  return STATUS_META[key] ?? {
+    label: status || 'Unknown',
+    className: 'bg-slate-100 text-slate-700 border-slate-200',
+    icon: AlertCircle,
+  };
+};
 
 const isWithinPhilippines = (lat: number, lng: number) => {
   const withinBoundingBox =
@@ -360,6 +392,19 @@ const ReportTriage: React.FC = () => {
         );
       },
     }),
+    columnHelper.accessor('status', {
+      header: 'Status',
+      cell: (info) => {
+        const meta = getStatusMeta(info.getValue());
+        const Icon = meta.icon;
+        return (
+          <Badge variant="outline" className={`flex w-fit items-center gap-1.5 border ${meta.className}`}>
+            <Icon className="h-3.5 w-3.5" />
+            {meta.label}
+          </Badge>
+        );
+      },
+    }),
     columnHelper.accessor('location_name', {
       header: 'Location',
       cell: (info) => (
@@ -461,28 +506,41 @@ const ReportTriage: React.FC = () => {
     columnHelper.display({
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleAction(row.original, 'validate')}
-            className="text-green-600 hover:text-green-700 hover:bg-green-50"
-          >
-            <CheckCircle className="h-4 w-4 mr-1" />
-            Approve
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleAction(row.original, 'reject')}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-          >
-            <XCircle className="h-4 w-4 mr-1" />
-            Reject
-          </Button>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const report = row.original;
+        const isProcessed = (report.status && report.status.toLowerCase() !== 'unverified') || report.validated;
+
+        if (isProcessed) {
+          return (
+            <span className="text-xs text-muted-foreground italic">
+              Already processed
+            </span>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleAction(report, 'validate')}
+              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Approve
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleAction(report, 'reject')}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <XCircle className="h-4 w-4 mr-1" />
+              Reject
+            </Button>
+          </div>
+        );
+      },
     }),
   ];
 
@@ -593,7 +651,9 @@ const ReportTriage: React.FC = () => {
           Report Triage
         </CardTitle>
         <CardDescription>
-          Approve or reject unverified citizen reports (AC-04)
+          {statusFilter === 'unverified'
+            ? 'Approve or reject unverified citizen reports (AC-04)'
+            : `Browsing ${getStatusMeta(statusFilter).label.toLowerCase()} citizen reports (read-only)`}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -733,7 +793,9 @@ const ReportTriage: React.FC = () => {
               ) : table.getRowModel().rows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
-                    No reports found for triage
+                    {statusFilter === 'duplicate'
+                      ? 'No duplicate reports. Citizen reports are not currently flagged as duplicates by the system.'
+                      : `No ${getStatusMeta(statusFilter).label.toLowerCase()} reports match the current filters.`}
                   </TableCell>
                 </TableRow>
               ) : (
