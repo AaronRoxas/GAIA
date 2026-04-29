@@ -30,7 +30,7 @@ const Register = () => {
         <div className="relative z-10 flex flex-col items-center text-center gap-8">
           <img
             src={landingAssets.logos.gaiaWhite}
-            alt="GAIA Logo"
+            alt="AGAILA Logo"
             className="w-44 h-auto"
             loading="eager"
             fetchPriority="high"
@@ -62,7 +62,7 @@ const Register = () => {
           <div className="lg:hidden flex justify-center mb-8">
             <img
               src={landingAssets.logo.gaia}
-              alt="GAIA Logo"
+              alt="AGAILA Logo"
               className="h-14 w-auto"
               loading="eager"
               fetchPriority="high"

@@ -143,7 +143,7 @@ const UpdatePassword: React.FC = () => {
           <div className="flex justify-center">
             <img
               src={landingAssets.logo.gaia}
-              alt="GAIA Logo"
+              alt="AGAILA Logo"
               className="h-14 w-auto"
             />
           </div>

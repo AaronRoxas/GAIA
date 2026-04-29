@@ -638,10 +638,10 @@ const PublicMap: React.FC = () => {
                 aria-label="Go to AGAILA homepage"
               >
                 <img
-                  src="/assets/img/GAIA.svg"
+                  src="/assets/img/AGAILA.svg"
                   alt="AGAILA Logo"
                   aria-hidden="true"
-                  className="h-10 w-24 sm:h-12 sm:w-24"
+                  className="h-10 w-36 sm:h-12 sm:w-36"
                 />
                 <div>
                   <h1 className="text-lg sm:text-xl font-bold text-[#0a2a4d]">AGAILA</h1>

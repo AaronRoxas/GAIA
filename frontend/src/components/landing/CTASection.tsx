@@ -13,7 +13,7 @@ export const CTASection: React.FC = () => {
             Get Actionable Hazard Intelligence
           </h2>
           <p className="flex flex-col font-lato justify-center max-w-[600px] text-[14px] sm:text-[16px] leading-[24px] text-black/60">
-            Equip your response team with the AI-driven insights needed to act faster and protect your community. Get started with GAIA today.
+            Equip your response team with the AI-driven insights needed to act faster and protect your community. Get started with AGAILA today.
           </p>
         </div>
 

@@ -41,11 +41,11 @@ export const landingAssets = {
   
   // Logos
   logo: {
-    gaia: '/assets/img/GAIA.svg',
+    gaia: '/assets/img/AGAILA.svg',
   },
   logos: {
-    gaia: '/assets/img/GAIA.svg',
-    gaiaWhite: '/assets/img/GAIA-white.svg',
+    gaia: '/assets/img/AGAILA.svg',
+    gaiaWhite: '/assets/img/AGAILA-white.png',
     lpuc: '/assets/img/lpu-c_logo.png',
     astars: '/assets/img/A-stars-logo.svg',
   },

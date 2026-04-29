@@ -23,6 +23,8 @@ import {
   OptimizedPieChart,
   OptimizedDistributionBarChart,
   OptimizedRegionChart,
+  OptimizedSourcePieChart,
+  OptimizedSourceBarChart,
 } from './OptimizedCharts';
 import {
   useHazardStats,
@@ -236,20 +238,8 @@ export default function AnalyticsView() {
             {/* Source Breakdown Tab */}
             <TabsContent value="sources" className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                <OptimizedPieChart
-                  data={(sourceBreakdown || []).map((item) => ({
-                    hazard_type: item.source_type,
-                    count: item.count,
-                    percentage: item.percentage,
-                  }))}
-                />
-                <OptimizedDistributionBarChart
-                  data={(sourceBreakdown || []).map((item) => ({
-                    hazard_type: item.source_type,
-                    count: item.count,
-                    percentage: item.percentage,
-                  }))}
-                />
+                <OptimizedSourcePieChart data={sourceBreakdown || []} />
+                <OptimizedSourceBarChart data={sourceBreakdown || []} />
               </div>
             </TabsContent>
 

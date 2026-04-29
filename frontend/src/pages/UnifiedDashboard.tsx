@@ -259,7 +259,11 @@ export default function UnifiedDashboard() {
                 {/* <Home className="h-6 w-6 text-primary" /> */}
                 <div className="flex flex-col">
                   {/* <span className="font-semibold text-lg">GAIA</span> */}
-                  <img src="/assets/img/GAIA.svg" alt="GAIA Logo" className="w-[3.5rem]" />
+                  <img
+                    src="/assets/img/AGAILA.svg"
+                    alt="AGAILA Logo"
+                    className="w-[3.5rem] sm:w-[4.25rem] lg:w-[4.75rem]"
+                  />
                   <span className="text-xs text-muted-foreground">
                     {userProfile?.role.replace('_', ' ').toUpperCase()}
                   </span>
