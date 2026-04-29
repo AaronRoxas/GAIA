@@ -182,10 +182,10 @@ export default function Dashboard() {
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <img 
               src={landingAssets.logo.gaia} 
-              alt="GAIA Logo" 
+              alt="AGAILA Logo" 
               className="h-10 w-auto"
             />
-            <span className="font-semibold text-lg hidden sm:inline">GAIA Dashboard</span>
+            <span className="font-semibold text-lg hidden sm:inline">AGAILA Dashboard</span>
           </Link>
           
           <div className="flex items-center gap-4">

@@ -42,13 +42,13 @@ interface HazardInfoPanelProps {
   onZoomTo?: (lat: number, lon: number) => void;
 }
 
-const severityConfig = {
-  critical: { color: 'bg-red-500', textColor: 'text-red-700', bgLight: 'bg-red-50', label: 'Critical' },
-  severe: { color: 'bg-orange-500', textColor: 'text-orange-700', bgLight: 'bg-orange-50', label: 'Severe' },
-  moderate: { color: 'bg-yellow-500', textColor: 'text-yellow-700', bgLight: 'bg-yellow-50', label: 'Moderate' },
-  minor: { color: 'bg-green-500', textColor: 'text-green-700', bgLight: 'bg-green-50', label: 'Minor' },
-  unknown: { color: 'bg-gray-500', textColor: 'text-gray-700', bgLight: 'bg-gray-50', label: 'Unknown' },
-};
+// const severityConfig = {
+//   critical: { color: 'bg-red-500', textColor: 'text-red-700', bgLight: 'bg-red-50', label: 'Critical' },
+//   severe: { color: 'bg-orange-500', textColor: 'text-orange-700', bgLight: 'bg-orange-50', label: 'Severe' },
+//   moderate: { color: 'bg-yellow-500', textColor: 'text-yellow-700', bgLight: 'bg-yellow-50', label: 'Moderate' },
+//   minor: { color: 'bg-green-500', textColor: 'text-green-700', bgLight: 'bg-green-50', label: 'Minor' },
+//   unknown: { color: 'bg-gray-500', textColor: 'text-gray-700', bgLight: 'bg-gray-50', label: 'Unknown' },
+// };
 
 const hazardTypeIcons: Record<string, IconDefinition> = {
   flood: faHouseFloodWater,
@@ -180,7 +180,7 @@ export function HazardInfoPanel({
   // No overflow handling needed - panel is absolutely positioned and doesn't affect body layout
   // The backdrop overlay prevents interaction with content behind the panel
 
-  const severity = hazard ? (severityConfig[hazard.severity as keyof typeof severityConfig] || severityConfig.unknown) : severityConfig.unknown;
+  // const severity = hazard ? (severityConfig[hazard.severity as keyof typeof severityConfig] || severityConfig.unknown) : severityConfig.unknown;
   const confidencePercentage = hazard ? Math.round(hazard.confidence_score * 100) : 0;
   const createdDate = hazard ? new Date(hazard.created_at) : new Date();
   const formattedTime = createdDate.toLocaleTimeString('en-US', {
@@ -289,7 +289,7 @@ export function HazardInfoPanel({
           {hazard ? (
             <>
               {/* Severity Badge */}
-              <div className={`${severity.bgLight} rounded-lg p-4`}>
+              {/* <div className={`${severity.bgLight} rounded-lg p-4`}>
                 <div className="flex items-center gap-3">
                   <div className={`${severity.color} p-2 rounded-lg flex items-center justify-center w-8 h-8`}>
                     <FontAwesomeIcon icon={faExclamationTriangle} className="text-white text-sm" aria-hidden="true" />
@@ -299,7 +299,7 @@ export function HazardInfoPanel({
                     <p className={`${severity.textColor} font-bold text-lg`}>{severity.label}</p>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-3">

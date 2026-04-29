@@ -412,3 +412,148 @@ export const OptimizedRegionChart = memo<OptimizedRegionChartProps>(
 );
 
 OptimizedRegionChart.displayName = 'OptimizedRegionChart';
+
+// ============================================================================
+// OPTIMIZED SOURCE BREAKDOWN CHARTS (RSS vs Citizen Report)
+// ============================================================================
+
+const SOURCE_COLORS: Record<string, string> = {
+  rss: '#3b82f6',
+  citizen_report: '#f59e0b',
+  unknown: '#6b7280',
+};
+
+const SOURCE_LABELS: Record<string, string> = {
+  rss: 'RSS Feed',
+  citizen_report: 'Citizen Report',
+  unknown: 'Unknown',
+};
+
+function formatSourceType(raw: string): string {
+  return SOURCE_LABELS[raw] || raw.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+interface SourceBreakdownData {
+  source_type: string;
+  count: number;
+  percentage: number;
+}
+
+interface OptimizedSourcePieChartProps {
+  data: SourceBreakdownData[];
+}
+
+export const OptimizedSourcePieChart = memo<OptimizedSourcePieChartProps>(
+  ({ data }) => {
+    const legendEntries = data.map((item) => ({
+      label: formatSourceType(item.source_type),
+      color: SOURCE_COLORS[item.source_type] || '#6b7280',
+    }));
+
+    return (
+      <div>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={(entry) => {
+                if (typeof entry?.percent !== 'number') return '';
+                return `${(entry.percent * 100).toFixed(0)}%`;
+              }}
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="count"
+              nameKey="source_type"
+            >
+              {data.map((entry, index) => (
+                <Cell
+                  key={`src-cell-${index}`}
+                  fill={SOURCE_COLORS[entry.source_type] || '#6b7280'}
+                />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--popover))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+              }}
+              formatter={(value, _name, props: { payload?: { source_type?: string } }) => [
+                value ?? 0,
+                formatSourceType(props.payload?.source_type ?? ''),
+              ]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        {legendEntries.length > 0 && renderColorLegend(legendEntries)}
+      </div>
+    );
+  },
+  (prevProps, nextProps) => JSON.stringify(prevProps.data) === JSON.stringify(nextProps.data),
+);
+
+OptimizedSourcePieChart.displayName = 'OptimizedSourcePieChart';
+
+interface OptimizedSourceBarChartProps {
+  data: SourceBreakdownData[];
+}
+
+export const OptimizedSourceBarChart = memo<OptimizedSourceBarChartProps>(
+  ({ data }) => {
+    const legendEntries = data.map((item) => ({
+      label: formatSourceType(item.source_type),
+      color: SOURCE_COLORS[item.source_type] || '#6b7280',
+    }));
+
+    return (
+      <div>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis
+              dataKey="source_type"
+              className="text-xs"
+              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+              tickFormatter={formatSourceType}
+            />
+            <YAxis
+              className="text-xs"
+              tick={{ fill: 'hsl(var(--muted-foreground))' }}
+            >
+              <Label
+                value="No. of Reports"
+                angle={-90}
+                position="insideLeft"
+                style={{ textAnchor: 'middle', fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+              />
+            </YAxis>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--popover))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+              }}
+              formatter={(value) => [value ?? 0, 'Count']}
+              labelFormatter={(label) => formatSourceType(String(label))}
+            />
+            <Bar dataKey="count">
+              {data.map((entry, index) => (
+                <Cell
+                  key={`src-bar-${index}`}
+                  fill={SOURCE_COLORS[entry.source_type] || '#6b7280'}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        {legendEntries.length > 0 && renderColorLegend(legendEntries)}
+      </div>
+    );
+  },
+  (prevProps, nextProps) => JSON.stringify(prevProps.data) === JSON.stringify(nextProps.data),
+);
+
+OptimizedSourceBarChart.displayName = 'OptimizedSourceBarChart';
