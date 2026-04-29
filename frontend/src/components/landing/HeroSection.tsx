@@ -125,8 +125,8 @@ export const HeroSection: React.FC = () => {
         >
           <img
             src={landingAssets.hero.showcaseImage}
-            alt="Showcase of GAIA's live hazard map with real-time data filtering and AI classification features."
-            className="w-full h-full object-cover rounded-[calc(20px-0.5rem)] sm:rounded-[calc(32px-0.75rem)]"
+            alt="Showcase of AGAILA's live hazard map with real-time data filtering and AI classification features."
+            className="w-full h-full object-contain rounded-[calc(20px-0.5rem)] sm:rounded-[calc(32px-0.75rem)]"
             loading="eager"
           />
         </div>

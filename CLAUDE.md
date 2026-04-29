@@ -8,6 +8,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Target Time-to-Action**: Less than 5 minutes from article publication to hazard visualization on the map.
 
+## Codebase Knowledge Graph (RAG System)
+
+AGAILA maintains **three comprehensive knowledge graphs** for fast codebase analysis and queries:
+
+| Location | Purpose | Key Files |
+|----------|---------|-----------|
+| `graphify-out/` | **Root/Full System**: Complete architecture, all services, integration points | `GRAPH_REPORT.md`, `graph.json`, `graph.html` |
+| `frontend/graphify-out/` | **Frontend Only**: React components, state, hooks, styling, UI logic | `GRAPH_REPORT.md`, `graph.json` |
+| `backend/graphify-out/` | **Backend Only**: FastAPI endpoints, models, AI pipeline, database queries | `GRAPH_REPORT.md`, `graph.json` |
+
+**How to Use for RAG Queries:**
+1. **Quick answers**: Read the relevant `GRAPH_REPORT.md` (human-readable summary of code structure)
+2. **Programmatic queries**: Parse `graph.json` for structured AST/dependency data
+3. **Visual exploration**: Open `graph.html` in browser to see code relationships interactively
+
+**When to reference the knowledge graphs:**
+- Looking for where a specific component/function is used
+- Understanding data flow between modules
+- Finding similar code patterns or duplicates
+- Mapping architectural relationships
+- Identifying module dependencies
+- Tracing function calls across the codebase
+
+**Update the knowledge graphs**: Run `/graphify` command in Copilot Chat to regenerate updated graphs after significant code changes.
+
 ### Key Constraints
 - **Geographic Scope**: ONLY process events within Philippine administrative boundaries
 - **Confidence Display**: Always show confidence scores alongside predictions

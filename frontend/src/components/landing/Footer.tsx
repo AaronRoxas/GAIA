@@ -21,8 +21,8 @@ export const Footer: React.FC = () => {
           <div className="flex flex-col gap-4 items-start justify-start sm:col-span-2 md:col-span-1">
             <div className="flex flex-wrap gap-[10px] items-center justify-start w-full">
               <img
-                src={landingAssets.logos.gaiaWhite}
-                alt="GAIA Logo"
+                src={landingAssets.logos.gaiaWhite} 
+                alt="AGAILA Logo"
                 className="h-[40px] w-auto sm:h-[53px]"
               />
             </div>
@@ -70,7 +70,7 @@ export const Footer: React.FC = () => {
           {/* Column 3: Description */}
           <div className="flex flex-col gap-3 items-start justify-start">
             <p className="font-lato text-[14px] sm:text-[16px] leading-[22px] sm:leading-[24px] text-white w-full">
-              AGAILA is an AI framework designed to provide real-time environmental hazard reporting by integrating zero-shot classification and Geo-NER.
+              AGAILA is designed to provide real-time environmental hazard reporting by integrating zero-shot classification and Geo-NER.
             </p>
           </div>
         </div>

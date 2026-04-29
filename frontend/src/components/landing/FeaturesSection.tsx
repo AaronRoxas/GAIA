@@ -60,7 +60,7 @@ export const FeaturesSection: React.FC = () => {
                 loading="lazy"
                 decoding="async"
                 style={{
-                  objectPosition: 'left',
+                  objectPosition: 'center right',
                   objectFit: feature.fit,
                   backgroundColor: feature.backgroundColor,
                 }}

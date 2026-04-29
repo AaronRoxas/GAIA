@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 # Router prefix: main.py adds /api/v1, so this becomes /api/v1/reports
 router = APIRouter(prefix="/reports", tags=["reports"])
-global_img_path = Path(__file__).parent / 'assets' / 'img' / 'GAIA.png'
+global_img_path = Path(__file__).parent / 'assets' / 'img' / 'AGAILA.svg'
 
 # ============================================================================
 # DATA MODELS

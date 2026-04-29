@@ -38,7 +38,7 @@ export const HowItWorksSection: React.FC = () => {
           From Raw Data to Real-Time Decision
         </h2>
         <p className="flex flex-col font-lato justify-center max-w-[720px] text-[14px] sm:text-[16px] leading-[24px] text-black">
-          GAIA&apos;s intelligent pipeline transforms unstructured text reports into verified, actionable geospatial alerts in four steps.
+          AGAILA&apos;s intelligent pipeline transforms unstructured text reports into verified, actionable geospatial alerts in four steps.
         </p>
       </div>
 

@@ -34,10 +34,10 @@ export const Header: React.FC = () => {
       <div className="w-full max-w-screen-xl flex items-center justify-between gap-3">
         {/* Company Logo */}
         <Link to="/" className="flex gap-[8px] items-center shrink-0" aria-label="GAIA home">
-          <div className="w-[92px] h-[36px] sm:w-[133px] sm:h-[53px]">
+          <div className="w-[92px] h-[36px] sm:w-[133px] sm:h-[53px] lg:w-[150px] lg:h-[60px] xl:w-[170px] xl:h-[68px]">
             <img
               src={landingAssets.logo.gaia}
-              alt="GAIA Logo"
+              alt="AGAILA Logo"
               className="w-full h-full"
             />
           </div>

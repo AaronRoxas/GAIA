@@ -1,6 +1,6 @@
 {
-  "short_name": "GAIA",
-  "name": "GAIA: Geospatial AI-driven Assessment",
+  "short_name": "AGAILA",
+  "name": "AGAILA: Geospatial AI-driven Assessment",
   "description": "Philippine Environmental Hazard Detection System",
   "icons": [
     {
@@ -9,7 +9,7 @@
       "type": "image/x-icon"
     },
     {
-      "src": "/assets/img/GAIA.png",
+      "src": "/assets/img/AGAILA.svg",
       "type": "image/png",
       "sizes": "192x192"
     },
