@@ -25,6 +25,8 @@ services:
       # Field Encryption (RA 10173 - Philippine Data Protection Act)
       - GAIA_ENCRYPTION_KEY=${GAIA_ENCRYPTION_KEY}
       - GAIA_ENCRYPTION_SALT=${GAIA_ENCRYPTION_SALT}
+      # Audit Trail Integrity
+      - GAIA_AUDIT_HMAC_SECRET=${GAIA_AUDIT_HMAC_SECRET}
       # RSS Feed Processing (Celery + Redis)
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -113,6 +115,7 @@ services:
       - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
       - GAIA_ENCRYPTION_KEY=${GAIA_ENCRYPTION_KEY}
       - GAIA_ENCRYPTION_SALT=${GAIA_ENCRYPTION_SALT}
+      - GAIA_AUDIT_HMAC_SECRET=${GAIA_AUDIT_HMAC_SECRET}
     volumes:
       - ./backend/python:/app/backend/python
       - ./models:/app/models
@@ -122,7 +125,7 @@ services:
       - redis
       - backend
     restart: unless-stopped
-    command: celery -A backend.python.celery_worker worker --loglevel=info --pool=solo --concurrency=2
+    command: celery -A backend.python.celery_worker worker --loglevel=info --pool=prefork --concurrency=2
 
   # Celery Beat for Scheduled Tasks
   celery_beat:
@@ -144,6 +147,7 @@ services:
       - AWS_SNS_TOPIC_ARN=${AWS_SNS_TOPIC_ARN}
       - GAIA_ENCRYPTION_KEY=${GAIA_ENCRYPTION_KEY}
       - GAIA_ENCRYPTION_SALT=${GAIA_ENCRYPTION_SALT}
+      - GAIA_AUDIT_HMAC_SECRET=${GAIA_AUDIT_HMAC_SECRET}
     volumes:
       - ./backend/python:/app/backend/python
     networks:
