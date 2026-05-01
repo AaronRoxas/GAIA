@@ -272,13 +272,22 @@ def process_rss_feeds_task(self):
             next_run = (datetime.utcnow() + timedelta(minutes=RSS_UPDATE_INTERVAL_MINUTES)).isoformat()
             key = 'rss.next_run_time'
             now_iso = datetime.utcnow().isoformat()
-            supabase.schema('gaia').from_('system_config').upsert({
-                'config_key': key,
+            # Use separate update/insert to preserve original created_at timestamp
+            # Try update first
+            update_response = supabase.schema('gaia').from_('system_config').update({
                 'config_value': next_run,
-                'value_type': 'string',
-                'created_at': now_iso,
                 'modified_at': now_iso
-            }, on_conflict='config_key').execute()
+            }).eq('config_key', key).execute()
+            
+            # If no rows updated, insert new record with created_at
+            if not update_response.data or len(update_response.data) == 0:
+                supabase.schema('gaia').from_('system_config').insert({
+                    'config_key': key,
+                    'config_value': next_run,
+                    'value_type': 'string',
+                    'created_at': now_iso,
+                    'modified_at': now_iso
+                }).execute()
             # Invalidate the system config cache so readers pick up the new value immediately
             try:
                 # Import here to avoid circular import during Celery initialization

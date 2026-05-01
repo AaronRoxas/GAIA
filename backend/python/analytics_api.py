@@ -226,8 +226,8 @@ async def get_hazard_stats():
         return HazardStats(**data)
         
     except Exception as e:
-        logger.error(f"Error fetching hazard stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch hazard statistics: {str(e)}")
+        logger.exception("Error fetching hazard statistics")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching hazard statistics")
 
 
 @router.get("/trends", response_model=List[HazardTrend])
@@ -279,8 +279,8 @@ async def get_hazard_trends(
         return [HazardTrend(**item) for item in data]
         
     except Exception as e:
-        logger.error(f"Error fetching hazard trends: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch hazard trends: {str(e)}")
+        logger.exception("Error fetching hazard trends")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching hazard trends")
 
 
 @router.get("/regions", response_model=List[RegionStats])
@@ -390,8 +390,8 @@ async def get_region_stats():
         return [RegionStats(**item) for item in data]
         
     except Exception as e:
-        logger.error(f"Error fetching region stats: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch region statistics: {str(e)}")
+        logger.exception("Error fetching region statistics")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching region statistics")
 
 
 @router.get("/distribution", response_model=List[HazardTypeDistribution])
@@ -434,8 +434,8 @@ async def get_hazard_distribution():
         return [HazardTypeDistribution(**item) for item in data]
         
     except Exception as e:
-        logger.error(f"Error fetching hazard distribution: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch hazard distribution: {str(e)}")
+        logger.exception("Error fetching hazard distribution")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching hazard distribution")
 
 
 @router.get("/source-breakdown", response_model=List[SourceBreakdown])
@@ -523,8 +523,8 @@ async def get_source_breakdown():
         return [SourceBreakdown(**item) for item in data]
 
     except Exception as e:
-        logger.error(f"Error fetching source breakdown: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch source breakdown: {str(e)}")
+        logger.exception("Error fetching source breakdown")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching source breakdown")
 
 
 @router.get("/recent-alerts", response_model=List[RecentAlert])
@@ -550,8 +550,8 @@ async def get_recent_alerts(
         return [RecentAlert(**item) for item in data]
         
     except Exception as e:
-        logger.error(f"Error fetching recent alerts: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch recent alerts: {str(e)}")
+        logger.exception("Error fetching recent alerts")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching recent alerts")
 
 
 # ============================================================================
@@ -618,8 +618,8 @@ async def get_confidence_by_type(current_user: UserContext = Depends(require_adm
         return [ConfidenceByTypeMetric(**item) for item in data]
         
     except Exception as e:
-        logger.error(f"Error fetching confidence by type: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch confidence metrics by type: {str(e)}")
+        logger.exception("Error fetching confidence by type")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching confidence metrics")
 
 
 @router.get("/false-positive-rate", response_model=FalsePositiveRateMetric)
@@ -708,8 +708,8 @@ async def get_false_positive_rate(current_user: UserContext = Depends(require_ad
         return FalsePositiveRateMetric(**data)
         
     except Exception as e:
-        logger.error(f"Error fetching false positive rate: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch false positive rate: {str(e)}")
+        logger.exception("Error fetching false positive rate")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching false positive rate")
 
 
 @router.get("/source-accuracy", response_model=SourceAccuracyMetric)
@@ -735,12 +735,6 @@ async def get_source_accuracy(current_user: UserContext = Depends(require_admin)
             .eq('status', 'rejected') \
             .execute()
         citizen_rejected_count = citizen_rejected.count or 0
-
-        citizen_unverified = supabase.schema("gaia").from_('citizen_reports') \
-            .select('id', count='exact') \
-            .eq('status', 'unverified') \
-            .execute()
-        citizen_unverified_count = citizen_unverified.count or 0
 
         # Only validated outcomes should be included in accuracy denominator
         citizen_total = citizen_verified_count + citizen_rejected_count
@@ -784,8 +778,8 @@ async def get_source_accuracy(current_user: UserContext = Depends(require_admin)
         return SourceAccuracyMetric(**data)
         
     except Exception as e:
-        logger.error(f"Error fetching source accuracy: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch source accuracy metrics: {str(e)}")
+        logger.exception("Error fetching source accuracy")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching source accuracy")
 
 
 @router.get("/processing-rate", response_model=ProcessingRateMetric)
@@ -865,8 +859,8 @@ async def get_processing_rate(current_user: UserContext = Depends(require_admin)
         return ProcessingRateMetric(**data)
         
     except Exception as e:
-        logger.error(f"Error fetching processing rate: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch processing rate: {str(e)}")
+        logger.exception("Error fetching processing rate")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching processing rate")
 
 
 @router.get("/duplicate-rate", response_model=DuplicateDetectionMetric)
@@ -945,8 +939,8 @@ async def get_duplicate_rate(current_user: UserContext = Depends(require_admin))
         return DuplicateDetectionMetric(**data)
         
     except Exception as e:
-        logger.error(f"Error fetching duplicate rate: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch duplicate detection rate: {str(e)}")
+        logger.exception("Error fetching duplicate rate")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching duplicate detection rate")
 
 
 @router.get("/system-health", response_model=SystemHealthMetric)
@@ -1048,8 +1042,8 @@ async def get_system_health(current_user: UserContext = Depends(require_admin)):
         return SystemHealthMetric(**data)
         
     except Exception as e:
-        logger.error(f"Error fetching system health: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch system health metrics: {str(e)}")
+        logger.exception("Error fetching system health")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching system health")
 
 
 
@@ -1057,7 +1051,7 @@ async def get_system_health(current_user: UserContext = Depends(require_admin)):
 async def get_service_health(
     days: int = Query(30, ge=7, le=90, description="Number of days to retrieve (7-90)"),
     current_user: UserContext = Depends(require_admin)
-):
+) -> Dict[str, List[Dict]]:
     """
     Return time-series service health metrics for the last `days` days.
 
@@ -1157,5 +1151,5 @@ async def get_service_health(
         data = await get_or_set(cache_key, fetch_service_health, ttl=CACHE_TTLS.get("analytics:service-health", 30))
         return data
     except Exception as e:
-        logger.error(f"Error fetching service health: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch service health: {str(e)}")
+        logger.exception("Error fetching service health")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching service health")

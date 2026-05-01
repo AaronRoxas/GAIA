@@ -34,7 +34,8 @@ const LOCALSTORAGE_ENABLED_KEY = 'gaia_rss_auto_process_enabled';
 // Build API URL from environment variable. Do NOT fall back to localhost.
 const RSS_API_BASE = (() => {
   const apiUrl = process.env.REACT_APP_API_URL;
-  if (!apiUrl) {
+  // Only treat null/undefined as missing; empty string is valid proxy behavior
+  if (apiUrl == null || typeof apiUrl === 'undefined') {
     console.error('[RSS Auto-Process] REACT_APP_API_URL is not set. Please configure the API URL.');
     return '';
   }
@@ -130,6 +131,7 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
   const isProcessingRef = useRef(false);
   const nextRunTimeRef = useRef<Date | null>(nextRunTime);
   const lastProcessedTimeRef = useRef<number | null>(null);  // Prevent multiple triggers
+  const retryAfterRef = useRef<number>(0);  // Exponential backoff for failed retries
   
   // Wrapper to save enabled state to localStorage when changed
   const setIsEnabled = useCallback((enabled: boolean | ((prev: boolean) => boolean)) => {
@@ -265,16 +267,29 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     if (remaining <= 0) {
       // Timer has expired - trigger processing only once per scheduled time
       const scheduledTime = currentNextRunTime.getTime();
+      const now = Date.now();
+      
       if (!isProcessingRef.current && (!lastProcessedTimeRef.current || scheduledTime !== lastProcessedTimeRef.current)) {
-        try {
-          const accepted = await processFeeds();
-          if (accepted) {
-            lastProcessedTimeRef.current = scheduledTime;
-            scheduleNextRun();
+        // Only attempt if we're past the retry backoff window
+        if (now >= retryAfterRef.current) {
+          try {
+            const accepted = await processFeeds();
+            if (accepted) {
+              lastProcessedTimeRef.current = scheduledTime;
+              retryAfterRef.current = 0;  // Reset backoff on success
+              scheduleNextRun();
+            } else {
+              // Failed: set exponential backoff (start at 30s, cap at 5min)
+              const backoffMs = Math.min(30000 * Math.pow(2, Math.floor((now - retryAfterRef.current) / 30000)), 5 * 60000);
+              retryAfterRef.current = now + backoffMs;
+              console.warn(`[RSS Auto-Process] processing failed, retry after ${Math.round(backoffMs / 1000)}s`);
+            }
+          } catch (e) {
+            // Do not advance schedule on failure - allow retry/backoff
+            const backoffMs = Math.min(30000 * Math.pow(2, Math.floor((now - retryAfterRef.current) / 30000)), 5 * 60000);
+            retryAfterRef.current = now + backoffMs;
+            console.warn('[RSS Auto-Process] processing failed, will not advance schedule', e);
           }
-        } catch (e) {
-          // Do not advance schedule on failure - allow retry/backoff
-          console.warn('[RSS Auto-Process] processing failed, will not advance schedule', e);
         }
       }
       setCountdown('00:00');
@@ -301,16 +316,22 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
 
   // Align frontend timer with backend schedule when schedule is loaded/refetched
   useEffect(() => {
-    if (!backendSyncDone && schedule && typeof schedule === 'string') {
-      const next = new Date(schedule);
-      if (!isNaN(next.getTime())) {
-        // Only use backend schedule if it's different from localStorage or localStorage is empty
-        const localStorageTime = nextRunTimeRef.current;
-        if (!localStorageTime || next.getTime() !== localStorageTime.getTime()) {
-          setNextRunTime(next);
+    // Treat any change to schedule (including null) as a valid server response
+    if (!backendSyncDone && schedule !== undefined) {
+      if (schedule === null || schedule === '') {
+        // Server has no schedule (paused or not set)
+        setBackendSyncDone(true);
+      } else if (typeof schedule === 'string') {
+        const next = new Date(schedule);
+        if (!isNaN(next.getTime())) {
+          // Only use backend schedule if it's different from localStorage or localStorage is empty
+          const localStorageTime = nextRunTimeRef.current;
+          if (!localStorageTime || next.getTime() !== localStorageTime.getTime()) {
+            setNextRunTime(next);
+          }
         }
+        setBackendSyncDone(true);
       }
-      setBackendSyncDone(true);
     }
   }, [schedule, backendSyncDone, setNextRunTime]);
   /**
@@ -320,22 +341,33 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     setIsEnabled((prev) => {
       if (prev) {
         toast.info('RSS auto-processing paused');
+        // Persist paused state to backend so other clients stay in sync
+        try {
+          setSchedule(null);
+        } catch (e) {
+          console.warn('[RSS Auto-Process] Failed to sync pause state to backend:', e);
+        }
         return false;
       } else {
         toast.success('RSS auto-processing resumed (every 30 minutes)');
         return true;
       }
     });
-  }, [setIsEnabled]);
+  }, [setIsEnabled, setSchedule]);
 
   /**
    * Manual process now (resets timer)
    */
   const processNow = useCallback(async () => {
-    await processFeeds();
-    // Reset timer after manual processing
-    if (isEnabled) {
-      scheduleNextRun();
+    try {
+      const ok = await processFeeds();
+      // Only reset timer if processing succeeded
+      if (ok && isEnabled) {
+        scheduleNextRun();
+      }
+    } catch (e) {
+      // Errors already logged by processFeeds
+      console.warn('[RSS Auto-Process] processNow failed:', e);
     }
   }, [processFeeds, isEnabled, scheduleNextRun]);
 
@@ -392,16 +424,27 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
       (async () => {
         if (nextRunTimeRef.current) {
           const scheduledTime = nextRunTimeRef.current.getTime();
-          if (scheduledTime <= Date.now() && !isProcessingRef.current && 
+          const now = Date.now();
+          if (scheduledTime <= now && !isProcessingRef.current && 
               (!lastProcessedTimeRef.current || scheduledTime !== lastProcessedTimeRef.current)) {
-            try {
-              const accepted = await processFeeds();
-              if (accepted) {
-                lastProcessedTimeRef.current = scheduledTime;
-                scheduleNextRun();
+            // Only attempt if we're past the retry backoff window
+            if (now >= retryAfterRef.current) {
+              try {
+                const accepted = await processFeeds();
+                if (accepted) {
+                  lastProcessedTimeRef.current = scheduledTime;
+                  retryAfterRef.current = 0;  // Reset backoff on success
+                  scheduleNextRun();
+                } else {
+                  // Failed: set exponential backoff
+                  const backoffMs = Math.min(30000 * Math.pow(2, Math.floor((now - retryAfterRef.current) / 30000)), 5 * 60000);
+                  retryAfterRef.current = now + backoffMs;
+                }
+              } catch (e) {
+                console.warn('[RSS Auto-Process] scheduled processing failed', e);
+                const backoffMs = Math.min(30000 * Math.pow(2, Math.floor((now - retryAfterRef.current) / 30000)), 5 * 60000);
+                retryAfterRef.current = now + backoffMs;
               }
-            } catch (e) {
-              console.warn('[RSS Auto-Process] scheduled processing failed', e);
             }
           }
         }
