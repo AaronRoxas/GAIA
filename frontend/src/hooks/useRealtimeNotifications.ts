@@ -251,7 +251,7 @@ export function useRealtimeHazards() {
               toast.info(
                 `Hazard report validated: ${hazard.hazard_type} in ${hazard.location_name}`,
                 {
-                  description: 'A citizen report has been verified by validators',
+                  description: 'New Hazard Validated',
                   duration: 6000,
                   action: {
                     label: 'View Details',
@@ -314,6 +314,11 @@ export function useRealtimeHazards() {
 
     // Cleanup on unmount
     return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current as unknown as number);
+        pollIntervalRef.current = null;
+      }
+
       if (channelRef.current) {
         // eslint-disable-next-line no-console
         console.log('[Realtime] Unsubscribing from hazards:validated');

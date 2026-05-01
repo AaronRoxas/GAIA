@@ -30,7 +30,11 @@ from backend.python.middleware.redis_cache import (
 logger = logging.getLogger(__name__)
 
 # RBAC dependency for admin/validator access
-from backend.python.middleware.rbac import require_admin, UserContext
+from backend.python.middleware.rbac import (
+    require_admin,
+    get_current_user_optional,
+    UserContext,
+)
 
 # Supabase client imported from centralized configuration
 
@@ -631,9 +635,32 @@ async def get_false_positive_rate(current_user: UserContext = Depends(require_ad
     Lower FPR indicates better model reliability
     Supports: AAM-04 (False Positive Analysis)
     """
-    cache_key = generate_cache_key("analytics:false-positive-rate")
-    
     async def fetch_fpr():
+        def classify_validation_outcome(row: Dict[str, Any]) -> Optional[str]:
+            """Classify citizen report outcome for FPR denominator ('verified'/'rejected'/None)."""
+            status = (row.get('status') or '').strip().lower()
+            validated = row.get('validated')
+            promoted = row.get('promoted_to_hazard_id')
+            validated_by = row.get('validated_by')
+
+            verified_statuses = {'verified', 'approved', 'validated'}
+            rejected_statuses = {'rejected', 'invalid', 'denied'}
+
+            # Explicit status takes precedence over inferred flags.
+            if status in rejected_statuses:
+                return 'rejected'
+            if status in verified_statuses:
+                return 'verified'
+
+            # Fallback heuristics for legacy/incomplete status values.
+            if validated is True or promoted:
+                return 'verified'
+            if validated is False and validated_by:
+                return 'rejected'
+
+            # Unverified/pending/unknown rows are excluded from FPR denominator.
+            return None
+
         # Calculate FPR over current 7-day window for like-for-like comparison
         now = datetime.now()
         cur_start = now - timedelta(days=7)
@@ -641,46 +668,43 @@ async def get_false_positive_rate(current_user: UserContext = Depends(require_ad
         prev_start = now - timedelta(days=14)
         prev_end = now - timedelta(days=7)
         
-        # Get rejected citizen reports in current window
-        rejected_response = supabase.schema("gaia").from_('citizen_reports') \
-            .select('id', count='exact') \
-            .eq('status', 'rejected') \
-            .gte('submitted_at', cur_start.isoformat()) \
-            .lte('submitted_at', cur_end.isoformat()) \
+        # Fetch citizen_reports rows in the window and compute counts in Python
+        cur_rows_response = supabase.schema("gaia").from_('citizen_reports') \
+            .select('id, status, validated, validated_by, promoted_to_hazard_id, validated_at') \
+            .gte('validated_at', cur_start.isoformat()) \
+            .lte('validated_at', cur_end.isoformat()) \
             .execute()
-        rejected_count = rejected_response.count or 0
-        
-        # Get verified citizen reports in current window
-        verified_response = supabase.schema("gaia").from_('citizen_reports') \
-            .select('id', count='exact') \
-            .eq('status', 'verified') \
-            .gte('submitted_at', cur_start.isoformat()) \
-            .lte('submitted_at', cur_end.isoformat()) \
-            .execute()
-        verified_count = verified_response.count or 0
-        
-        # Total verified and rejected in current window
+        cur_rows = cur_rows_response.data or []
+
+        rejected_count = 0
+        verified_count = 0
+        for r in cur_rows:
+            outcome = classify_validation_outcome(r)
+            if outcome == 'verified':
+                verified_count += 1
+            elif outcome == 'rejected':
+                rejected_count += 1
+
         total_verified = verified_count + rejected_count
-        
-        # FPR = rejected / total for current window
         fpr_percentage = (rejected_count / total_verified * 100) if total_verified > 0 else 0.0
-        
-        prev_rejected = supabase.schema("gaia").from_('citizen_reports') \
-            .select('id', count='exact') \
-            .eq('status', 'rejected') \
-            .gte('submitted_at', prev_start.isoformat()) \
-            .lte('submitted_at', prev_end.isoformat()) \
+
+        # Previous window
+        prev_rows_response = supabase.schema("gaia").from_('citizen_reports') \
+            .select('id, status, validated, validated_by, promoted_to_hazard_id, validated_at') \
+            .gte('validated_at', prev_start.isoformat()) \
+            .lte('validated_at', prev_end.isoformat()) \
             .execute()
-        prev_rejected_count = prev_rejected.count or 0
-        
-        prev_verified = supabase.schema("gaia").from_('citizen_reports') \
-            .select('id', count='exact') \
-            .eq('status', 'verified') \
-            .gte('submitted_at', prev_start.isoformat()) \
-            .lte('submitted_at', prev_end.isoformat()) \
-            .execute()
-        prev_verified_count = prev_verified.count or 0
-        
+        prev_rows = prev_rows_response.data or []
+
+        prev_rejected_count = 0
+        prev_verified_count = 0
+        for r in prev_rows:
+            outcome = classify_validation_outcome(r)
+            if outcome == 'verified':
+                prev_verified_count += 1
+            elif outcome == 'rejected':
+                prev_rejected_count += 1
+
         prev_total = prev_verified_count + prev_rejected_count
         previous_fpr = (prev_rejected_count / prev_total * 100) if prev_total > 0 else None
         
@@ -704,7 +728,8 @@ async def get_false_positive_rate(current_user: UserContext = Depends(require_ad
         }
     
     try:
-        data = await get_or_set(cache_key, fetch_fpr, ttl=CACHE_TTLS.get("analytics:false-positive-rate", 300))
+        # Use live computation (no Redis cache) so triage updates are reflected immediately.
+        data = await fetch_fpr()
         return FalsePositiveRateMetric(**data)
         
     except Exception as e:
@@ -874,62 +899,33 @@ async def get_duplicate_rate(current_user: UserContext = Depends(require_admin))
     cache_key = generate_cache_key("analytics:duplicate-rate")
     
     async def fetch_duplicate_rate():
-        # Get current and previous 7-day windows for consistent comparison
-        now = datetime.now()
-        cur_start = now - timedelta(days=7)
-        cur_end = now
-        prev_start = now - timedelta(days=14)
-        prev_end = now - timedelta(days=7)
-        
-        # Get total hazards in current 7-day window
-        total_response = supabase.schema("gaia").from_('hazards') \
-            .select('id', count='exact') \
-            .gte('detected_at', cur_start.isoformat()) \
-            .lte('detected_at', cur_end.isoformat()) \
+        # Match RSS admin statistics: aggregate duplicate detection from rss_processing_logs
+        # using the same fields and the same all-time calculation basis.
+        all_logs = supabase.schema('gaia').from_('rss_processing_logs') \
+            .select('items_processed, duplicates_detected') \
             .execute()
-        total_count = total_response.count or 0
-        
-        # Get duplicates in current 7-day window (is_duplicate = true)
-        duplicate_response = supabase.schema("gaia").from_('hazards') \
-            .select('id', count='exact') \
-            .eq('is_duplicate', True) \
-            .gte('detected_at', cur_start.isoformat()) \
-            .lte('detected_at', cur_end.isoformat()) \
-            .execute()
-        duplicate_count = duplicate_response.count or 0
-        
-        duplicate_percentage = (duplicate_count / total_count * 100) if total_count > 0 else 0.0
-        
-        # Calculate trend using previous 7-day window
-        # prev_start and prev_end already defined above
-        
-        prev_total = supabase.schema("gaia").from_('hazards') \
-            .select('id', count='exact') \
-            .gte('detected_at', prev_start.isoformat()) \
-            .lte('detected_at', prev_end.isoformat()) \
-            .execute()
-        prev_total_count = prev_total.count or 0
-        
-        prev_duplicate = supabase.schema("gaia").from_('hazards') \
-            .select('id', count='exact') \
-            .eq('is_duplicate', True) \
-            .gte('detected_at', prev_start.isoformat()) \
-            .lte('detected_at', prev_end.isoformat()) \
-            .execute()
-        prev_duplicate_count = prev_duplicate.count or 0
-        
-        prev_percentage = (prev_duplicate_count / prev_total_count * 100) if prev_total_count > 0 else 0.0
-        
-        trend = "stable"
-        if duplicate_percentage > prev_percentage:
-            trend = "up"
-        elif duplicate_percentage < prev_percentage:
-            trend = "down"
-        
+
+        all_data = all_logs.data or []
+        total_processed = 0
+        total_duplicates = 0
+        for row in all_data:
+            try:
+                total_processed += int(row.get('items_processed') or 0)
+            except (ValueError, TypeError):
+                pass
+            try:
+                total_duplicates += int(row.get('duplicates_detected') or 0)
+            except (ValueError, TypeError):
+                pass
+
+        duplicate_percentage = (total_duplicates / total_processed * 100) if total_processed > 0 else 0.0
+
+        trend = 'stable'
+
         return {
             'duplicate_percentage': round(duplicate_percentage, 2),
-            'duplicate_count': duplicate_count,
-            'total_hazards': total_count,
+            'duplicate_count': total_duplicates,
+            'total_hazards': total_processed,
             'duplicate_detection_enabled': True,
             'trend': trend
         }
@@ -1050,7 +1046,7 @@ async def get_system_health(current_user: UserContext = Depends(require_admin)):
 @router.get("/service-health")
 async def get_service_health(
     days: int = Query(30, ge=7, le=90, description="Number of days to retrieve (7-90)"),
-    current_user: UserContext = Depends(require_admin)
+    current_user: Optional[UserContext] = Depends(get_current_user_optional)
 ) -> Dict[str, List[Dict]]:
     """
     Return time-series service health metrics for the last `days` days.
@@ -1061,6 +1057,7 @@ async def get_service_health(
       "response_time": [{"date": "YYYY-MM-DD", "uptime_percent": 99.9, "avg_response_ms": 45.0}, ...]
     }
     Cached for 30 seconds.
+    Accessible to dashboard callers even when auth headers are temporarily unavailable.
     """
     cache_key = generate_cache_key("analytics:service-health", days=days)
 
@@ -1088,12 +1085,14 @@ async def get_service_health(
                     continue
             return None
 
-        # Fetch all data in a single query
+        # Fetch audit log rows in the window. Do not rely solely on a single
+        # `user_role='system'` filter because many system-origin rows (e.g.
+        # from Celery or notification workers) may omit that field. Retrieve
+        # additional columns and perform robust filtering in Python below.
         resp = supabase.schema('gaia').from_('audit_logs') \
-            .select('created_at, severity, status, metadata') \
+            .select('created_at, severity, status, metadata, user_role, event_type, action, resource_type, resource') \
             .gte('created_at', start_date_normalized.isoformat()) \
             .lt('created_at', end_date.isoformat()) \
-            .eq('user_role', 'system') \
             .execute()
         rows = resp.data or []
 
@@ -1105,20 +1104,45 @@ async def get_service_health(
 
         for r in rows:
             created = r.get('created_at', '')
-            if created:
-                date_str = created[:10]  # Extract YYYY-MM-DD
-                if date_str in daily_data:
-                    daily_data[date_str]['total'] += 1
-                    sev = (r.get('severity') or '').upper()
-                    status = (r.get('status') or '').lower()
-                    if sev in ('CRITICAL', 'ERROR') or status == 'failure':
-                        daily_data[date_str]['errors'] += 1
-                    rt = extract_response_time_ms(r.get('metadata'))
-                    if rt is not None:
-                        try:
-                            daily_data[date_str]['response_times'].append(float(rt))
-                        except (ValueError, TypeError):
-                            pass
+            if not created:
+                continue
+
+            date_str = created[:10]  # Extract YYYY-MM-DD
+            if date_str not in daily_data:
+                continue
+
+            # Determine whether this audit row should be considered a
+            # "system" telemetry record. We accept a variety of indicators
+            # because different writers set different fields.
+            user_role_val = (r.get('user_role') or '').lower()
+            resource_type_val = (r.get('resource_type') or '').lower()
+            event_type_val = (r.get('event_type') or '').lower()
+            action_val = (r.get('action') or '').lower()
+            resource_val = (r.get('resource') or '').lower()
+
+            is_system_row = (
+                user_role_val == 'system'
+                or resource_type_val == 'system'
+                or event_type_val.startswith('system')
+                or action_val.startswith('system_')
+                or resource_val == 'system'
+            )
+
+            if not is_system_row:
+                # Skip rows that are not system-origin telemetry
+                continue
+
+            daily_data[date_str]['total'] += 1
+            sev = (r.get('severity') or '').upper()
+            status = (r.get('status') or '').lower()
+            if sev in ('CRITICAL', 'ERROR') or status == 'failure':
+                daily_data[date_str]['errors'] += 1
+            rt = extract_response_time_ms(r.get('metadata'))
+            if rt is not None:
+                try:
+                    daily_data[date_str]['response_times'].append(float(rt))
+                except (ValueError, TypeError):
+                    pass
 
         uptime_series = []
         response_series = []
@@ -1144,7 +1168,59 @@ async def get_service_health(
 
             uptime_series.append(point)
             response_series.append(dict(point))
+        # If many days have no direct audit telemetry, try fallback sources
+        # (activity_logs and rss_processing_logs) to infer system activity.
+        # This helps when certain subsystems write to other tables but not
+        # the audit_logs.user_role field.
+        missing_dates = [d for d in daily_data.keys() if daily_data[d]['total'] == 0]
+        if missing_dates:
+            try:
+                act_resp = supabase.schema('gaia').from_('activity_logs') \
+                    .select('created_at, user_role, event_type, resource_type, action') \
+                    .gte('created_at', start_date_normalized.isoformat()) \
+                    .lt('created_at', end_date.isoformat()) \
+                    .execute()
+                act_rows = act_resp.data or []
 
+                rss_resp = supabase.schema('gaia').from_('rss_processing_logs') \
+                    .select('created_at, status, metadata') \
+                    .gte('created_at', start_date_normalized.isoformat()) \
+                    .lt('created_at', end_date.isoformat()) \
+                    .execute()
+                rss_rows = rss_resp.data or []
+
+                # Map activity rows by date
+                act_by_date: Dict[str, int] = {}
+                for r in act_rows:
+                    ca = r.get('created_at')
+                    if not ca:
+                        continue
+                    ds = ca[:10]
+                    act_by_date[ds] = act_by_date.get(ds, 0) + 1
+
+                rss_by_date: Dict[str, int] = {}
+                for r in rss_rows:
+                    ca = r.get('created_at')
+                    if not ca:
+                        continue
+                    ds = ca[:10]
+                    rss_by_date[ds] = rss_by_date.get(ds, 0) + 1
+
+                # Update series for missing dates if fallbacks exist
+                for i, p in enumerate(uptime_series):
+                    if p['uptime_percent'] is None:
+                        d = p['date']
+                        act_count = act_by_date.get(d, 0)
+                        rss_count = rss_by_date.get(d, 0)
+                        inferred_total = act_count + rss_count
+                        if inferred_total > 0:
+                            # If we only have fallback entries, assume uptime unless explicit failures
+                            # Note: this is an inference and should be treated cautiously.
+                            uptime_series[i]['uptime_percent'] = 100.0
+                            response_series[i]['uptime_percent'] = 100.0
+            except Exception:
+                # Non-fatal: fall back to original behavior (leave nulls)
+                logger.debug("Service-health fallback aggregation failed; leaving nulls where no telemetry exists")
         return {"uptime": uptime_series, "response_time": response_series}
 
     try:
