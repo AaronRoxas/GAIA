@@ -706,7 +706,11 @@ async def update_system_config(
     **Module**: AC-02 (Configuration Management)
     """
     try:
-        safe_config_key = config_key.replace("\r", "").replace("\n", "")
+        def _sanitize_for_log(value: Any) -> str:
+            # Remove any control characters to prevent log injection
+            return str(value).replace("\r", "").replace("\n", "")
+
+        safe_config_key = _sanitize_for_log(config_key)
 
         # Fetch current config
         config_response = supabase.schema("gaia").from_("system_config").select("*").eq("config_key", config_key).execute()
@@ -767,17 +771,20 @@ async def update_system_config(
             request=request
         )
 
+        safe_old_value = _sanitize_for_log(old_value)
+        safe_new_value = _sanitize_for_log(new_value)
+
         # Log to audit_logs for AC-01 Audit Trail visibility.
         try:
             await log_admin_action(
                 user=current_user,
                 action="config_updated",
                 event_type="SYSTEM_CONFIG_UPDATED",
-                action_description=f"Updated system config '{safe_config_key}' from '{old_value}' to '{new_value}'",
+                action_description=f"Updated system config '{safe_config_key}' from '{safe_old_value}' to '{safe_new_value}'",
                 resource_type="system_config",
                 resource_id=config_key,
-                old_values={"config_key": config_key, "config_value": old_value},
-                new_values={"config_key": config_key, "config_value": new_value},
+                old_values={"config_key": config_key, "config_value": safe_old_value},
+                new_values={"config_key": config_key, "config_value": safe_new_value},
                 request=request,
                 severity="INFO",
                 status="success",
@@ -785,7 +792,7 @@ async def update_system_config(
         except Exception as log_error:
             logger.warning(f"Failed to log config update audit event for '{safe_config_key}': {log_error}")
         
-        logger.info(f"Master Admin {current_user.email} updated config: {safe_config_key} = {new_value} (was {old_value})")
+        logger.info(f"Master Admin {current_user.email} updated config: {safe_config_key} = {safe_new_value} (was {safe_old_value})")
         
         return updated_response.data[0]
         
