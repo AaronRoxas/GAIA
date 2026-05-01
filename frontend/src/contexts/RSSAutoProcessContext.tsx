@@ -285,7 +285,6 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
         // Only use backend schedule if it's different from localStorage or localStorage is empty
         const localStorageTime = nextRunTimeRef.current;
         if (!localStorageTime || next.getTime() !== localStorageTime.getTime()) {
-          console.log('[RSS Auto-Process] Syncing with backend schedule:', next.toISOString());
           setNextRunTime(next);
         }
       }
@@ -328,10 +327,8 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     // If we have a valid nextRunTime from localStorage, use it (don't reset)
     // Otherwise schedule a fresh one
     if (!nextRunTimeRef.current || nextRunTimeRef.current.getTime() < Date.now()) {
-      console.log('[RSS Auto-Process] Initializing fresh schedule');
       scheduleNextRun();
     } else {
-      console.log('[RSS Auto-Process] Restoring from localStorage:', nextRunTimeRef.current.toISOString());
       // Sync restored time with backend
       try {
         setSchedule(nextRunTimeRef.current.toISOString());
