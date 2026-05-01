@@ -15,7 +15,7 @@ import os
 import logging
 from celery import Celery
 from celery.schedules import crontab
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Configure logging
 logging.basicConfig(
@@ -84,6 +84,40 @@ def process_rss_feeds_task(self):
         from backend.python.lib.supabase_client import supabase
         from backend.python.pipeline.rss_processor_enhanced import rss_processor_enhanced
         import asyncio
+
+        # Respect persisted canonical schedule in system_config
+        try:
+            key = 'rss.next_run_time'
+            cfg = supabase.schema('gaia').from_('system_config').select('config_value').eq('config_key', key).execute()
+            if cfg.data and len(cfg.data) > 0 and cfg.data[0].get('config_value'):
+                stored_iso = cfg.data[0]['config_value']
+                try:
+                    # Handle 'Z' suffix for UTC timestamps (Python <3.11 compatibility)
+                    stored_dt = datetime.fromisoformat(stored_iso.replace('Z', '+00:00'))
+                    now = datetime.utcnow()
+                    # Make comparison timezone-aware if stored_dt has tzinfo
+                    if stored_dt.tzinfo is not None:
+                        from datetime import timezone
+                        now = datetime.now(timezone.utc)
+                    if now < stored_dt:
+                        # Sanity check: don't skip if scheduled time is too far in future
+                        max_skip_minutes = RSS_UPDATE_INTERVAL_MINUTES * 3
+                        if (stored_dt - now).total_seconds() > max_skip_minutes * 60:
+                            logger.warning(f"next_run_time {stored_iso} is too far in future, ignoring and continuing processing")
+                            # Continue processing instead of skipping
+                        else:
+                            logger.info(f"Skipping auto-run: next_run_time in DB is {stored_iso} (UTC)")
+                            return {
+                                'status': 'skipped',
+                                'message': 'Scheduled for future',
+                                'scheduled_for': stored_iso,
+                                'processed_at': datetime.utcnow().isoformat()
+                            }
+                except Exception:
+                    # If parsing fails, warn but continue with processing
+                    logger.warning(f"Invalid rss.next_run_time format in system_config: {stored_iso}")
+        except Exception as cfg_err:
+            logger.warning(f"Could not read persisted rss.next_run_time: {cfg_err}")
         
         # Find or create job record for this task
         job_id = None
@@ -232,6 +266,42 @@ def process_rss_feeds_task(self):
                 }) \
                 .eq('id', job_id) \
                 .execute()
+
+        # Update system_config with next scheduled run time so frontend can sync
+        try:
+            next_run = (datetime.utcnow() + timedelta(minutes=RSS_UPDATE_INTERVAL_MINUTES)).isoformat()
+            key = 'rss.next_run_time'
+            now_iso = datetime.utcnow().isoformat()
+            # Use separate update/insert to preserve original created_at timestamp
+            # Try update first
+            update_response = supabase.schema('gaia').from_('system_config').update({
+                'config_value': next_run,
+                'modified_at': now_iso
+            }).eq('config_key', key).execute()
+            
+            # If no rows updated, insert new record with created_at
+            if not update_response.data or len(update_response.data) == 0:
+                supabase.schema('gaia').from_('system_config').insert({
+                    'config_key': key,
+                    'config_value': next_run,
+                    'value_type': 'string',
+                    'created_at': now_iso,
+                    'modified_at': now_iso
+                }).execute()
+            # Invalidate the system config cache so readers pick up the new value immediately
+            try:
+                # Import here to avoid circular import during Celery initialization
+                import asyncio
+                from backend.python.lib.config_manager import ConfigManager
+                try:
+                    asyncio.run(ConfigManager.invalidate_cache('rss.next_run_time'))
+                except Exception:
+                    # Best-effort: log but do not fail the task
+                    logger.warning('Failed to invalidate config cache after updating rss.next_run_time')
+            except Exception as inv_err:
+                logger.debug(f"Could not run cache invalidation: {inv_err}")
+        except Exception as cfg_err:
+            logger.warning(f"Failed to update RSS next_run_time in system_config: {cfg_err}")
         
         return {
             'status': 'completed',

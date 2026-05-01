@@ -14,6 +14,7 @@ import { storageCache } from './lib/storageCache';
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
 import LandingPage from './pages/LandingPage';
+import DashboardShellSkeleton from './components/dashboard/DashboardShellSkeleton';
 
 // Route-based code splitting — all non-landing pages are lazy-loaded to
 // reduce the initial bundle and fix the Lighthouse "Unused JavaScript" warning.
@@ -53,12 +54,7 @@ const AppContent = () => {
       <DocumentTitleManager />
       <SkipLink />
       <main id="main-content" className="min-h-screen bg-background">
-        <React.Suspense fallback={
-          <div className="min-h-screen bg-background flex items-center justify-center" role="status" aria-label="Loading page">
-            <div className="w-8 h-8 rounded-full border-4 border-[#0A2A4D] border-t-transparent animate-spin" aria-hidden="true" />
-            <span className="sr-only">Loading...</span>
-          </div>
-        }>
+        <React.Suspense fallback={<DashboardShellSkeleton />}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/map" element={<PublicMap />} />

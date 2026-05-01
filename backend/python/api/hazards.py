@@ -21,7 +21,12 @@ from fastapi import APIRouter, HTTPException, Depends, Query, Request, status
 from pydantic import BaseModel, Field
 
 from backend.python.lib.supabase_client import supabase
-from backend.python.middleware.rbac import UserContext, require_auth, get_current_user_optional
+from backend.python.middleware.rbac import (
+    UserContext,
+    require_auth,
+    require_admin,
+    get_current_user_optional,
+)
 # PATCH-2: Import Redis rate limiter
 from backend.python.middleware.redis_rate_limiter import (
     RateLimitHazardsRead,
@@ -33,6 +38,7 @@ from backend.python.middleware.redis_cache import (
     get_or_set,
     generate_cache_key,
     CACHE_TTLS,
+    invalidate_pattern,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,6 +102,12 @@ class HazardStatsResponse(BaseModel):
     last_24h: int
     last_7d: int
     last_30d: int
+
+
+class HazardLocationUpdate(BaseModel):
+    """Payload for updating a hazard's coordinates"""
+    latitude: float = Field(..., ge=4.0, le=22.0, description="Latitude within PH bounds")
+    longitude: float = Field(..., ge=116.0, le=127.0, description="Longitude within PH bounds")
 
 
 # ============================================================================
@@ -374,6 +386,94 @@ async def get_hazard_by_id(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch hazard: {str(e)}"
+        )
+
+
+@router.patch("/{hazard_id}/location", response_model=HazardResponse)
+async def update_hazard_location(
+    request: Request,
+    hazard_id: str,
+    payload: HazardLocationUpdate,
+    user: UserContext = Depends(require_admin),
+    _rate_limit: None = Depends(RateLimitDefault)
+):
+    """
+    Update the coordinates for a hazard (admin only).
+    """
+    try:
+        # Fetch current coordinates for audit logging
+        existing_response = await asyncio.to_thread(
+            lambda: supabase.schema("gaia")
+            .from_("hazards")
+            .select("latitude,longitude,location_name,hazard_type")
+            .eq("id", hazard_id)
+            .execute()
+        )
+
+        if not existing_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Hazard not found: {hazard_id}"
+            )
+
+        existing = existing_response.data[0]
+
+        update_data = {
+            "latitude": payload.latitude,
+            "longitude": payload.longitude,
+            "location": f"POINT({payload.longitude} {payload.latitude})",
+        }
+
+        update_response = await asyncio.to_thread(
+            lambda: supabase.schema("gaia")
+            .from_("hazards")
+            .update(update_data)
+            .eq("id", hazard_id)
+            .execute()
+        )
+
+        if not update_response.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Hazard not found: {hazard_id}"
+            )
+
+        # Invalidate hazard caches so map refreshes quickly
+        await invalidate_pattern("hazards:*")
+
+        # Log activity for audit trail
+        try:
+            await ActivityLogger.log_activity(
+                user_context=user,
+                action="UPDATE_HAZARD_LOCATION",
+                request=request,
+                resource_type="hazard",
+                resource_id=hazard_id,
+                details={
+                    "hazard_type": existing.get("hazard_type"),
+                    "location_name": existing.get("location_name"),
+                    "previous_coordinates": {
+                        "latitude": existing.get("latitude"),
+                        "longitude": existing.get("longitude"),
+                    },
+                    "new_coordinates": {
+                        "latitude": payload.latitude,
+                        "longitude": payload.longitude,
+                    },
+                },
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log hazard location update: {log_error}")
+
+        return update_response.data[0]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating hazard location: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update hazard location: {str(e)}"
         )
 
 

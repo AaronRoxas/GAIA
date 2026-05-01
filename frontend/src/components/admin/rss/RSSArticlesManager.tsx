@@ -52,6 +52,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../ui/table';
+import { TableSkeleton } from '../../dashboard/AnalyticsSkeleton';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -761,9 +762,8 @@ export function RSSArticlesManager() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  <RefreshCw className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
-                  <p className="mt-2 text-sm text-muted-foreground">Loading articles...</p>
+                <TableCell colSpan={columns.length} className="p-0">
+                  <TableSkeleton rows={8} columns={columns.length} />
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows?.length ? (
