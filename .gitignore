@@ -127,5 +127,7 @@ graphify-out/
 /.github/prompts/ui-ux-pro-max
 /.github/skills
 /.agents
-/.worktrees/
-/worktrees/
+/.agents/*
+
+/.github/prompts/ui-ux-pro-max
+/.github/skills
