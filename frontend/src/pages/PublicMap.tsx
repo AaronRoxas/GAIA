@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, ZoomControl, ScaleControl, LayersControl, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { OpenStreetMapProvider } from 'leaflet-geosearch';
-import { fetchValidatedHazards, HazardResponse } from '../services/hazardsApi';
-import { useQuery } from '@tanstack/react-query';
+import { fetchValidatedHazards, HazardResponse, updateHazardLocation } from '../services/hazardsApi';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from '../components/ui/alert';
 import { Card } from '../components/ui/card';
@@ -44,6 +44,7 @@ import {
   HAZARD_ICON_REGISTRY, 
   HazardIcon,
 } from '../constants/hazard-icons';
+import { toast } from 'sonner';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -72,6 +73,14 @@ interface Hazard {
   validated_at?: string;
   validated_by?: string;
 }
+
+type HazardLocationMutation = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  previousLat: number;
+  previousLon: number;
+};
 
 /**
  * Map API response to local Hazard interface
@@ -400,7 +409,7 @@ const MapInstanceSetter: React.FC<{ mapRef: React.MutableRefObject<L.Map | null>
 };
 
 const PublicMap: React.FC = () => {
-  const { user } = useAuth(); // Get authenticated user
+  const { user, hasRole } = useAuth(); // Get authenticated user
   const [hazards, setHazards] = useState<Hazard[]>([]);
   const [selectedHazard, setSelectedHazard] = useState<Hazard | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -409,6 +418,7 @@ const PublicMap: React.FC = () => {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [isMobileControlsOpen, setIsMobileControlsOpen] = useState(false);
+  const [isPinEditEnabled, setIsPinEditEnabled] = useState(false);
   
   // Map instance ref for accessing Leaflet map methods
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -441,6 +451,9 @@ const PublicMap: React.FC = () => {
   // Filter hook (FP-01, FP-02, FP-03, FP-04) - replaces old layer visibility filters
   const { applyFilters } = useHazardFilters();
 
+  const canAdjustPins = hasRole('master_admin', 'validator', 'lgu_responder');
+  const isPinEditingActive = canAdjustPins && isPinEditEnabled;
+
   // Fetch validated hazards with React Query (PATCH-1.4: Secure API migration)
   // Replaces the old useCallback/setInterval polling pattern.
   // Benefits: request deduplication, 30s stale cache, automatic background refresh.
@@ -456,6 +469,56 @@ const PublicMap: React.FC = () => {
     staleTime: 30_000,        // data stays fresh for 30s — matches old polling interval
     refetchInterval: 30_000,  // auto-refresh every 30s for live map updates
     refetchOnWindowFocus: false,
+  });
+
+  const updateHazardLocationMutation = useMutation({
+    mutationFn: (payload: HazardLocationMutation) =>
+      updateHazardLocation(payload.id, {
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+      }),
+    onSuccess: (updated) => {
+      setHazards((prev) =>
+        prev.map((hazard) =>
+          hazard.id === updated.id
+            ? {
+                ...hazard,
+                latitude: updated.latitude,
+                longitude: updated.longitude,
+                location_name: updated.location_name || hazard.location_name,
+              }
+            : hazard
+        )
+      );
+      setSelectedHazard((prev) =>
+        prev && prev.id === updated.id
+          ? {
+              ...prev,
+              latitude: updated.latitude,
+              longitude: updated.longitude,
+              location_name: updated.location_name || prev.location_name,
+            }
+          : prev
+      );
+      toast.success('Hazard pin updated');
+    },
+    onError: (error, payload) => {
+      setHazards((prev) =>
+        prev.map((hazard) =>
+          hazard.id === payload.id
+            ? { ...hazard, latitude: payload.previousLat, longitude: payload.previousLon }
+            : hazard
+        )
+      );
+      setSelectedHazard((prev) =>
+        prev && prev.id === payload.id
+          ? { ...prev, latitude: payload.previousLat, longitude: payload.previousLon }
+          : prev
+      );
+      toast.error(
+        `Failed to update pin: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    },
   });
 
   // Sync query data into local hazards state and update accessibility announcements.
@@ -493,9 +556,20 @@ const PublicMap: React.FC = () => {
     }
   }, [isSidebarOpen]);
 
+  useEffect(() => {
+    if (!canAdjustPins && isPinEditEnabled) {
+      setIsPinEditEnabled(false);
+    }
+  }, [canAdjustPins, isPinEditEnabled]);
+
   // Default map center: Manila, Philippines
   const philippinesCenter: [number, number] = [14.5995, 120.9842];
   const defaultZoom = 6;
+
+  const PH_LAT_MIN = 4.0;
+  const PH_LAT_MAX = 22.0;
+  const PH_LON_MIN = 116.0;
+  const PH_LON_MAX = 127.0;
   
   // Philippines geographic bounds to restrict map panning
   // Format: [[south, west], [north, east]]
@@ -589,6 +663,45 @@ const PublicMap: React.FC = () => {
     // Extract city/municipality name from display_name (first part before comma)
     const locationName = suggestion.display_name.split(',')[0].trim();
     setSearchedLocationName(locationName);
+  };
+
+  const handleMarkerDragEnd = (hazard: Hazard) => (event: L.LeafletEvent) => {
+    if (!isPinEditingActive) return;
+
+    const marker = event.target as L.Marker;
+    const { lat, lng } = marker.getLatLng();
+    const previousLat = hazard.latitude;
+    const previousLon = hazard.longitude;
+
+    const withinBounds =
+      lat >= PH_LAT_MIN && lat <= PH_LAT_MAX && lng >= PH_LON_MIN && lng <= PH_LON_MAX;
+
+    if (!withinBounds) {
+      marker.setLatLng([previousLat, previousLon]);
+      toast.error('Pins must stay within Philippine bounds.');
+      return;
+    }
+
+    if (Math.abs(lat - previousLat) < 1e-6 && Math.abs(lng - previousLon) < 1e-6) {
+      return;
+    }
+
+    setHazards((prev) =>
+      prev.map((item) =>
+        item.id === hazard.id ? { ...item, latitude: lat, longitude: lng } : item
+      )
+    );
+    setSelectedHazard((prev) =>
+      prev && prev.id === hazard.id ? { ...prev, latitude: lat, longitude: lng } : prev
+    );
+
+    updateHazardLocationMutation.mutate({
+      id: hazard.id,
+      latitude: lat,
+      longitude: lng,
+      previousLat,
+      previousLon,
+    });
   };
 
   // Hazard icons and colors are now accessed from HAZARD_ICON_REGISTRY
@@ -990,144 +1103,197 @@ const PublicMap: React.FC = () => {
                 </div>
 
                 {/* Map Controls Section - Clustering & Heatmap */}
-            <div className="p-3 sm:p-4 space-y-3">
-              {/* Clustering Toggle */}
-              <div className="flex items-center justify-between" data-tour="cluster-section">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-blue-50 rounded-md">
-                    <FontAwesomeIcon icon={faLayerGroup} className="text-xs text-blue-600" aria-hidden="true" />
-                  </div>
-                  <span id="clustering-label" className="text-sm font-medium text-gray-700">
-                    Clustering
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  data-tour="cluster-toggle"
-                  onClick={() => setClusteringEnabled(!clusteringEnabled)}
-                  className={`
-                    relative inline-flex h-6 w-11 items-center rounded-full
-                    transition-colors duration-200 motion-reduce:transition-none
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                    ${clusteringEnabled ? 'bg-blue-600' : 'bg-gray-300'}
-                  `}
-                  role="switch"
-                  aria-checked={clusteringEnabled}
-                  aria-labelledby="clustering-label"
-                >
-                  <span className="sr-only">
-                    {clusteringEnabled ? 'Disable clustering' : 'Enable clustering'}
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className={`
-                      inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200
-                      ${clusteringEnabled ? 'translate-x-6' : 'translate-x-1'}
-                    `}
-                  />
-                </button>
-              </div>
-
-              {/* Heatmap Toggle */}
-              <div className="flex items-center justify-between" data-tour="heatmap-section">
-                <div className="flex items-center gap-2">
-                  <div className={`p-1.5 rounded-md ${currentZoom > heatmapSettings.maxZoom ? 'bg-gray-100' : 'bg-orange-50'}`}>
-                    <FontAwesomeIcon 
-                      className={`text-xs ${currentZoom > heatmapSettings.maxZoom ? 'text-gray-400' : 'text-orange-600'}`}
-                      icon={faMap} 
-                      aria-hidden="true" 
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <span id="heatmap-label" className="text-sm font-medium text-gray-700">
-                      Heatmap
-                    </span>
-                    {currentZoom > heatmapSettings.maxZoom && (
-                      <span className="text-[10px] text-amber-600 font-medium leading-tight">
-                        Zoom out to enable
+                <div className="p-3 sm:p-4 space-y-3">
+                  {/* Clustering Toggle */}
+                  <div className="flex items-center justify-between" data-tour="cluster-section">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-blue-50 rounded-md">
+                        <FontAwesomeIcon icon={faLayerGroup} className="text-xs text-blue-600" aria-hidden="true" />
+                      </div>
+                      <span id="clustering-label" className="text-sm font-medium text-gray-700">
+                        Clustering
                       </span>
-                    )}
+                    </div>
+                    <button
+                      type="button"
+                      data-tour="cluster-toggle"
+                      onClick={() => setClusteringEnabled(!clusteringEnabled)}
+                      className={`
+                        relative inline-flex h-6 w-11 items-center rounded-full
+                        transition-colors duration-200 motion-reduce:transition-none
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                        ${clusteringEnabled ? 'bg-blue-600' : 'bg-gray-300'}
+                      `}
+                      role="switch"
+                      aria-checked={clusteringEnabled}
+                      aria-labelledby="clustering-label"
+                    >
+                      <span className="sr-only">
+                        {clusteringEnabled ? 'Disable clustering' : 'Enable clustering'}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className={`
+                          inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200
+                          ${clusteringEnabled ? 'translate-x-6' : 'translate-x-1'}
+                        `}
+                      />
+                    </button>
                   </div>
-                </div>
-                <button
-                  type="button"
-                  data-tour="heatmap-toggle"
-                  onClick={() => updateHeatmapSettings({ enabled: !heatmapSettings.enabled })}
-                  disabled={currentZoom > heatmapSettings.maxZoom}
-                  className={`
-                    relative inline-flex h-6 w-11 items-center rounded-full
-                    transition-colors duration-200 motion-reduce:transition-none
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                    ${heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom ? 'bg-blue-600' : 'bg-gray-300'}
-                    ${currentZoom > heatmapSettings.maxZoom ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-                  `}
-                  role="switch"
-                  aria-checked={heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom}
-                  aria-labelledby="heatmap-label"
-                  aria-disabled={currentZoom > heatmapSettings.maxZoom}
-                >
-                  <span className="sr-only">
-                    {heatmapSettings.enabled ? 'Disable heatmap' : 'Enable heatmap'}
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className={`
-                      inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200
-                      ${heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom ? 'translate-x-6' : 'translate-x-1'}
-                    `}
-                  />
-                </button>
-              </div>
 
-              {/* Settings Link */}
-              <button
-                type="button"
-                onClick={() => setShowSettings(!showSettings)}
-                className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors pt-1"
-                aria-expanded={showSettings}
-              >
-                <FontAwesomeIcon icon={faCog} className="text-xs" aria-hidden="true" />
-                <span>{showSettings ? 'Hide settings' : 'Heatmap settings'}</span>
-              </button>
+                  {/* Heatmap Toggle */}
+                  <div className="flex items-center justify-between" data-tour="heatmap-section">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1.5 rounded-md ${currentZoom > heatmapSettings.maxZoom ? 'bg-gray-100' : 'bg-orange-50'}`}>
+                        <FontAwesomeIcon 
+                          className={`text-xs ${currentZoom > heatmapSettings.maxZoom ? 'text-gray-400' : 'text-orange-600'}`}
+                          icon={faMap} 
+                          aria-hidden="true" 
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <span id="heatmap-label" className="text-sm font-medium text-gray-700">
+                          Heatmap
+                        </span>
+                        {currentZoom > heatmapSettings.maxZoom && (
+                          <span className="text-[10px] text-amber-600 font-medium leading-tight">
+                            Zoom out to enable
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      data-tour="heatmap-toggle"
+                      onClick={() => updateHeatmapSettings({ enabled: !heatmapSettings.enabled })}
+                      disabled={currentZoom > heatmapSettings.maxZoom}
+                      className={`
+                        relative inline-flex h-6 w-11 items-center rounded-full
+                        transition-colors duration-200 motion-reduce:transition-none
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                        ${heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom ? 'bg-blue-600' : 'bg-gray-300'}
+                        ${currentZoom > heatmapSettings.maxZoom ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                      `}
+                      role="switch"
+                      aria-checked={heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom}
+                      aria-labelledby="heatmap-label"
+                      aria-disabled={currentZoom > heatmapSettings.maxZoom}
+                    >
+                      <span className="sr-only">
+                        {heatmapSettings.enabled ? 'Disable heatmap' : 'Enable heatmap'}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className={`
+                          inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200
+                          ${heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom ? 'translate-x-6' : 'translate-x-1'}
+                        `}
+                      />
+                    </button>
+                  </div>
 
-              {/* Heatmap Settings Panel */}
-              {showSettings && (
-                <div className="pt-3 border-t border-gray-100 space-y-3">
-                  <div>
-                    <label htmlFor="heatmap-radius" className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                      <span>Radius</span>
-                      <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{heatmapSettings.radius}px</span>
-                    </label>
-                    <input
-                      id="heatmap-radius"
-                      type="range"
-                      min="10"
-                      max="50"
-                      value={heatmapSettings.radius}
-                      onChange={(e) => updateHeatmapSettings({ radius: Number(e.target.value) })}
-                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="heatmap-blur" className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                      <span>Blur</span>
-                      <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{heatmapSettings.blur}px</span>
-                    </label>
-                    <input
-                      id="heatmap-blur"
-                      type="range"
-                      min="5"
-                      max="30"
-                      value={heatmapSettings.blur}
-                      onChange={(e) => updateHeatmapSettings({ blur: Number(e.target.value) })}
-                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    />
-                  </div>
+                  {/* Admin Pin Adjustment Toggle */}
+                  {canAdjustPins && (
+                    <div className="flex items-center justify-between" data-tour="pin-adjust-section">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-md ${isPinEditingActive ? 'bg-amber-50' : 'bg-gray-100'}`}>
+                          <FontAwesomeIcon
+                            className={`text-xs ${isPinEditingActive ? 'text-amber-600' : 'text-gray-500'}`}
+                            icon={faMapPin}
+                            aria-hidden="true"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <span id="pin-adjust-label" className="text-sm font-medium text-gray-700">
+                            Adjust Pins
+                          </span>
+                          <span className="text-[10px] text-gray-500 leading-tight">
+                            Drag markers to correct locations
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsPinEditEnabled(!isPinEditEnabled)}
+                        className={`
+                          relative inline-flex h-6 w-11 items-center rounded-full
+                          transition-colors duration-200 motion-reduce:transition-none
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                          ${isPinEditingActive ? 'bg-amber-500' : 'bg-gray-300'}
+                        `}
+                        role="switch"
+                        aria-checked={isPinEditingActive}
+                        aria-labelledby="pin-adjust-label"
+                      >
+                        <span className="sr-only">
+                          {isPinEditingActive ? 'Disable pin adjustment' : 'Enable pin adjustment'}
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className={`
+                            inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200
+                            ${isPinEditingActive ? 'translate-x-6' : 'translate-x-1'}
+                          `}
+                        />
+                      </button>
+                    </div>
+                  )}
+
+                  {isPinEditingActive && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Drag a hazard marker to update its coordinates. Changes save immediately.
+                    </div>
+                  )}
+
+                  {/* Settings Link */}
+                  <button
+                    type="button"
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors pt-1"
+                    aria-expanded={showSettings}
+                  >
+                    <FontAwesomeIcon icon={faCog} className="text-xs" aria-hidden="true" />
+                    <span>{showSettings ? 'Hide settings' : 'Heatmap settings'}</span>
+                  </button>
+
+                  {/* Heatmap Settings Panel */}
+                  {showSettings && (
+                    <div className="pt-3 border-t border-gray-100 space-y-3">
+                      <div>
+                        <label htmlFor="heatmap-radius" className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                          <span>Radius</span>
+                          <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{heatmapSettings.radius}px</span>
+                        </label>
+                        <input
+                          id="heatmap-radius"
+                          type="range"
+                          min="10"
+                          max="50"
+                          value={heatmapSettings.radius}
+                          onChange={(e) => updateHeatmapSettings({ radius: Number(e.target.value) })}
+                          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="heatmap-blur" className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                          <span>Blur</span>
+                          <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{heatmapSettings.blur}px</span>
+                        </label>
+                        <input
+                          id="heatmap-blur"
+                          type="range"
+                          min="5"
+                          max="30"
+                          value={heatmapSettings.blur}
+                          onChange={(e) => updateHeatmapSettings({ blur: Number(e.target.value) })}
+                          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            </>
-          )}
+              </>
+            )}
           </Card>
 
           {/* Error Alert - Centered Positioning */}
@@ -1276,8 +1442,10 @@ const PublicMap: React.FC = () => {
                     icon={getHazardMarkerIcon(hazard.hazard_type, hazard.severity)}
                     // @ts-expect-error - Custom option for cluster coloring (react-leaflet-cluster extension)
                     options={{ hazardType: hazard.hazard_type }}
+                    draggable={isPinEditingActive}
                     eventHandlers={{
                       click: () => setSelectedHazard(hazard),
+                      ...(isPinEditingActive ? { dragend: handleMarkerDragEnd(hazard) } : {}),
                     }}
                   />
                 ))}
@@ -1289,8 +1457,10 @@ const PublicMap: React.FC = () => {
                   key={hazard.id}
                   position={[hazard.latitude, hazard.longitude]}
                   icon={getHazardMarkerIcon(hazard.hazard_type, hazard.severity)}
+                  draggable={isPinEditingActive}
                   eventHandlers={{
                     click: () => setSelectedHazard(hazard),
+                    ...(isPinEditingActive ? { dragend: handleMarkerDragEnd(hazard) } : {}),
                   }}
                 />
               ))
