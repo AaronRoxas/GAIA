@@ -762,14 +762,22 @@ async def update_system_config(
         except Exception as e:
             logger.error(f"Error invalidating config cache for {safe_config_key}: {str(e)}")
 
-        # Log configuration change activity
-        await ActivityLogger.log_config_change(
-            admin=current_user,
-            config_key=config_key,
-            old_value=old_value,
-            new_value=new_value,
-            request=request
-        )
+        # Log configuration change activity (non-blocking)
+        try:
+            await ActivityLogger.log_config_change(
+                admin=current_user,
+                config_key=config_key,
+                old_value=old_value,
+                new_value=new_value,
+                request=request
+            )
+        except Exception as e:
+            # Log failure but don't raise - activity logging should not block the response
+            logger.error(f"Failed to log config change for {safe_config_key}: {str(e)}", extra={
+                'config_key': config_key,
+                'admin_id': current_user.user_id,
+                'error': str(e)
+            })
 
         safe_old_value = _sanitize_for_log(old_value)
         safe_new_value = _sanitize_for_log(new_value)

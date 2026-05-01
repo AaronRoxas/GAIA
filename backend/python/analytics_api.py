@@ -165,9 +165,9 @@ class SystemHealthMetric(BaseModel):
     """System performance and health metrics"""
     health_score: int  # 0-100
     status: str  # "healthy", "warning", "critical"
-    avg_response_time_ms: float
+    avg_response_time_ms: Optional[float]  # None until request timing instrumentation available
     error_rate_percentage: float
-    uptime_percentage: float
+    uptime_percentage: Optional[float]  # None until monitoring service integration
     metrics_timestamp: str
 
 
@@ -576,7 +576,11 @@ async def get_confidence_by_type():
         type_stats: Dict[str, Dict] = {}
         for item in response.data:
             hazard_type = item.get('hazard_type', 'unknown')
-            confidence = item.get('confidence_score', 0.0)
+            confidence = item.get('confidence_score')
+            
+            # Skip entries with missing or null confidence scores
+            if confidence is None:
+                continue
             
             if hazard_type not in type_stats:
                 type_stats[hazard_type] = {
@@ -627,30 +631,36 @@ async def get_false_positive_rate():
     cache_key = generate_cache_key("analytics:false-positive-rate")
     
     async def fetch_fpr():
-        # Get rejected citizen reports
+        # Calculate FPR over current 7-day window for like-for-like comparison
+        now = datetime.now()
+        cur_start = now - timedelta(days=7)
+        cur_end = now
+        prev_start = now - timedelta(days=14)
+        prev_end = now - timedelta(days=7)
+        
+        # Get rejected citizen reports in current window
         rejected_response = supabase.schema("gaia").from_('citizen_reports') \
             .select('id', count='exact') \
             .eq('status', 'rejected') \
+            .gte('submitted_at', cur_start.isoformat()) \
+            .lte('submitted_at', cur_end.isoformat()) \
             .execute()
         rejected_count = rejected_response.count or 0
         
-        # Get verified citizen reports
+        # Get verified citizen reports in current window
         verified_response = supabase.schema("gaia").from_('citizen_reports') \
             .select('id', count='exact') \
             .eq('status', 'verified') \
+            .gte('submitted_at', cur_start.isoformat()) \
+            .lte('submitted_at', cur_end.isoformat()) \
             .execute()
         verified_count = verified_response.count or 0
         
-        # Total verified and rejected
+        # Total verified and rejected in current window
         total_verified = verified_count + rejected_count
         
-        # FPR = rejected / total
+        # FPR = rejected / total for current window
         fpr_percentage = (rejected_count / total_verified * 100) if total_verified > 0 else 0.0
-        
-        # Calculate trend by comparing to previous 7 days
-        now = datetime.now()
-        prev_start = now - timedelta(days=14)
-        prev_end = now - timedelta(days=7)
         
         prev_rejected = supabase.schema("gaia").from_('citizen_reports') \
             .select('id', count='exact') \
@@ -732,16 +742,18 @@ async def get_source_accuracy():
         citizen_total = citizen_verified_count + citizen_rejected_count + citizen_unverified_count
         citizen_accuracy = (citizen_verified_count / citizen_total * 100) if citizen_total > 0 else 0.0
 
-        # Get RSS data from hazards (RSS reports)
+        # Get RSS data from hazards (RSS reports only - filter by source_type)
         rss_verified = supabase.schema("gaia").from_('hazards') \
             .select('id', count='exact') \
-            .eq('validated', 'true') \
+            .eq('validated', True) \
+            .eq('source_type', 'rss') \
             .execute()
         rss_verified_count = rss_verified.count or 0
         
         rss_rejected = supabase.schema("gaia").from_('hazards') \
             .select('id', count='exact') \
-            .eq('validated', 'false') \
+            .eq('validated', False) \
+            .eq('source_type', 'rss') \
             .execute()
         rss_rejected_count = rss_rejected.count or 0
 
@@ -864,25 +876,34 @@ async def get_duplicate_rate():
     cache_key = generate_cache_key("analytics:duplicate-rate")
     
     async def fetch_duplicate_rate():
-        # Get total hazards
+        # Get current and previous 7-day windows for consistent comparison
+        now = datetime.now()
+        cur_start = now - timedelta(days=7)
+        cur_end = now
+        prev_start = now - timedelta(days=14)
+        prev_end = now - timedelta(days=7)
+        
+        # Get total hazards in current 7-day window
         total_response = supabase.schema("gaia").from_('hazards') \
             .select('id', count='exact') \
+            .gte('detected_at', cur_start.isoformat()) \
+            .lte('detected_at', cur_end.isoformat()) \
             .execute()
         total_count = total_response.count or 0
         
-        # Get duplicates (is_duplicate = true)
+        # Get duplicates in current 7-day window (is_duplicate = true)
         duplicate_response = supabase.schema("gaia").from_('hazards') \
             .select('id', count='exact') \
             .eq('is_duplicate', True) \
+            .gte('detected_at', cur_start.isoformat()) \
+            .lte('detected_at', cur_end.isoformat()) \
             .execute()
         duplicate_count = duplicate_response.count or 0
         
         duplicate_percentage = (duplicate_count / total_count * 100) if total_count > 0 else 0.0
         
-        # Calculate trend
-        now = datetime.now()
-        prev_start = now - timedelta(days=14)
-        prev_end = now - timedelta(days=7)
+        # Calculate trend using previous 7-day window
+        # prev_start and prev_end already defined above
         
         prev_total = supabase.schema("gaia").from_('hazards') \
             .select('id', count='exact') \
@@ -1008,12 +1029,13 @@ async def get_system_health():
         else:
             status = "critical"
         
+        # TODO: Integrate real metrics from request timing instrumentation and monitoring service
         return {
             'health_score': int(health_score),
             'status': status,
-            'avg_response_time_ms': 45.0,  # Placeholder - would need request timing instrumentation
+            'avg_response_time_ms': None,  # Real value: requires request timing instrumentation
             'error_rate_percentage': round(error_rate, 2),
-            'uptime_percentage': 99.9,  # Placeholder - would need monitoring service
+            'uptime_percentage': None,  # Real value: requires monitoring service integration
             'metrics_timestamp': now.isoformat()
         }
     

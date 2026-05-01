@@ -853,9 +853,12 @@ async def set_rss_schedule(
 
         return result
 
+    except HTTPException:
+        # Re-raise HTTPException unchanged (from earlier in the function)
+        raise
     except Exception as e:
         logger.error(f"Failed to set RSS schedule: {e}")
-        raise HTTPException(status_code=500, detail="Failed to set RSS schedule")
+        raise HTTPException(status_code=500, detail="Failed to set RSS schedule") from e
 
 
 @router.get("/logs", response_model=ProcessingLogsResponse)

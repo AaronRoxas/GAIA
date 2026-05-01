@@ -103,15 +103,16 @@ def process_rss_feeds_task(self):
                         # Sanity check: don't skip if scheduled time is too far in future
                         max_skip_minutes = RSS_UPDATE_INTERVAL_MINUTES * 3
                         if (stored_dt - now).total_seconds() > max_skip_minutes * 60:
-                            logger.warning(f"next_run_time {stored_iso} is too far in future, ignoring")
+                            logger.warning(f"next_run_time {stored_iso} is too far in future, ignoring and continuing processing")
+                            # Continue processing instead of skipping
                         else:
                             logger.info(f"Skipping auto-run: next_run_time in DB is {stored_iso} (UTC)")
-                        return {
-                            'status': 'skipped',
-                            'message': 'Scheduled for future',
-                            'scheduled_for': stored_iso,
-                            'processed_at': datetime.utcnow().isoformat()
-                        }
+                            return {
+                                'status': 'skipped',
+                                'message': 'Scheduled for future',
+                                'scheduled_for': stored_iso,
+                                'processed_at': datetime.utcnow().isoformat()
+                            }
                 except Exception:
                     # If parsing fails, warn but continue with processing
                     logger.warning(f"Invalid rss.next_run_time format in system_config: {stored_iso}")

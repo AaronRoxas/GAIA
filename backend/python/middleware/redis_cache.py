@@ -119,7 +119,16 @@ async def _get_or_set_with_lock(
             if cached is not None:
                 return cached
 
-        raise CacheLockTimeoutError(f"Timeout waiting for cache lock: {key}")
+        # Lock timeout: fall back to direct fetch instead of raising error
+        logger.debug(f"Cache lock timeout for {key}, falling back to direct fetch")
+        data = await fetch_func()
+        # Attempt to cache the result (best-effort, don't raise on failure)
+        try:
+            if should_cache is None or should_cache(data):
+                await set_cached(key, data, ttl)
+        except Exception as e:
+            logger.debug(f"Failed to cache fallback result for {key}: {e}")
+        return data
 
     try:
         data = await fetch_func()

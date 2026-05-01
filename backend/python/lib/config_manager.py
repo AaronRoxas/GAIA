@@ -54,6 +54,10 @@ CACHE_PREFIX = "gaia:config"
 CONFIG_CACHE_TTL = 30  # 30-second TTL for config values
 
 import asyncio
+import threading
+
+# Module-level lock to protect asyncio.Lock creation in ConfigManager._get_init_lock
+_init_lock_creation_lock = threading.Lock()
 
 class ConfigManager:
     """
@@ -69,8 +73,15 @@ class ConfigManager:
 
     @classmethod
     def _get_init_lock(cls) -> asyncio.Lock:
+        """
+        Get or create the asyncio.Lock for initialization, protected by module-level threading lock.
+        This prevents race conditions when multiple coroutines try to create the lock simultaneously.
+        """
         if cls._init_lock is None:
-            cls._init_lock = asyncio.Lock()
+            with _init_lock_creation_lock:
+                # Double-check after acquiring the lock
+                if cls._init_lock is None:
+                    cls._init_lock = asyncio.Lock()
         return cls._init_lock
     
     @classmethod
