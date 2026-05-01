@@ -16,6 +16,7 @@
  */
 
 import type { Hazard } from '@/types/hazard';
+import { apiRequest } from '../lib/api';
 
 // API Configuration
 const API_URL = process.env.REACT_APP_API_URL || '';
@@ -66,6 +67,11 @@ export interface HazardsQueryParams {
   province?: string;
   limit?: number;
   offset?: number;
+}
+
+export interface HazardLocationUpdate {
+  latitude: number;
+  longitude: number;
 }
 
 // ============================================================================
@@ -220,6 +226,19 @@ export async function fetchHazardStats(): Promise<HazardStatsResponse> {
   }
   
   return response.json();
+}
+
+/**
+ * Update hazard coordinates (admin only)
+ */
+export async function updateHazardLocation(
+  hazardId: string,
+  payload: HazardLocationUpdate
+): Promise<HazardResponse> {
+  return apiRequest(`/api/v1/hazards/${hazardId}/location`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }
 
 /**

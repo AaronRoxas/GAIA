@@ -271,7 +271,7 @@ export function HazardInfoPanel({
                 <h2 className="text-xl font-bold text-gray-900 capitalize">
                   {hazard ? hazard.hazard_type.replace(/_/g, ' ') : 'No hazard selected'}
                 </h2>
-                <p className="text-sm text-gray-600 mt-1">{hazard ? hazard.location_name : 'No hazard selected'}</p>
+                {/* <p className="text-sm text-gray-600 mt-1">{hazard ? hazard.location_name : 'No hazard selected'}</p> */}
               </div>
             </div>
             <button
