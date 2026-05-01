@@ -74,6 +74,13 @@ export const queryKeys = {
     distribution: () => ['analytics', 'distribution'] as const,
     sourceBreakdown: () => ['analytics', 'source-breakdown'] as const,
     recentAlerts: (limit: number) => ['analytics', 'recent-alerts', limit] as const,
+    // AI/ML Quality Metrics (New)
+    confidenceByType: () => ['analytics', 'confidence-by-type'] as const,
+    falsePositiveRate: () => ['analytics', 'false-positive-rate'] as const,
+    sourceAccuracy: () => ['analytics', 'source-accuracy'] as const,
+    processingRate: () => ['analytics', 'processing-rate'] as const,
+    duplicateRate: () => ['analytics', 'duplicate-rate'] as const,
+    systemHealth: () => ['analytics', 'system-health'] as const,
   },
   
   // Admin queries

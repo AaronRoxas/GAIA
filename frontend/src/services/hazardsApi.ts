@@ -21,6 +21,9 @@ import { apiRequest } from '../lib/api';
 // API Configuration
 const API_URL = process.env.REACT_APP_API_URL || '';
 const HAZARDS_API_BASE = `${API_URL}/api/v1/hazards`;
+const VALIDATED_HAZARDS_DEFAULT_LIMIT = 1000;
+const VALIDATED_HAZARDS_REALTIME_LIMIT = 10;
+const VALIDATED_HAZARDS_REFRESH_INTERVAL_MS = 30_000;
 
 // ============================================================================
 // Types
@@ -74,6 +77,12 @@ export interface HazardLocationUpdate {
   longitude: number;
 }
 
+export interface ValidatedHazardsQueryOptions {
+  limit?: number;
+  timeWindowHours?: number;
+  hazardTypes?: string[];
+}
+
 // ============================================================================
 // API Client Functions
 // ============================================================================
@@ -119,6 +128,25 @@ function buildQueryString(params: HazardsQueryParams): string {
   return queryString ? `?${queryString}` : '';
 }
 
+function buildValidatedHazardsParams(
+  options: ValidatedHazardsQueryOptions = {}
+): HazardsQueryParams {
+  const params: HazardsQueryParams = {
+    validated: true,
+    limit: options.limit ?? VALIDATED_HAZARDS_DEFAULT_LIMIT,
+  };
+
+  if (options.timeWindowHours !== undefined) {
+    params.time_window_hours = options.timeWindowHours;
+  }
+
+  if (options.hazardTypes?.length) {
+    params.hazard_types = options.hazardTypes;
+  }
+
+  return params;
+}
+
 /**
  * Fetch hazards from backend proxy API
  * 
@@ -153,28 +181,34 @@ export async function fetchHazards(
  * Replaces: supabase.from('hazards').select('*').eq('validated', true)...
  */
 export async function fetchValidatedHazards(
-  options: {
-    limit?: number;
-    timeWindowHours?: number;
-    hazardTypes?: string[];
-  } = {}
+  options: ValidatedHazardsQueryOptions = {}
 ): Promise<HazardResponse[]> {
-  const params: HazardsQueryParams = {
-    validated: true,
-    limit: options.limit || 1000, // Default to max limit to show all hazards
-  };
-  
-  // Only include time_window_hours if explicitly provided
-  if (options.timeWindowHours !== undefined) {
-    params.time_window_hours = options.timeWindowHours;
-  }
-  
-  // Only include hazard_types if provided
-  if (options.hazardTypes && options.hazardTypes.length > 0) {
-    params.hazard_types = options.hazardTypes;
-  }
-  
-  return fetchHazards(params);
+  return fetchHazards(buildValidatedHazardsParams(options));
+}
+
+/**
+ * Shared query config for validated hazards lists.
+ * Use this in components so cache keys and refetch policy stay consistent.
+ */
+export function buildValidatedHazardsQueryOptions(
+  options: ValidatedHazardsQueryOptions = {}
+) {
+  const params = buildValidatedHazardsParams(options);
+
+  return {
+    queryKey: hazardsQueryKeys.validated(params),
+    queryFn: () => fetchValidatedHazards(options),
+    staleTime: VALIDATED_HAZARDS_REFRESH_INTERVAL_MS,
+    refetchInterval: VALIDATED_HAZARDS_REFRESH_INTERVAL_MS,
+    refetchOnWindowFocus: false,
+  } as const;
+}
+
+/**
+ * Fetch the latest validated hazards for realtime polling fallback.
+ */
+export async function fetchLatestValidatedHazards(): Promise<HazardResponse[]> {
+  return fetchValidatedHazards({ limit: VALIDATED_HAZARDS_REALTIME_LIMIT });
 }
 
 /**
@@ -294,6 +328,7 @@ export const hazardsQueryKeys = {
   all: ['hazards'] as const,
   lists: () => [...hazardsQueryKeys.all, 'list'] as const,
   list: (params: HazardsQueryParams) => [...hazardsQueryKeys.lists(), params] as const,
+  validated: (params: HazardsQueryParams) => [...hazardsQueryKeys.all, 'validated', params] as const,
   details: () => [...hazardsQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...hazardsQueryKeys.details(), id] as const,
   stats: () => [...hazardsQueryKeys.all, 'stats'] as const,
@@ -334,11 +369,7 @@ export function mapApiResponseToHazard(response: HazardResponse): Hazard {
  * Drop-in replacement for existing supabase queries in components
  */
 export async function fetchValidatedHazardsCompat(
-  options: {
-    limit?: number;
-    timeWindowHours?: number;
-    hazardTypes?: string[];
-  } = {}
+  options: ValidatedHazardsQueryOptions = {}
 ): Promise<Hazard[]> {
   const responses = await fetchValidatedHazards(options);
   return responses.map(mapApiResponseToHazard);

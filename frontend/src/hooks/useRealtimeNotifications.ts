@@ -16,7 +16,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { fetchValidatedHazards } from '../services/hazardsApi';
+import { fetchLatestValidatedHazards } from '../services/hazardsApi';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotificationStore } from '../stores/notificationStore';
@@ -159,7 +159,7 @@ export function useRealtimeHazards() {
       pollIntervalRef.current = window.setInterval(async () => {
         try {
           // PATCH-1.4: Use backend API instead of direct Supabase access
-          const data = await fetchValidatedHazards({ limit: 10 });
+          const data = await fetchLatestValidatedHazards();
 
           if (!data || data.length === 0) return;
 

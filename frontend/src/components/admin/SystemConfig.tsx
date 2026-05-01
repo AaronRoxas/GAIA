@@ -6,17 +6,19 @@
  * - Edit configuration with validation (min/max, type checking)
  * - Save confirmation with audit trail
  * - Real-time sync with database
+ * - Dynamic config refresh with 30-second cache TTL
  * 
  * Module: AC-02 (Configuration Management)
  * Permissions: Master Admin only (read/write), Validators (read-only)
  */
 
 import React, { useState } from 'react';
-import { Edit2, Save, X, AlertTriangle } from 'lucide-react';
+import { Edit2, Save, X, AlertTriangle, Clock } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { toast } from 'sonner';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -35,6 +37,7 @@ import {
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { adminApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { TableSkeleton } from '../dashboard/AnalyticsSkeleton';
 
 interface SystemConfig {
   id: string;
@@ -170,12 +173,35 @@ const SystemConfig: React.FC = () => {
 
       await adminApi.config.update(selectedConfig.config_key, values.config_value);
 
+      // Show success toast with details about effect
+      const immediateEffect = [
+        'confidence_threshold_rss',
+        'confidence_threshold_citizen',
+        'enable_realtime_updates',
+        'maintenance_mode'
+      ].includes(selectedConfig.config_key);
+
+      toast.success(
+        `Configuration updated: ${selectedConfig.config_key}`,
+        {
+          description: immediateEffect
+            ? '✓ Change takes effect within 30 seconds (all services)'
+            : 'Change logged to audit trail. Some services may require restart.',
+          duration: 5000,
+        }
+      );
+
       // Refresh config list
       await refetch();
 
       setIsEditDialogOpen(false);
       setSelectedConfig(null);
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update configuration';
+      toast.error('Configuration update failed', {
+        description: errorMessage,
+        duration: 5000,
+      });
       console.error('Error updating config:', err);
     } finally {
       setIsSaving(false);
@@ -211,27 +237,33 @@ const SystemConfig: React.FC = () => {
           </Alert>
         )}
 
+        {/* Info Alert - Explain how config changes work */}
+        <Alert className="mb-4 border-blue-200 bg-blue-50">
+          <Clock className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-900">
+            <strong>Configuration Cache:</strong> Changes are applied server-wide within 30 seconds via cache invalidation.
+            Threshold values, maintenance mode, and realtime update settings take effect immediately for all services.
+          </AlertDescription>
+        </Alert>
+
         {/* Configuration Table */}
-        <div className="border rounded-md overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="font-semibold">Configuration Key</TableHead>
-                <TableHead className="font-semibold">Current Value</TableHead>
-                <TableHead className="font-semibold">Type</TableHead>
-                <TableHead className="font-semibold">Constraints</TableHead>
-                <TableHead className="font-semibold">Last Modified</TableHead>
-                {isMasterAdmin && <TableHead className="font-semibold w-24">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={isMasterAdmin ? 6 : 5} />
+        ) : (
+          <div className="border rounded-md overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={isMasterAdmin ? 6 : 5} className="text-center py-8 text-muted-foreground">
-                    Loading configuration...
-                  </TableCell>
+                  <TableHead className="font-semibold">Configuration Key</TableHead>
+                  <TableHead className="font-semibold">Current Value</TableHead>
+                  <TableHead className="font-semibold">Type</TableHead>
+                  <TableHead className="font-semibold">Constraints</TableHead>
+                  <TableHead className="font-semibold">Last Modified</TableHead>
+                  {isMasterAdmin && <TableHead className="font-semibold w-24">Actions</TableHead>}
                 </TableRow>
-              ) : configs.length === 0 ? (
+              </TableHeader>
+              <TableBody>
+                {configs.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={isMasterAdmin ? 6 : 5} className="text-center py-8 text-muted-foreground">
                     No configuration parameters found
@@ -281,10 +313,11 @@ const SystemConfig: React.FC = () => {
                     )}
                   </TableRow>
                 ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
 
         {/* Edit Configuration Dialog */}
         <Dialog

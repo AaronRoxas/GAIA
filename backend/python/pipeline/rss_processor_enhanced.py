@@ -28,6 +28,9 @@ from backend.python.models.geo_ner import geo_ner
 # Import Supabase client
 from backend.python.lib.supabase_client import supabase
 
+# Import Config Manager for dynamic configuration
+from backend.python.lib.config_manager import ConfigManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,40 +104,26 @@ class RSSProcessorEnhanced:
         self.feeds = validated_feeds
         logger.info(f"Set {len(validated_feeds)}/{len(feed_urls)} valid RSS feeds")
     
-    def _get_confidence_thresholds(self) -> Tuple[float, float]:
+    async def _get_confidence_thresholds(self) -> Tuple[float, float]:
         """
-        Fetch confidence thresholds from system_config table.
-        Uses cached values if available for performance.
+        Fetch confidence thresholds from system_config with caching.
+        Uses ConfigManager for distributed caching with 30-second TTL.
         
         Returns:
             tuple: (rss_threshold, citizen_threshold)
         """
         try:
-            # Return cached values if available
-            if self._confidence_threshold_rss is not None and self._confidence_threshold_citizen is not None:
-                return self._confidence_threshold_rss, self._confidence_threshold_citizen
+            # Fetch from ConfigManager (uses Redis cache with 30s TTL)
+            thresholds = await ConfigManager.get_configs([
+                'confidence_threshold_rss',
+                'confidence_threshold_citizen'
+            ])
             
-            # Fetch from database
-            response = supabase.schema('gaia').from_('system_config').select('config_key, config_value').in_('config_key', ['confidence_threshold_rss', 'confidence_threshold_citizen']).execute()
+            rss_threshold = float(thresholds.get('confidence_threshold_rss', 0.70))
+            citizen_threshold = float(thresholds.get('confidence_threshold_citizen', 0.50))
             
-            if response.data:
-                for config in response.data:
-                    if config['config_key'] == 'confidence_threshold_rss':
-                        self._confidence_threshold_rss = float(config['config_value'])
-                    elif config['config_key'] == 'confidence_threshold_citizen':
-                        self._confidence_threshold_citizen = float(config['config_value'])
-                
-                logger.info(f"Fetched confidence thresholds: RSS={self._confidence_threshold_rss}, Citizen={self._confidence_threshold_citizen}")
-            
-            # Use defaults if not found
-            if self._confidence_threshold_rss is None:
-                self._confidence_threshold_rss = 0.70
-                logger.warning(f"Using default RSS threshold: {self._confidence_threshold_rss}")
-            if self._confidence_threshold_citizen is None:
-                self._confidence_threshold_citizen = 0.50
-                logger.warning(f"Using default citizen threshold: {self._confidence_threshold_citizen}")
-            
-            return self._confidence_threshold_rss, self._confidence_threshold_citizen
+            logger.info(f"Fetched confidence thresholds: RSS={rss_threshold}, Citizen={citizen_threshold}")
+            return rss_threshold, citizen_threshold
             
         except Exception as e:
             logger.error(f"Error fetching confidence thresholds: {str(e)}")
@@ -211,6 +200,10 @@ class RSSProcessorEnhanced:
             
             if feed.bozo:
                 logger.warning(f"Feed parsing warning for {feed_url}: {feed.bozo_exception}")
+
+            # Use live system configuration for classification threshold.
+            # Falls back to instance default if config lookup fails.
+            rss_threshold, _ = await self._get_confidence_thresholds()
             
             # Process each entry
             for entry in feed.entries:
@@ -229,7 +222,7 @@ class RSSProcessorEnhanced:
                     # Classify content
                     classification = classifier.classify(
                         content_data['text'],
-                        threshold=self.classification_threshold
+                        threshold=rss_threshold
                     )
                     
                     # Only process if classified as hazard
@@ -271,7 +264,8 @@ class RSSProcessorEnhanced:
                                 content_data,
                                 classification,
                                 locations,
-                                feed_url
+                                feed_url,
+                                rss_threshold=rss_threshold
                             )
                             
                             if hazard_id:
@@ -657,7 +651,8 @@ class RSSProcessorEnhanced:
         content_data: Dict,
         classification: Dict,
         locations: List[Dict],
-        feed_url: str
+        feed_url: str,
+        rss_threshold: Optional[float] = None
     ) -> Optional[str]:
         """
         Save hazard to Supabase gaia.hazards table.
@@ -728,8 +723,9 @@ class RSSProcessorEnhanced:
                 'other'  # Default if not found
             )
             
-            # Fetch confidence thresholds and determine auto-validation
-            rss_threshold, _ = self._get_confidence_thresholds()
+            # Use provided threshold (from process cycle) or fallback to live fetch.
+            if rss_threshold is None:
+                rss_threshold, _ = await self._get_confidence_thresholds()
             confidence_score = classification['score']
             auto_validated = confidence_score >= rss_threshold
             

@@ -37,7 +37,7 @@ from backend.python.lib.supabase_client import supabase
 from backend.python.middleware.activity_logger import ActivityLogger
 
 # Import RBAC for admin-only access and audit logging
-from backend.python.middleware.rbac import require_admin, UserContext, log_admin_action
+from backend.python.middleware.rbac import require_admin, require_validator, require_master_admin, UserContext, log_admin_action
 
 # Import Redis caching for performance
 from backend.python.middleware.redis_cache import (
@@ -46,6 +46,9 @@ from backend.python.middleware.redis_cache import (
     invalidate_pattern,
     CACHE_TTLS,
 )
+
+# Config manager for centralized config values (with Redis caching)
+from backend.python.lib.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -754,6 +757,108 @@ async def get_current_processing_job(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get current job status: {str(e)}"
         )
+
+
+@router.get('/schedule')
+async def get_rss_schedule(current_user: UserContext = Depends(require_validator)):
+    """
+    Get the next scheduled RSS processing time (source of truth for frontend countdown).
+
+    Permissions: Master Admin or Validator (read-only)
+    """
+    try:
+        next_time = await ConfigManager.get_config('rss.next_run_time', default=None)
+        return {'next_run_time': next_time}
+    except Exception as e:
+        logger.error(f"Failed to read RSS schedule: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read RSS schedule")
+
+from datetime import datetime as dt
+
+class UpdateScheduleRequest(BaseModel):
+    next_run_time: Optional[str] = Field(None, description="ISO 8601 datetime string for next RSS processing time (e.g., '2024-06-01T12:00:00Z'). Use null to clear.")
+
+    @validator('next_run_time')
+    def validate_next_run_time(cls, v):
+        if v is None:
+            return v
+        try:
+            # Validate that it's a proper ISO 8601 datetime string
+            dt.fromisoformat(v.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError("next_run_time must be a valid ISO 8601 datetime string (e.g., '2024-06-01T12:00:00Z')")
+        return v
+
+@router.post('/schedule')
+@limiter.limit("30/minute")
+async def set_rss_schedule(
+    body: UpdateScheduleRequest,
+    request: Request,
+    response: Response,
+    current_user: UserContext = Depends(require_master_admin)
+):
+    """
+    Set the next scheduled RSS processing time. Use null to clear.
+
+    Permissions: Master Admin
+    """
+    try:
+        # Check if config exists
+        key = 'rss.next_run_time'
+        existing = supabase.schema('gaia').from_('system_config').select('*').eq('config_key', key).execute()
+        old_value = existing.data[0].get('config_value') if existing.data else None
+
+        if existing.data:
+            update_data = {
+                'config_value': body.next_run_time,
+                'modified_by': current_user.user_id,
+                'modified_at': datetime.utcnow().isoformat()
+            }
+            updated = supabase.schema('gaia').from_('system_config').update(update_data).eq('config_key', key).execute()
+            if not updated.data:
+                raise HTTPException(status_code=500, detail="Failed to update RSS schedule")
+            await ConfigManager.invalidate_cache(key)
+            result = updated.data[0]
+        else:
+            # Insert new config record. Use 'modified_by' to match existing schema.
+            insert_data = {
+                'config_key': key,
+                'config_value': body.next_run_time,
+                'value_type': 'string',
+                'modified_by': current_user.user_id,
+                'modified_at': datetime.utcnow().isoformat(),
+                'created_at': datetime.utcnow().isoformat()
+            }
+            inserted = supabase.schema('gaia').from_('system_config').insert(insert_data).execute()
+            if not inserted.data:
+                raise HTTPException(status_code=500, detail="Failed to set RSS schedule")
+            await ConfigManager.invalidate_cache(key)
+            result = inserted.data[0]
+
+        # Log activity for audit trail (FP-04 Activity Monitor)
+        try:
+            await log_admin_action(
+                user=current_user,
+                action="rss_schedule_updated",
+                action_description=f"Updated RSS schedule: {body.next_run_time}",
+                resource_type="system_config",
+                resource_id=key,
+                old_values={"next_run_time": old_value},
+                new_values={"next_run_time": body.next_run_time},
+                request=request,
+                event_type="RSS_SCHEDULE_UPDATED",
+            )
+        except Exception as e:
+            logger.error(f"Failed to log admin action: {e}")
+
+        return result
+
+    except HTTPException:
+        # Re-raise HTTPException unchanged (from earlier in the function)
+        raise
+    except Exception as e:
+        logger.error(f"Failed to set RSS schedule: {e}")
+        raise HTTPException(status_code=500, detail="Failed to set RSS schedule") from e
 
 
 @router.get("/logs", response_model=ProcessingLogsResponse)
