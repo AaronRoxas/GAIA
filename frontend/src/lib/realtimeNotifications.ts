@@ -55,7 +55,7 @@ export function useRealtimeHazards() {
   const { addNotification } = useNotificationStore();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const isSettingUpRef = useRef(false);
-  const pollIntervalRef = useRef<number | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSeenRef = useRef<string | null>(null);
   
   // LRU cache for seen alerts with TTL (max 1000 entries, 30 min expiry)
@@ -189,7 +189,7 @@ export function useRealtimeHazards() {
       // Initialize lastSeenRef to current time to avoid spamming on start
       lastSeenRef.current = new Date().toISOString();
 
-      pollIntervalRef.current = window.setInterval(async () => {
+      pollIntervalRef.current = setInterval(async () => {
         try {
           // PATCH-1.4: Use backend API instead of direct Supabase access
           const data = await fetchValidatedHazards({ limit: 10 });
@@ -314,7 +314,7 @@ export function useRealtimeHazards() {
                 isSettingUpRef.current = false;
                 // Stop any polling fallback when channel is connected
                 if (pollIntervalRef.current) {
-                  clearInterval(pollIntervalRef.current as unknown as number);
+                  clearInterval(pollIntervalRef.current);
                   pollIntervalRef.current = null;
                 }
                 break;

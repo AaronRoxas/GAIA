@@ -34,6 +34,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { TableSkeleton } from '../dashboard/AnalyticsSkeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Alert, AlertDescription } from '../ui/alert';
 import {
@@ -786,8 +787,8 @@ const ReportTriage: React.FC = () => {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
-                    Loading reports...
+                  <TableCell colSpan={columns.length} className="p-0">
+                    <TableSkeleton rows={6} columns={columns.length} />
                   </TableCell>
                 </TableRow>
               ) : table.getRowModel().rows.length === 0 ? (

@@ -752,15 +752,20 @@ describe('UserManagement Component', () => {
     });
 
     it('refetches data when realtime update occurs', async () => {
-      const mockChannel: any = {
-        on: vi.fn().mockImplementation((event: string, filter: unknown, callback: () => void) => {
-          // Immediately trigger callback to simulate realtime event
-          setTimeout(() => callback(), 100);
-          return mockChannel;
-        }),
-        subscribe: vi.fn().mockReturnThis(),
-      };
-      (supabase.channel as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockChannel);
+        interface MockChannel {
+          on: (event: string, filter: unknown, callback?: () => void) => MockChannel;
+          subscribe: () => MockChannel;
+        }
+
+        const mockChannel: MockChannel = {
+          on: vi.fn().mockImplementation((event: string, filter: unknown, callback?: () => void) => {
+            // Immediately trigger callback to simulate realtime event
+            setTimeout(() => callback && callback(), 100);
+            return mockChannel;
+          }),
+          subscribe: vi.fn().mockReturnThis(),
+        } as unknown as MockChannel;
+        (supabase.channel as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockChannel as unknown as ReturnType<typeof vi.fn>);
 
       renderWithProviders(<UserManagement />);
       
@@ -775,11 +780,16 @@ describe('UserManagement Component', () => {
     });
 
     it('unsubscribes from channel on unmount', () => {
-      const mockChannel: any = {
+      interface MockChannel2 {
+        on: (...args: unknown[]) => MockChannel2;
+        subscribe: () => MockChannel2;
+      }
+
+      const mockChannel: MockChannel2 = {
         on: vi.fn().mockReturnThis(),
         subscribe: vi.fn().mockReturnThis(),
-      };
-      (supabase.channel as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockChannel);
+      } as unknown as MockChannel2;
+      (supabase.channel as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockChannel as unknown as ReturnType<typeof vi.fn>);
 
       const { unmount } = renderWithProviders(<UserManagement />);
       

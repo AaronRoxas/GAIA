@@ -29,6 +29,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
+import { TableSkeleton } from '../dashboard/AnalyticsSkeleton';
 
 interface ActivityLog {
   id: string;
@@ -229,7 +230,7 @@ export default function ActivityMonitor() {
           </div>
           <div className="flex gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefetching} aria-label="Refresh">
-              <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
+              <RefreshCw className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportToCSV(logs)} disabled={logs.length === 0}>
               <Download className="h-4 w-4 mr-2" /> CSV
@@ -255,38 +256,40 @@ export default function ActivityMonitor() {
         {/* Controls */}
         <PaginationControls table={table} totalLogs={logs.length} />
 
-        <div className="rounded-md border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={columns.length} className="h-24 text-center">Loading...</TableCell></TableRow>
-              ) : isError ? (
-                <TableRow><TableCell colSpan={columns.length} className="h-24 text-center text-destructive">Failed to load activity logs: {error?.message}</TableCell></TableRow>
-              ) : table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+        {isLoading ? (
+          <TableSkeleton rows={8} columns={columns.length} />
+        ) : (
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
                     ))}
                   </TableRow>
-                ))
-              ) : (
-                <TableRow><TableCell colSpan={columns.length} className="h-24 text-center">No logs found</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {isError ? (
+                  <TableRow><TableCell colSpan={columns.length} className="h-24 text-center text-destructive">Failed to load activity logs: {error?.message}</TableCell></TableRow>
+                ) : table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow><TableCell colSpan={columns.length} className="h-24 text-center">No logs found</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
 
         <PaginationControls table={table} totalLogs={logs.length} />
       </CardContent>

@@ -43,6 +43,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../ui/table';
+import { TableSkeleton } from '../../dashboard/AnalyticsSkeleton';
 import {
   Select,
   SelectContent,
@@ -526,8 +527,8 @@ export function RSSProcessingLogs() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Loading logs...
+                <TableCell colSpan={columns.length} className="p-0">
+                  <TableSkeleton rows={8} columns={columns.length} />
                 </TableCell>
               </TableRow>
             ) : logs.length > 0 ? (
