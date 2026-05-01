@@ -242,42 +242,82 @@ export function useRecentAlerts(limit: number = 10) {
 /**
  * Fetch average confidence score by hazard type
  * Shows which hazard types have better model confidence
+ * 
+ * Auto-refetches when page is visible (confidence may change with new validations)
  */
 export function useConfidenceByType() {
+  const isVisible = usePageVisibility();
+  const refetchInterval = useAdaptiveRefetchInterval({
+    enabled: isVisible,
+    baseInterval: 2 * 60 * 1000,  // Refetch every 2 minutes
+    maxInterval: 10 * 60 * 1000,
+    backoffMultiplier: 1.5,
+  });
+
   return useQuery<ConfidenceByTypeMetric[], Error>({
     queryKey: queryKeys.analytics.confidenceByType(),
     queryFn: () => analyticsApi.getConfidenceByType(),
-    staleTime: 3 * 60 * 1000, // 3 minutes
+    staleTime: 1 * 60 * 1000,  // 1 minute
     gcTime: 15 * 60 * 1000,
     retry: 2,
+    refetchOnWindowFocus: true,
+    refetchIntervalInBackground: false,
+    refetchInterval,
   });
 }
 
 /**
  * Fetch false positive rate from citizen reports
  * Measures validation quality - ratio of rejected to verified reports
+ * 
+ * Auto-refetches when page is visible with adaptive intervals
+ * (responds to triage/approval actions in real-time)
  */
 export function useFalsePositiveRate() {
+  const isVisible = usePageVisibility();
+  const refetchInterval = useAdaptiveRefetchInterval({
+    enabled: isVisible,
+    baseInterval: 30 * 1000,  // Refetch every 30 seconds when visible (catches triage updates)
+    maxInterval: 2 * 60 * 1000,  // Back off to 2 minutes max if data isn't changing
+    backoffMultiplier: 1.5,
+  });
+
   return useQuery<FalsePositiveRateMetric, Error>({
     queryKey: queryKeys.analytics.falsePositiveRate(),
     queryFn: () => analyticsApi.getFalsePositiveRate(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 30 * 60 * 1000,
+    staleTime: 15 * 1000,  // 15 seconds - data marked stale quickly for FPR metric
+    gcTime: 10 * 60 * 1000,  // 10 minutes cache
     retry: 2,
+    refetchOnWindowFocus: true,  // Refetch when switching tabs
+    refetchIntervalInBackground: false,  // Pause polling when tab hidden
+    refetchInterval,  // Adaptive polling when visible
   });
 }
 
 /**
  * Fetch accuracy comparison between RSS and citizen reports
  * Shows which source type has better reliability
+ * 
+ * Auto-refetches when page is visible (accuracy changes with validations)
  */
 export function useSourceAccuracy() {
+  const isVisible = usePageVisibility();
+  const refetchInterval = useAdaptiveRefetchInterval({
+    enabled: isVisible,
+    baseInterval: 2 * 60 * 1000,  // Refetch every 2 minutes
+    maxInterval: 10 * 60 * 1000,
+    backoffMultiplier: 1.5,
+  });
+
   return useQuery<SourceAccuracyMetric, Error>({
     queryKey: queryKeys.analytics.sourceAccuracy(),
     queryFn: () => analyticsApi.getSourceAccuracy(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 30 * 60 * 1000,
+    staleTime: 1 * 60 * 1000,  // 1 minute
+    gcTime: 10 * 60 * 1000,
     retry: 2,
+    refetchOnWindowFocus: true,
+    refetchIntervalInBackground: false,
+    refetchInterval,
   });
 }
 

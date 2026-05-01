@@ -27,7 +27,47 @@ logger = logging.getLogger(__name__)
 # Supabase client imported from centralized configuration
 
 # HTTP Bearer token scheme
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
+
+
+def _is_valid_supabase_token(token: str) -> bool:
+    parts = token.split('.')
+    if len(parts) != 3 or not all(parts):
+        return False
+
+    return all(all(ch.isalnum() or ch in {'-', '_'} for ch in part) for part in parts)
+
+
+def _extract_token(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = None
+) -> Optional[str]:
+    if credentials and getattr(credentials, 'credentials', None):
+        token = credentials.credentials.strip()
+        if token and _is_valid_supabase_token(token):
+            return token
+
+    auth_header = request.headers.get('authorization') or request.headers.get('Authorization')
+    if auth_header:
+        scheme, _, token_value = auth_header.partition(' ')
+        if scheme.lower() == 'bearer':
+            token = token_value.strip()
+            if token and _is_valid_supabase_token(token):
+                return token
+
+    cookie_names = [
+        'sb-access-token',
+        'supabase-auth-token',
+        'supabase-session',
+    ]
+    for name in cookie_names:
+        token = request.cookies.get(name)
+        if token:
+            token = token.strip()
+            if token and _is_valid_supabase_token(token):
+                return token
+
+    return None
 
 
 # ============================================================================
@@ -96,6 +136,7 @@ class UserContext:
 # ============================================================================
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> UserContext:
     """
@@ -108,9 +149,16 @@ async def get_current_user(
     This dependency can be used in any endpoint that requires authentication.
     For role-specific endpoints, use require_role() or specific decorators.
     """
-    token = credentials.credentials
-    
+    token = _extract_token(request, credentials)
+
     try:
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing authentication token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         # Verify token with Supabase Auth
         response = supabase.auth.get_user(token)
         
@@ -166,7 +214,7 @@ async def get_current_user(
             permissions=permissions
         )
         
-        logger.info(f"Authenticated user: {email} ({user_role.value})")
+        logger.info(f"Authenticated user: {user_id} ({user_role.value})")
         return user_context
         
     except HTTPException:
@@ -272,12 +320,10 @@ async def get_current_user_optional(
                 # Basic features for anonymous users
                 pass
     """
-    auth_header = request.headers.get("Authorization")
-    
-    if not auth_header or not auth_header.startswith("Bearer "):
+    token = _extract_token(request)
+
+    if not token:
         return None
-    
-    token = auth_header.replace("Bearer ", "").strip()
     
     try:
         # Verify token with Supabase Auth
@@ -363,7 +409,7 @@ async def log_admin_action(
     error_message: Optional[str] = None,
     request: Optional[Request] = None,
     severity: Optional[str] = "INFO",
-    status: Optional[str] = "success" # ANY (ARRAY['success'::text, 'failure'::text, 'pending'::text])
+    status_param: Optional[str] = "success" # ANY (ARRAY['success'::text, 'failure'::text, 'pending'::text])
 ):
     """
     Log administrative actions to audit_logs table.
@@ -378,7 +424,9 @@ async def log_admin_action(
         if request:
             # Get client IP (handle proxies)
             forwarded = request.headers.get("X-Forwarded-For")
-            ip_address = forwarded.split(",")[0] if forwarded else request.client.host
+            client = getattr(request, "client", None)
+            client_host = getattr(client, "host", None)
+            ip_address = forwarded.split(",")[0].strip() if forwarded else client_host
             user_agent = request.headers.get("User-Agent")
         
         user_role = user.role.value if hasattr(user, 'role') else str(user.role)
@@ -401,7 +449,7 @@ async def log_admin_action(
             "success": success,
             "error_message": error_message,
             "severity": severity or "INFO",
-            "status": status or "success",
+            "status": status_param or "success",
         }).execute()
         
         logger.info(f"Audit log: {user.email} - {action} - {action_description}")

@@ -17,6 +17,8 @@ from celery import Celery
 from celery.schedules import crontab
 from datetime import datetime, timedelta
 
+from backend.python.middleware.audit_integrity import compute_checksum_for_log, GENESIS_HASH
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -59,6 +61,13 @@ celery_app.conf.beat_schedule = {
             'expires': RSS_UPDATE_INTERVAL_MINUTES * 60 - 10,  # Expire before next run
         }
     },
+    'system-heartbeat-periodic': {
+        'task': 'celery_worker.system_heartbeat_task',
+        'schedule': crontab(minute=f'*/{RSS_UPDATE_INTERVAL_MINUTES}'),  # Align with RSS cadence
+        'options': {
+            'expires': RSS_UPDATE_INTERVAL_MINUTES * 60 - 10,
+        }
+    },
 }
 
 logger.info(f"Celery configured: RSS feeds will be processed every {RSS_UPDATE_INTERVAL_MINUTES} minutes")
@@ -67,6 +76,88 @@ logger.info(f"Celery configured: RSS feeds will be processed every {RSS_UPDATE_I
 # ============================================================================
 # CELERY TASKS
 # ============================================================================
+
+
+@celery_app.task(name='celery_worker.system_heartbeat_task', bind=True)
+def system_heartbeat_task(self):
+    """Write a tamper-evident heartbeat entry to audit_logs.
+
+    This keeps the service-health dashboard populated even on days when no
+    other system telemetry is generated.
+    """
+    logger.info(f"Starting system heartbeat (Task ID: {self.request.id})")
+
+    start_time = datetime.utcnow()
+
+    try:
+        from backend.python.lib.supabase_client import supabase
+
+        timestamp = datetime.utcnow().isoformat()
+        metadata = {
+            'task_id': self.request.id,
+            'heartbeat_type': 'system',
+            'source': 'celery_beat',
+            'response_time_ms': 0,
+        }
+
+        log_entry = {
+            'event_type': 'system_event',
+            'severity': 'INFO',
+            'action': 'system_heartbeat',
+            'action_description': 'Scheduled system heartbeat',
+            'resource_type': 'system',
+            'resource_id': 'heartbeat',
+            'user_id': None,
+            'user_email': 'system@gaia.local',
+            'user_role': 'system',
+            'ip_address': None,
+            'user_agent': 'celery-beat',
+            'created_at': timestamp,
+            'first_occurred_at': timestamp,
+            'last_occurred_at': timestamp,
+            'occurrence_count': 1,
+            'status': 'success',
+            'success': True,
+            'context': metadata,
+            'metadata': metadata,
+            'old_values': {},
+            'new_values': {},
+        }
+
+        previous_log_response = supabase.schema('gaia').from_('audit_logs').select('checksum').order('created_at', desc=True).order('id', desc=True).limit(1).execute()
+        previous_hash = previous_log_response.data[0]['checksum'] if previous_log_response.data and previous_log_response.data[0].get('checksum') else GENESIS_HASH
+
+        log_entry['checksum'] = compute_checksum_for_log(
+            action=log_entry['action'],
+            user_id=log_entry['user_id'],
+            user_email=log_entry['user_email'],
+            user_role=log_entry['user_role'],
+            resource_type=log_entry['resource_type'],
+            resource_id=log_entry['resource_id'],
+            ip_address=log_entry['ip_address'],
+            details=log_entry['metadata'],
+            timestamp=timestamp,
+            previous_hash=previous_hash,
+        )
+
+        response = supabase.schema('gaia').from_('audit_logs').insert(log_entry).execute()
+        if not response.data:
+            raise RuntimeError('heartbeat insert returned no data')
+
+        duration_ms = round((datetime.utcnow() - start_time).total_seconds() * 1000, 2)
+        logger.info(f"System heartbeat logged successfully in {duration_ms} ms")
+        return {
+            'status': 'success',
+            'task_id': self.request.id,
+            'duration_ms': duration_ms,
+        }
+    except Exception as exc:
+        logger.error(f"System heartbeat failed: {exc}")
+        return {
+            'status': 'error',
+            'task_id': self.request.id,
+            'error': str(exc),
+        }
 
 @celery_app.task(name='celery_worker.process_rss_feeds_task', bind=True)
 def process_rss_feeds_task(self):

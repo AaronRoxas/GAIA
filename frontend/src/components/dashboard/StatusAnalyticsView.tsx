@@ -11,7 +11,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { API_BASE_URL } from '../../lib/api';
+import { apiRequest, API_BASE_URL } from '../../lib/api';
 import { Activity, RefreshCw, AlertCircle, CheckCircle2, AlertTriangle, Wrench } from 'lucide-react';
 import { useAdaptiveRefetchInterval, usePageVisibility } from '../../hooks/useAnalytics';
 
@@ -33,8 +33,8 @@ interface SystemStatusResponse {
 
 interface ServiceHealthPoint {
   date: string;
-  uptime_percent: number;
-  avg_response_ms: number;
+  uptime_percent: number | null;
+  avg_response_ms: number | null;
 }
 
 interface ServiceHealthResponse {
@@ -43,9 +43,7 @@ interface ServiceHealthResponse {
 }
 
 const fetchServiceHealth = async (days: number) => {
-  const res = await fetch(`${API_BASE_URL}/api/v1/analytics/service-health?days=${days}`);
-  if (!res.ok) throw new Error('Failed to fetch service health');
-  return res.json();
+  return apiRequest<ServiceHealthResponse>(`/api/v1/analytics/service-health?days=${days}`);
 };
 
 const fetchSystemStatus = async (): Promise<SystemStatusResponse> => {
@@ -220,7 +218,7 @@ export default function StatusAnalyticsView() {
                     {overallConfig.label}
                   </Badge>
                 </div>
-                {systemStatusData?.uptime_seconds && (
+                {systemStatusData?.uptime_seconds != null && (
                   <p className="text-sm text-muted-foreground">
                     Uptime: {formatUptime(systemStatusData.uptime_seconds)}
                   </p>
