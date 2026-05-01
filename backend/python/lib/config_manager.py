@@ -67,7 +67,7 @@ class ConfigManager:
     that configuration changes are picked up by running services within 30 seconds.
     """
     
-    _redis_client: Optional[aioredis.Redis] = None
+    _redis_client: Optional['aioredis.Redis'] = None
     _cache_initialized = False
     _init_lock: asyncio.Lock = None
 
@@ -85,7 +85,7 @@ class ConfigManager:
         return cls._init_lock
     
     @classmethod
-    async def _get_redis(cls) -> Optional[aioredis.Redis]:
+    async def _get_redis(cls) -> Optional['aioredis.Redis']:
         """
         Lazy initialize Redis connection.
         
@@ -267,7 +267,7 @@ class ConfigManager:
                 try:
                     cursor = 0
                     all_configs = {}
-                    
+
                     # Scan for all config keys
                     while True:
                         cursor, keys = await redis.scan(
@@ -275,19 +275,50 @@ class ConfigManager:
                             match=f"{CACHE_PREFIX}:*",
                             count=100
                         )
-                        
+
+                        MARKER_KEY = f"{CACHE_PREFIX}:__ALL_MARKER__"
+
                         for key in keys:
-                            config_key = key.removeprefix(f"{CACHE_PREFIX}:")  # Extract config_key from cache_key
+                            # Extract config_key from cache_key
+                            config_key = key.removeprefix(f"{CACHE_PREFIX}:")
+                            if config_key == "__ALL_MARKER__":
+                                continue  # Skip the marker key
                             value = await redis.get(key)
                             if value:
                                 all_configs[config_key] = json.loads(value)
-                        
+
                         if cursor == 0:
                             break
-                    
+
                     if all_configs:
-                        logger.debug(f"Config cache hit for all configs: {len(all_configs)} items")
-                        return all_configs
+                        # Verify completeness: prefer an explicit full-snapshot marker or compare counts
+                        marker_key = MARKER_KEY
+                        try:
+                            marker = await redis.get(marker_key)
+                        except Exception:
+                            marker = None
+
+                        if marker:
+                            logger.debug(f"Config cache full-snapshot marker present, returning {len(all_configs)} items")
+                            return all_configs
+                        # Otherwise check DB authoritative count
+                        try:
+                            resp = supabase.schema('gaia').from_('system_config').select('config_key', count='exact').execute()
+                            db_count = resp.count or 0
+                        except Exception:
+                            db_count = None
+
+                        if db_count is not None and db_count == len(all_configs):
+                            # Optionally write a short-lived full snapshot marker to speed future reads
+                            try:
+                                await redis.setex(marker_key, CONFIG_CACHE_TTL, '1')
+                            except Exception:
+                                pass
+                            logger.debug(f"Config cache appears complete (count {db_count}), returning items")
+                            return all_configs
+
+                        # Partial cache detected - fall back to DB
+                        logger.debug("Config cache appears partial or marker missing; falling back to DB")
                 except Exception as e:
                     logger.warning(f"Redis scan failed: {str(e)}")
             
@@ -335,43 +366,39 @@ class ConfigManager:
         Returns:
             True if invalidated, False if Redis unavailable
         """
-        try:
-            redis = await cls._get_redis()
-            if not redis:
-                logger.debug("Redis unavailable - cache invalidation skipped")
-                return False
-            
-            if config_key:
-                # Invalidate specific key
-                cache_key = cls._make_cache_key(config_key)
-                deleted = await redis.delete(cache_key)
-                logger.info(f"Config cache invalidated: {config_key} ({deleted} keys deleted)")
-            else:
-                # Invalidate all config keys
-                cursor = 0
-                total_deleted = 0
-                
-                while True:
-                    cursor, keys = await redis.scan(
-                        cursor,
-                        match=f"{CACHE_PREFIX}:*",
-                        count=100
-                    )
-                    
-                    if keys:
-                        deleted = await redis.delete(*keys)
-                        total_deleted += deleted
-                    
-                    if cursor == 0:
-                        break
-                
-                logger.info(f"Config cache invalidated: all keys ({total_deleted} keys deleted)")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error invalidating config cache: {str(e)}")
+        # Let callers observe failures instead of swallowing exceptions.
+        redis = await cls._get_redis()
+        if not redis:
+            logger.debug("Redis unavailable - cache invalidation skipped")
             return False
+
+        if config_key:
+            # Invalidate specific key
+            cache_key = cls._make_cache_key(config_key)
+            deleted = await redis.delete(cache_key)
+            logger.info(f"Config cache invalidated: {config_key} ({deleted} keys deleted)")
+        else:
+            # Invalidate all config keys
+            cursor = 0
+            total_deleted = 0
+
+            while True:
+                cursor, keys = await redis.scan(
+                    cursor,
+                    match=f"{CACHE_PREFIX}:*",
+                    count=100
+                )
+
+                if keys:
+                    deleted = await redis.delete(*keys)
+                    total_deleted += deleted
+
+                if cursor == 0:
+                    break
+
+            logger.info(f"Config cache invalidated: all keys ({total_deleted} keys deleted)")
+
+        return True
     
     @classmethod
     async def get_cache_info(cls) -> Dict[str, Any]:

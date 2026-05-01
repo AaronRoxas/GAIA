@@ -279,6 +279,18 @@ def process_rss_feeds_task(self):
                 'created_at': now_iso,
                 'modified_at': now_iso
             }, on_conflict='config_key').execute()
+            # Invalidate the system config cache so readers pick up the new value immediately
+            try:
+                # Import here to avoid circular import during Celery initialization
+                import asyncio
+                from backend.python.lib.config_manager import ConfigManager
+                try:
+                    asyncio.run(ConfigManager.invalidate_cache('rss.next_run_time'))
+                except Exception:
+                    # Best-effort: log but do not fail the task
+                    logger.warning('Failed to invalidate config cache after updating rss.next_run_time')
+            except Exception as inv_err:
+                logger.debug(f"Could not run cache invalidation: {inv_err}")
         except Exception as cfg_err:
             logger.warning(f"Failed to update RSS next_run_time in system_config: {cfg_err}")
         

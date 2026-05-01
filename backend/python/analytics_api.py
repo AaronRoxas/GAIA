@@ -29,6 +29,9 @@ from backend.python.middleware.redis_cache import (
 
 logger = logging.getLogger(__name__)
 
+# RBAC dependency for admin/validator access
+from backend.python.middleware.rbac import require_admin, UserContext
+
 # Supabase client imported from centralized configuration
 
 # Create router
@@ -202,7 +205,7 @@ async def get_hazard_stats():
         # Get average confidence score (direct query instead of RPC)
         all_hazards_response = supabase.schema('gaia').from_('hazards').select('confidence_score').execute()
         if all_hazards_response.data:
-            confidence_scores = [h['confidence_score'] for h in all_hazards_response.data if h.get('confidence_score')]
+            confidence_scores = [h['confidence_score'] for h in all_hazards_response.data if h.get('confidence_score') is not None]
             avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
         else:
             avg_confidence = 0.0
@@ -556,7 +559,7 @@ async def get_recent_alerts(
 # ============================================================================
 
 @router.get("/confidence-by-type", response_model=List[ConfidenceByTypeMetric])
-async def get_confidence_by_type():
+async def get_confidence_by_type(current_user: UserContext = Depends(require_admin)):
     """
     Get average confidence score by hazard type (cached for 3 minutes)
     
@@ -620,7 +623,7 @@ async def get_confidence_by_type():
 
 
 @router.get("/false-positive-rate", response_model=FalsePositiveRateMetric)
-async def get_false_positive_rate():
+async def get_false_positive_rate(current_user: UserContext = Depends(require_admin)):
     """
     Get false positive rate from citizen reports (cached for 5 minutes)
     
@@ -710,7 +713,7 @@ async def get_false_positive_rate():
 
 
 @router.get("/source-accuracy", response_model=SourceAccuracyMetric)
-async def get_source_accuracy():
+async def get_source_accuracy(current_user: UserContext = Depends(require_admin)):
     """
     Compare accuracy between RSS feeds and citizen reports (cached for 5 minutes)
     
@@ -739,7 +742,8 @@ async def get_source_accuracy():
             .execute()
         citizen_unverified_count = citizen_unverified.count or 0
 
-        citizen_total = citizen_verified_count + citizen_rejected_count + citizen_unverified_count
+        # Only validated outcomes should be included in accuracy denominator
+        citizen_total = citizen_verified_count + citizen_rejected_count
         citizen_accuracy = (citizen_verified_count / citizen_total * 100) if citizen_total > 0 else 0.0
 
         # Get RSS data from hazards (RSS reports only - filter by source_type)
@@ -785,7 +789,7 @@ async def get_source_accuracy():
 
 
 @router.get("/processing-rate", response_model=ProcessingRateMetric)
-async def get_processing_rate():
+async def get_processing_rate(current_user: UserContext = Depends(require_admin)):
     """
     Get hazard processing/detection rate (cached for 1 minute)
     
@@ -866,7 +870,7 @@ async def get_processing_rate():
 
 
 @router.get("/duplicate-rate", response_model=DuplicateDetectionMetric)
-async def get_duplicate_rate():
+async def get_duplicate_rate(current_user: UserContext = Depends(require_admin)):
     """
     Get duplicate detection rate (cached for 5 minutes)
     
@@ -946,7 +950,7 @@ async def get_duplicate_rate():
 
 
 @router.get("/system-health", response_model=SystemHealthMetric)
-async def get_system_health():
+async def get_system_health(current_user: UserContext = Depends(require_admin)):
     """
     Get system health and performance metrics (cached for 30 seconds)
     
@@ -1012,7 +1016,7 @@ async def get_system_health():
             .select('confidence_score') \
             .execute()
         if confidence_response.data:
-            scores = [h['confidence_score'] for h in confidence_response.data if h.get('confidence_score')]
+            scores = [h['confidence_score'] for h in confidence_response.data if h.get('confidence_score') is not None]
             avg_confidence = sum(scores) / len(scores) if scores else 0.5
             avg_confidence_pct = avg_confidence * 100
             if avg_confidence_pct < 80:
@@ -1051,7 +1055,8 @@ async def get_system_health():
 
 @router.get("/service-health")
 async def get_service_health(
-    days: int = Query(30, ge=7, le=90, description="Number of days to retrieve (7-90)")
+    days: int = Query(30, ge=7, le=90, description="Number of days to retrieve (7-90)"),
+    current_user: UserContext = Depends(require_admin)
 ):
     """
     Return time-series service health metrics for the last `days` days.
@@ -1129,15 +1134,17 @@ async def get_service_health(
             error_count = metrics['errors']
             response_times = metrics['response_times']
 
-            uptime_percent = 100.0
-            if total > 0:
+            # If there were no telemetry rows for this day, surface unknowns instead of perfect metrics
+            if total == 0:
+                uptime_percent = None
+                avg_response_ms = None
+            else:
                 uptime_percent = max(0.0, 100.0 - (error_count / total * 100.0))
-
-            avg_response_ms = round(sum(response_times) / len(response_times), 2) if response_times else 0.0
+                avg_response_ms = round(sum(response_times) / len(response_times), 2) if response_times else None
 
             point = {
                 "date": date_str,
-                "uptime_percent": round(uptime_percent, 2),
+                "uptime_percent": round(uptime_percent, 2) if uptime_percent is not None else None,
                 "avg_response_ms": avg_response_ms
             }
 
