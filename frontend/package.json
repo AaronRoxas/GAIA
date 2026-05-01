@@ -13,6 +13,7 @@
     "@emnapi/runtime": "1.9.2"
   },
   "dependencies": {
+    "@date-fns/tz": "^1.4.1",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "@fortawesome/react-fontawesome": "^3.3.0",
@@ -43,7 +44,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "2.1.1",
     "date-fns": "^4.1.0",
-    "@date-fns/tz": "^1.4.1",
     "dompurify": "^3.3.3",
     "exif-js": "^2.3.0",
     "html2canvas": "^1.4.1",

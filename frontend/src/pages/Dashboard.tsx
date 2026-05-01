@@ -13,7 +13,7 @@
  * - Security: RBAC, input validation, confirmation dialogs
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
@@ -63,6 +63,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { HAZARD_ICON_REGISTRY } from '../constants/hazard-icons';
+import AnalyticsView from '../components/dashboard/AnalyticsView';
 
 // Chart data types (extends for recharts compatibility)
 type ChartData = Record<string, string | number | undefined>;
@@ -87,7 +88,7 @@ const HAZARD_COLORS: Record<string, string> = Object.entries(HAZARD_ICON_REGISTR
   {} as Record<string, string>
 );
 
-export default function Dashboard() {
+export function LegacyDashboard() {
   const { user, userProfile, loading: authLoading, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   
@@ -101,14 +102,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [trendDays, setTrendDays] = useState(30);
 
-  // Fetch all analytics data
-  useEffect(() => {
-    if (!authLoading && user) {
-      fetchAnalytics();
-    }
-  }, [authLoading, user, trendDays]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -132,7 +126,14 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [trendDays]);
+
+  // Fetch all analytics data
+  useEffect(() => {
+    if (!authLoading && user) {
+      void fetchAnalytics();
+    }
+  }, [authLoading, user, fetchAnalytics]);
 
   const handleLogout = async () => {
     try {
@@ -583,4 +584,8 @@ export default function Dashboard() {
       </main>
     </div>
   );
+}
+
+export default function Dashboard() {
+  return <AnalyticsView />;
 }

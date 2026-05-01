@@ -47,6 +47,9 @@ from backend.python.middleware.redis_cache import (
     CACHE_TTLS
 )
 
+# Import Config Manager for dynamic configuration
+from backend.python.lib.config_manager import ConfigManager
+
 logger = logging.getLogger(__name__)
 
 # Import Celery SMS task for notifications
@@ -746,6 +749,13 @@ async def update_system_config(
         
         updated_response = supabase.schema("gaia").from_("system_config").update(update_data).eq("config_key", config_key).execute()
         
+        # Invalidate config cache so running services pick up the change within 30 seconds
+        try:
+            await ConfigManager.invalidate_cache(config_key)
+            logger.info(f"Config cache invalidated for: {config_key}")
+        except Exception as e:
+            logger.error(f"Error invalidating config cache for {config_key}: {str(e)}")
+
         # Log configuration change activity
         await ActivityLogger.log_config_change(
             admin=current_user,
@@ -754,6 +764,24 @@ async def update_system_config(
             new_value=new_value,
             request=request
         )
+
+        # Log to audit_logs for AC-01 Audit Trail visibility.
+        try:
+            await log_admin_action(
+                user=current_user,
+                action="config_updated",
+                event_type="SYSTEM_CONFIG_UPDATED",
+                action_description=f"Updated system config '{config_key}' from '{old_value}' to '{new_value}'",
+                resource_type="system_config",
+                resource_id=config_key,
+                old_values={"config_key": config_key, "config_value": old_value},
+                new_values={"config_key": config_key, "config_value": new_value},
+                request=request,
+                severity="INFO",
+                status="success",
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log config update audit event: {log_error}")
         
         logger.info(f"Master Admin {current_user.email} updated config: {config_key} = {new_value} (was {old_value})")
         

@@ -23,50 +23,102 @@ const CHART_BAR_HEIGHTS = [120, 180, 150, 200, 170, 140, 190, 160, 130, 175, 155
 
 export const AnalyticsSkeleton: React.FC = () => {
   return (
-    <div className="space-y-6 p-6">
-      {/* Stat Cards Skeleton */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[...Array(4)].map((_, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-4 rounded-full" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-16 mb-2" />
-              <Skeleton className="h-3 w-32" />
-            </CardContent>
-          </Card>
-        ))}
+    <div className="space-y-6">
+      <Card className="border-muted/40 bg-gradient-to-br from-slate-50 via-white to-blue-50/40">
+        <CardContent className="pt-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-60 max-w-full" />
+              <Skeleton className="h-4 w-[34rem] max-w-full" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-24" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-44" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[...Array(4)].map((_, index) => (
+            <Card key={index}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-4 rounded-full" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-3 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
-      {/* Analytics Chart Skeleton */}
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-52" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {[...Array(6)].map((_, index) => (
+            <Card key={index}>
+              <CardHeader className="pb-3">
+                <Skeleton className="h-5 w-44 mb-1" />
+                <Skeleton className="h-3 w-36" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <Card className="border-muted/40">
+        <CardHeader>
+          <Skeleton className="h-6 w-40 mb-2" />
+          <Skeleton className="h-4 w-72 max-w-full" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, index) => (
+              <Card key={index} className="border-dashed bg-muted/20">
+                <CardContent className="pt-4 space-y-2">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-6 w-20" />
+                  <Skeleton className="h-2 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <Skeleton className="h-6 w-40 mb-2" />
           <Skeleton className="h-4 w-64" />
         </CardHeader>
         <CardContent>
-          {/* Tabs Skeleton */}
           <div className="mb-4">
-            <div className="flex space-x-2 border-b">
-              <Skeleton className="h-10 w-20" />
-              <Skeleton className="h-10 w-24" />
-              <Skeleton className="h-10 w-20" />
-              <Skeleton className="h-10 w-28" />
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              <Skeleton className="h-10 w-20 shrink-0" />
+              <Skeleton className="h-10 w-24 shrink-0" />
+              <Skeleton className="h-10 w-20 shrink-0" />
+              <Skeleton className="h-10 w-24 shrink-0" />
+              <Skeleton className="h-10 w-24 shrink-0" />
             </div>
           </div>
 
-          {/* Time Range Filter Skeleton */}
-          <div className="flex gap-2 mb-4">
-            <Skeleton className="h-10 w-20" />
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-24" />
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
           </div>
 
-          {/* Chart Area Skeleton */}
           <div className="space-y-4">
-            {/* Legend Skeleton */}
             <div className="flex gap-4 justify-center">
               {[...Array(3)].map((_, index) => (
                 <div key={index} className="flex items-center gap-2">
@@ -76,7 +128,6 @@ export const AnalyticsSkeleton: React.FC = () => {
               ))}
             </div>
 
-            {/* Chart Skeleton - Simulates line/bar chart */}
             <div className="h-[300px] flex items-end gap-2 px-4">
               {CHART_BAR_HEIGHTS.map((height, index) => (
                 <Skeleton
@@ -87,13 +138,28 @@ export const AnalyticsSkeleton: React.FC = () => {
               ))}
             </div>
 
-            {/* X-axis labels skeleton */}
             <div className="flex justify-between px-4">
               {[...Array(6)].map((_, index) => (
                 <Skeleton key={index} className="h-3 w-12" />
               ))}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-44" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[...Array(4)].map((_, index) => (
+            <Card key={index}>
+              <CardContent className="pt-4 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-full" />
+              </CardContent>
+            </Card>
+          ))}
         </CardContent>
       </Card>
     </div>

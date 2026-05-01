@@ -62,6 +62,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../ui/table';
+import { TableSkeleton } from '../../dashboard/AnalyticsSkeleton';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -359,7 +360,8 @@ export function RSSFeedManager() {
     isProcessing, 
     countdown, 
     toggle: toggleAutoProcessing,
-    processNow 
+    processNow,
+    isScheduleUpdating
   } = useRSSAutoProcess();
 
   // Dialog states
@@ -604,6 +606,7 @@ export function RSSFeedManager() {
               onClick={toggleAutoProcessing}
               title={isAutoProcessEnabled ? 'Pause auto-processing' : 'Resume auto-processing'}
               aria-label={isAutoProcessEnabled ? 'Pause auto-processing' : 'Resume auto-processing'}
+              disabled={!!isScheduleUpdating}
             >
               {isAutoProcessEnabled ? (
                 <Pause className="h-3.5 w-3.5 text-muted-foreground" />
@@ -625,7 +628,7 @@ export function RSSFeedManager() {
             variant="outline"
             size="sm"
             onClick={handleProcessAllFeeds}
-            disabled={isProcessing}
+            disabled={isProcessing || !!isScheduleUpdating}
           >
             {isProcessing ? (
               <>
@@ -668,8 +671,8 @@ export function RSSFeedManager() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Loading feeds...
+                <TableCell colSpan={columns.length} className="p-0">
+                  <TableSkeleton rows={8} columns={columns.length} />
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows?.length ? (

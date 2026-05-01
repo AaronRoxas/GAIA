@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { GeoJSON } from 'react-leaflet';
+import { Skeleton } from '../ui/skeleton';
 import { PathOptions, LatLngBoundsExpression } from 'leaflet';
 import L from 'leaflet';
 import { useBoundaryData } from '../../hooks/useBoundaryData';
@@ -125,8 +126,9 @@ export const BoundaryLayer: React.FC<BoundaryLayerProps> = ({
     <>
       {loading && (
         <div className="leaflet-control leaflet-top leaflet-right">
-          <div className="bg-white rounded px-3 py-2 shadow-md text-sm text-gray-600">
-            Loading boundary for {locationName}...
+          <div className="bg-white rounded px-3 py-2 shadow-md text-sm text-gray-600 space-y-2 min-w-[220px]">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-48 max-w-full" />
           </div>
         </div>
       )}

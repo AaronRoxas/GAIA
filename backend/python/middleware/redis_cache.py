@@ -31,6 +31,7 @@ import json
 import logging
 import os
 import zlib
+from uuid import uuid4
 from datetime import datetime
 from functools import wraps
 from typing import Optional, Any, Callable, Union, List
@@ -72,6 +73,61 @@ CACHE_TTLS = {
 
 _redis_pool: Optional[aioredis.ConnectionPool] = None
 _redis_client: Optional[aioredis.Redis] = None
+
+
+async def _try_acquire_lock(redis: aioredis.Redis, lock_key: str, lock_ttl: int = 10) -> Optional[str]:
+    token = uuid4().hex
+    acquired = await redis.set(lock_key, token, ex=lock_ttl, nx=True)
+    return token if acquired else None
+
+RELEASE_LOCK_SCRIPT = """
+if redis.call("GET", KEYS[1]) == ARGV[1] then
+    return redis.call("DEL", KEYS[1])
+else
+    return 0
+end
+"""
+
+async def _release_lock(redis: aioredis.Redis, lock_key: str, token: str) -> None:
+    await redis.eval(RELEASE_LOCK_SCRIPT, 1, lock_key, token)
+
+class CacheLockTimeoutError(Exception):
+    """Raised when waiting for cache lock times out."""
+    pass
+
+async def _get_or_set_with_lock(
+    key: str,
+    fetch_func: Callable,
+    ttl: int,
+    lock_ttl: int = 10,
+    should_cache: Optional[Callable[[Any], bool]] = None,
+) -> Any:
+    cached = await get_cached(key)
+    if cached is not None:
+        return cached
+
+    redis = await get_redis()
+    lock_key = f"{key}:lock"
+    lock_token = await _try_acquire_lock(redis, lock_key, lock_ttl=lock_ttl)
+
+    if lock_token is None:
+        # Another worker is already refreshing the same payload. Wait briefly
+        # and re-check the cache before falling back to a direct fetch.
+        for _ in range(10):
+            await asyncio.sleep(0.05)
+            cached = await get_cached(key)
+            if cached is not None:
+                return cached
+
+        raise CacheLockTimeoutError(f"Timeout waiting for cache lock: {key}")
+
+    try:
+        data = await fetch_func()
+        if should_cache is None or should_cache(data):
+            await set_cached(key, data, ttl)
+        return data
+    finally:
+        await _release_lock(redis, lock_key, lock_token)
 
 
 async def get_redis() -> aioredis.Redis:
@@ -412,18 +468,7 @@ async def get_or_set(
     Returns:
         Cached or freshly fetched data
     """
-    # Try cache first
-    cached = await get_cached(key)
-    if cached is not None:
-        return cached
-    
-    # Fetch fresh data
-    data = await fetch_func()
-    
-    # Cache for future requests
-    await set_cached(key, data, ttl)
-    
-    return data
+    return await _get_or_set_with_lock(key, fetch_func, ttl)
 
 
 async def refresh_cache(
@@ -433,38 +478,37 @@ async def refresh_cache(
 ) -> Any:
     """
     Force refresh cache with fresh data.
-    
+
     Args:
         key: Full cache key
         fetch_func: Async function to fetch fresh data
         ttl: Cache TTL
-        
+
     Returns:
-        Fresh data
+        Freshly fetched data
     """
-    data = await fetch_func()
-    await set_cached(key, data, ttl)
-    return data
+    try:
+        data = await fetch_func()
+        await set_cached(key, data, ttl)
+        return data
+        
+    except Exception as e:
+        logger.warning(f"Cache refresh error for {key}: {e}")
+        raise
 
-
-# =============================================================================
-# CACHE STATS
-# =============================================================================
 
 async def get_cache_stats() -> dict:
     """
-    Get cache statistics.
-    
+    Get Redis cache health and usage statistics.
+
     Returns:
-        dict: Cache statistics including memory, keys, hit rate
+        dict: Cache backend, health, memory usage, and key counts
     """
     try:
         redis = await get_redis()
-        
-        # Get memory info
+
         info = await redis.info("memory")
-        
-        # Count cache keys
+
         cursor = 0
         key_count = 0
         while True:
@@ -482,15 +526,15 @@ async def get_cache_stats() -> dict:
             "prefix": f"{CACHE_PREFIX}:",
             "default_ttl": DEFAULT_TTL,
             "compression_threshold": COMPRESSION_THRESHOLD,
-            "checked_at": datetime.utcnow().isoformat()
+            "checked_at": datetime.utcnow().isoformat(),
         }
-        
+
     except Exception as e:
         return {
             "backend": "redis",
             "status": "error",
             "error": str(e),
-            "checked_at": datetime.utcnow().isoformat()
+            "checked_at": datetime.utcnow().isoformat(),
         }
 
 

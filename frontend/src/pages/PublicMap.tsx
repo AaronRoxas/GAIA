@@ -1329,19 +1329,20 @@ const PublicMap: React.FC = () => {
               aria-live="polite"
               aria-busy="true"
             >
-              <Card className="p-6 sm:p-8 shadow-xl border border-gray-200">
-                <div className="flex flex-col items-center justify-center space-y-4">
-                  <div 
-                    className="animate-spin rounded-full h-12 w-12 sm:h-14 sm:w-14 border-4 border-gray-200 border-t-[#0a2a4d]" 
-                    aria-hidden="true"
-                  />
-                  <div className="text-center">
-                    <p className="text-gray-800 font-medium text-base sm:text-lg">Loading hazard data...</p>
-                    <p className="text-gray-500 text-sm mt-1">This may take a moment</p>
+              <div className="w-full max-w-6xl p-6 sm:p-8">
+                <span className="sr-only">Loading hazard map data, please wait...</span>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="h-72 bg-gray-100 rounded-md animate-pulse border border-gray-200" />
+                  <div className="space-y-4">
+                    <div className="h-6 bg-gray-200 rounded w-40 animate-pulse" />
+                    <div className="space-y-3">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="p-3 rounded-lg bg-gray-100 animate-pulse border border-gray-200" />
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </Card>
-            </div>
+              </div>            </div>
           )}
           
           <MapContainer

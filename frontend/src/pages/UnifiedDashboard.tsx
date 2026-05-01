@@ -46,10 +46,12 @@ import {
   KeyRound,
   // Home,
   Rss,
+  HeartPulse,
 } from 'lucide-react';
 
 // Import tab content components
 import AnalyticsView from '../components/dashboard/AnalyticsView';
+import StatusAnalyticsView from '../components/dashboard/StatusAnalyticsView';
 import UserManagement from '../components/admin/UserManagement';
 import AuditLogViewer from '../components/admin/AuditLogViewer';
 import SystemConfig from '../components/admin/SystemConfig';
@@ -58,6 +60,7 @@ import ActivityMonitor from '../components/admin/ActivityMonitor';
 import RSSFeedsView from '../components/admin/RSSFeedsView';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import AdminOnboarding from '../components/admin/AdminOnboarding';
+import DashboardShellSkeleton from '../components/dashboard/DashboardShellSkeleton';
 
 // Navigation items type
 type NavItem = {
@@ -78,6 +81,11 @@ const navigationItems: NavItem[] = [
     title: 'Analytics',
     icon: BarChart3,
     view: 'analytics',
+  },
+  {
+    title: 'Service Health',
+    icon: HeartPulse,
+    view: 'service_status',
   },
   {
     title: 'Live Map',
@@ -223,6 +231,12 @@ export default function UnifiedDashboard() {
             <RSSFeedsView />
           </ErrorBoundary>
         );
+      case 'service_status':
+        return (
+          <ErrorBoundary>
+            <StatusAnalyticsView />
+          </ErrorBoundary>
+        );
       default:
         return (
           <ErrorBoundary>
@@ -233,17 +247,7 @@ export default function UnifiedDashboard() {
   };
 
   if (authLoading) {
-    return (
-      <div 
-        className="flex items-center justify-center h-screen"
-        role="status"
-        aria-live="polite"
-        aria-busy="true"
-      >
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" aria-hidden="true"></div>
-        <span className="sr-only">Loading dashboard...</span>
-      </div>
-    );
+    return <DashboardShellSkeleton />;
   }
 
   return (
@@ -319,10 +323,10 @@ export default function UnifiedDashboard() {
 
         {/* Main Content */}
         <SidebarInset className="flex-1 min-w-0 overflow-auto">
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4" data-tour="admin-header">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-3 sm:px-4 md:px-6" data-tour="admin-header">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <h1 className="text-lg font-semibold">
+            <h1 className="text-sm sm:text-base md:text-lg font-semibold truncate">
               {navigationItems.find(item => item.view === activeView)?.title || 'Dashboard'}
             </h1>
             {/* Notifications Dropdown */}

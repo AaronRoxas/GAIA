@@ -41,6 +41,8 @@ import {
 import { Button } from '../../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Badge } from '../../ui/badge';
+import { Skeleton } from '../../ui/skeleton';
+import { StatCardSkeleton } from '../../dashboard/AnalyticsSkeleton';
 import { Switch } from '../../ui/switch';
 import { Label } from '../../ui/label';
 import {
@@ -230,12 +232,30 @@ export function RSSStatistics() {
 
   if (isLoading || !stats) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground mt-2">
-            Loading statistics...
-          </p>
+      <div className="w-full space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-48" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64 w-full" />
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

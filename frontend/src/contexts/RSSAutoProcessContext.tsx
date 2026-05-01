@@ -19,14 +19,16 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { supabase } from '../lib/supabase';
 import { rssQueryKeys } from '../hooks/useRSS';
+import { useRssSchedule } from '../hooks/useRssSchedule';
 
 // Configuration
 const AUTO_PROCESS_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const COUNTDOWN_UPDATE_INTERVAL_MS = 1000; // 1 second
 
-const API_URL = process.env.REACT_APP_API_URL || '';
-const RSS_API_BASE = `${API_URL}/api/v1/admin/rss`;
+// Use relative API paths to avoid editor TS issues with `process` in the frontend context
+const RSS_API_BASE = `/api/v1/admin/rss`;
 
 interface RSSAutoProcessContextValue {
   isEnabled: boolean;
@@ -35,6 +37,7 @@ interface RSSAutoProcessContextValue {
   nextRunTime: Date | null;
   toggle: () => void;
   processNow: () => Promise<void>;
+  isScheduleUpdating?: boolean;
 }
 
 const RSSAutoProcessContext = createContext<RSSAutoProcessContextValue | null>(null);
@@ -47,11 +50,13 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
   const [isProcessing, setIsProcessing] = useState(false);
   const [nextRunTime, setNextRunTime] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState<string>('');
+  const { schedule, setSchedule, isUpdating } = useRssSchedule();
   
   // Refs for intervals
-  const autoProcessIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const autoProcessIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isProcessingRef = useRef(false);
+  const nextRunTimeRef = useRef<Date | null>(null);
 
   /**
    * Format remaining time as MM:SS or HH:MM:SS
@@ -83,10 +88,17 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     setIsProcessing(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error('No active session. Please log in again.');
+      }
+
       const response = await fetch(`${RSS_API_BASE}/process`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
         },
         credentials: 'include',
         body: JSON.stringify({}),
@@ -121,26 +133,36 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
    */
   const scheduleNextRun = useCallback(() => {
     const next = new Date(Date.now() + AUTO_PROCESS_INTERVAL_MS);
+    nextRunTimeRef.current = next;
     setNextRunTime(next);
+    // Persist next run to backend so Celery and other clients can sync
+    // Use debounced setter from useRssSchedule to avoid duplicate POSTs
+    try {
+      setSchedule(next.toISOString());
+    } catch (e) {
+      // swallow errors silently; server persistence is best-effort
+    }
     return next;
-  }, []);
+  }, [setSchedule]);
 
   /**
    * Update countdown display
    */
   const updateCountdown = useCallback(() => {
-    if (!nextRunTime) {
+    const currentNextRunTime = nextRunTimeRef.current;
+
+    if (!currentNextRunTime) {
       setCountdown('');
       return;
     }
     
-    const remaining = nextRunTime.getTime() - Date.now();
+    const remaining = currentNextRunTime.getTime() - Date.now();
     if (remaining <= 0) {
       setCountdown('Processing...');
     } else {
       setCountdown(formatCountdown(remaining));
     }
-  }, [nextRunTime, formatCountdown]);
+  }, [formatCountdown]);
 
   /**
    * Start auto-processing interval
@@ -177,17 +199,34 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
    */
   const stopAutoProcessing = useCallback(() => {
     if (autoProcessIntervalRef.current) {
-      clearInterval(autoProcessIntervalRef.current);
+      window.clearInterval(autoProcessIntervalRef.current);
       autoProcessIntervalRef.current = null;
     }
     if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
+      window.clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
     }
+    nextRunTimeRef.current = null;
     setNextRunTime(null);
     setCountdown('');
-  }, []);
+    // Clear persisted schedule on server (debounced)
+    try {
+      setSchedule(null);
+    } catch (e) {
+      // swallow - non-fatal
+    }
+  }, [setSchedule]);
 
+  // Align frontend timer with backend schedule when schedule is loaded/refetched
+  useEffect(() => {
+    if (schedule && typeof schedule === 'string') {
+      const next = new Date(schedule);
+      if (!isNaN(next.getTime())) {
+        nextRunTimeRef.current = next;
+        setNextRunTime(next);
+      }
+    }
+  }, [schedule]);
   /**
    * Toggle auto-processing on/off
    */
@@ -223,13 +262,13 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     // Cleanup on unmount
     return () => {
       if (autoProcessIntervalRef.current) {
-        clearInterval(autoProcessIntervalRef.current);
+        window.clearInterval(autoProcessIntervalRef.current);
       }
       if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
+        window.clearInterval(countdownIntervalRef.current);
       }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isEnabled, startAutoProcessing]);
 
   // Update countdown when nextRunTime changes
   useEffect(() => {
@@ -243,6 +282,7 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     nextRunTime,
     toggle,
     processNow,
+    isScheduleUpdating: isUpdating,
   };
 
   return (

@@ -74,7 +74,7 @@ export const MapOnboarding: React.FC<MapOnboardingProps> = ({
   const [active, setActive] = useState(false);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const rafRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
 
   const currentStep = steps[index];
 

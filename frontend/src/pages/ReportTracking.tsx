@@ -15,6 +15,65 @@ import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { HazardIcon, getHazardIcon } from '../constants/hazard-icons';
 import { API_BASE_URL } from '../lib/api';
+import { Skeleton } from '../components/ui/skeleton';
+
+/**
+ * ReportTrackingDetailsSkeleton - Mimics the report details card while loading
+ */
+const ReportTrackingDetailsSkeleton = () => (
+  <Card className="p-8 shadow-xl">
+    {/* Status Badge */}
+    <div className="flex flex-col sm:flex-row sm:justify-between items-start gap-3 mb-6">
+      <Skeleton className="h-10 w-40 rounded-md" />
+      <div className="text-left sm:text-right space-y-1">
+        <Skeleton className="h-3 w-20 rounded-md" />
+        <Skeleton className="h-5 w-32 rounded-md" />
+      </div>
+    </div>
+
+    {/* Report Details Grid */}
+    <div className="grid md:grid-cols-2 gap-6 mb-6">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="flex items-start gap-3">
+          <Skeleton className="h-10 w-10 rounded-lg flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-3 w-24 rounded-md" />
+            <Skeleton className="h-5 w-32 rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Description */}
+    <div className="mb-6 space-y-2">
+      <Skeleton className="h-6 w-32 rounded-md" />
+      <Skeleton className="h-20 w-full rounded-md" />
+    </div>
+
+    {/* Verified Date */}
+    <Skeleton className="h-16 w-full rounded-md mb-6" />
+
+    {/* Action Buttons */}
+    <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
+      <Skeleton className="flex-1 h-12 rounded-md" />
+      <Skeleton className="flex-1 h-12 rounded-md" />
+    </div>
+  </Card>
+);
+
+/**
+ * ReportTrackingHelpSkeleton - Mimics the help section while loading
+ */
+const ReportTrackingHelpSkeleton = () => (
+  <Card className="p-6 bg-blue-50 border-2 border-blue-200">
+    <Skeleton className="h-6 w-32 mb-3 rounded-md" />
+    <div className="space-y-3">
+      {[1, 2, 3].map(i => (
+        <Skeleton key={i} className="h-4 w-full rounded-md" />
+      ))}
+    </div>
+  </Card>
+);
 
 interface ReportStatus {
   tracking_id: string;
@@ -202,8 +261,9 @@ export function ReportTracking() {
           </form>
         </Card>
 
-        {/* Report Details */}
-        {report && (
+        {/* Report Details - Show skeleton while fetching, then actual report */}
+        {isFetching && submittedTrackingId && <ReportTrackingDetailsSkeleton />}
+        {!isFetching && report && (
           <Card className="p-8 shadow-xl animate-fade-in">
             {/* Status Badge */}
             <div className="flex flex-col sm:flex-row sm:justify-between items-start gap-3 mb-6">
@@ -310,7 +370,8 @@ export function ReportTracking() {
         )}
 
         {/* Help Section */}
-        {!report && !isFetching && (
+        {submittedTrackingId && isFetching && <ReportTrackingHelpSkeleton />}
+        {!report && !isFetching && !submittedTrackingId && (
           <Card className="p-6 bg-blue-50 border-2 border-blue-200">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-blue-600" />

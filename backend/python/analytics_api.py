@@ -3,6 +3,7 @@ Analytics API for GAIA Dashboard
 Provides real-time analytics, statistics, and trends for hazard data.
 
 Supports: CD-01 (Dashboard Analytics), AAM-01 (Trend Analysis), AAM-02 (KPI Dashboard)
+New AI/ML Metrics: Confidence by Type, False Positive Rate, Source Accuracy, Processing Rate, Duplicates, System Health
 """
 
 import os
@@ -104,6 +105,70 @@ class RecentAlert(BaseModel):
     confidence_score: float
     detected_at: str
     status: str
+
+
+# ============================================================================
+# AI/ML Quality Metrics Models (New)
+# ============================================================================
+
+class ConfidenceByTypeMetric(BaseModel):
+    """Average confidence score by hazard type"""
+    hazard_type: str
+    avg_confidence: float
+    count: int
+    min_confidence: float
+    max_confidence: float
+
+
+class FalsePositiveRateMetric(BaseModel):
+    """False positive rate calculation"""
+    fpr_percentage: float
+    rejected_count: int
+    total_verified: int
+    total_rejected: int
+    trend: str  # "up", "down", "stable"
+    previous_period_fpr: Optional[float]
+
+
+class SourceAccuracyMetric(BaseModel):
+    """Accuracy comparison between RSS and citizen reports"""
+    rss_verified_count: int
+    rss_rejected_count: int
+    rss_accuracy_percentage: float
+    citizen_verified_count: int
+    citizen_rejected_count: int
+    citizen_accuracy_percentage: float
+    overall_accuracy_percentage: float
+
+
+class ProcessingRateMetric(BaseModel):
+    """Hazard processing rate metrics"""
+    hourly_average: float
+    daily_average: float
+    last_24h_total: int
+    last_hour_count: int
+    trend: str
+    highest_hour: Optional[str]
+    highest_hour_count: int
+
+
+class DuplicateDetectionMetric(BaseModel):
+    """Duplicate detection effectiveness"""
+    duplicate_percentage: float
+    duplicate_count: int
+    total_hazards: int
+    duplicate_detection_enabled: bool
+    trend: str
+
+
+class SystemHealthMetric(BaseModel):
+    """System performance and health metrics"""
+    health_score: int  # 0-100
+    status: str  # "healthy", "warning", "critical"
+    avg_response_time_ms: float
+    error_rate_percentage: float
+    uptime_percentage: float
+    metrics_timestamp: str
 
 
 # ============================================================================
@@ -484,3 +549,584 @@ async def get_recent_alerts(
     except Exception as e:
         logger.error(f"Error fetching recent alerts: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch recent alerts: {str(e)}")
+
+
+# ============================================================================
+# AI/ML Quality Metrics Endpoints (New - AAM-03, AAM-04, AAM-05, AAM-06)
+# ============================================================================
+
+@router.get("/confidence-by-type", response_model=List[ConfidenceByTypeMetric])
+async def get_confidence_by_type():
+    """
+    Get average confidence score by hazard type (cached for 3 minutes)
+    
+    AI/ML Quality Metric: Shows which hazard types have better model confidence
+    Supports: AAM-03 (AI/ML Confidence Analysis)
+    """
+    cache_key = generate_cache_key("analytics:confidence-by-type")
+    
+    async def fetch_confidence_by_type():
+        response = supabase.schema("gaia").from_('hazards') \
+            .select('hazard_type, confidence_score') \
+            .execute()
+        
+        if not response.data:
+            return []
+        
+        type_stats: Dict[str, Dict] = {}
+        for item in response.data:
+            hazard_type = item.get('hazard_type', 'unknown')
+            confidence = item.get('confidence_score', 0.0)
+            
+            if hazard_type not in type_stats:
+                type_stats[hazard_type] = {
+                    'scores': [],
+                    'count': 0
+                }
+            
+            type_stats[hazard_type]['scores'].append(confidence)
+            type_stats[hazard_type]['count'] += 1
+        
+        result = []
+        for hazard_type, stats in type_stats.items():
+            scores = stats['scores']
+            avg_confidence = sum(scores) / len(scores) if scores else 0.0
+            min_confidence = min(scores) if scores else 0.0
+            max_confidence = max(scores) if scores else 0.0
+            
+            result.append({
+                'hazard_type': hazard_type,
+                'avg_confidence': round(avg_confidence, 3),
+                'count': stats['count'],
+                'min_confidence': round(min_confidence, 3),
+                'max_confidence': round(max_confidence, 3)
+            })
+        
+        # Sort by avg_confidence descending
+        result.sort(key=lambda x: x['avg_confidence'], reverse=True)
+        return result
+    
+    try:
+        data = await get_or_set(cache_key, fetch_confidence_by_type, ttl=CACHE_TTLS.get("analytics:confidence-by-type", 180))
+        return [ConfidenceByTypeMetric(**item) for item in data]
+        
+    except Exception as e:
+        logger.error(f"Error fetching confidence by type: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch confidence metrics by type: {str(e)}")
+
+
+@router.get("/false-positive-rate", response_model=FalsePositiveRateMetric)
+async def get_false_positive_rate():
+    """
+    Get false positive rate from citizen reports (cached for 5 minutes)
+    
+    AI/ML Quality Metric: Measures validation quality - ratio of rejected to verified reports
+    Lower FPR indicates better model reliability
+    Supports: AAM-04 (False Positive Analysis)
+    """
+    cache_key = generate_cache_key("analytics:false-positive-rate")
+    
+    async def fetch_fpr():
+        # Get rejected citizen reports
+        rejected_response = supabase.schema("gaia").from_('citizen_reports') \
+            .select('id', count='exact') \
+            .eq('status', 'rejected') \
+            .execute()
+        rejected_count = rejected_response.count or 0
+        
+        # Get verified citizen reports
+        verified_response = supabase.schema("gaia").from_('citizen_reports') \
+            .select('id', count='exact') \
+            .eq('status', 'verified') \
+            .execute()
+        verified_count = verified_response.count or 0
+        
+        # Total verified and rejected
+        total_verified = verified_count + rejected_count
+        
+        # FPR = rejected / total
+        fpr_percentage = (rejected_count / total_verified * 100) if total_verified > 0 else 0.0
+        
+        # Calculate trend by comparing to previous 7 days
+        now = datetime.now()
+        prev_start = now - timedelta(days=14)
+        prev_end = now - timedelta(days=7)
+        
+        prev_rejected = supabase.schema("gaia").from_('citizen_reports') \
+            .select('id', count='exact') \
+            .eq('status', 'rejected') \
+            .gte('submitted_at', prev_start.isoformat()) \
+            .lte('submitted_at', prev_end.isoformat()) \
+            .execute()
+        prev_rejected_count = prev_rejected.count or 0
+        
+        prev_verified = supabase.schema("gaia").from_('citizen_reports') \
+            .select('id', count='exact') \
+            .eq('status', 'verified') \
+            .gte('submitted_at', prev_start.isoformat()) \
+            .lte('submitted_at', prev_end.isoformat()) \
+            .execute()
+        prev_verified_count = prev_verified.count or 0
+        
+        prev_total = prev_verified_count + prev_rejected_count
+        previous_fpr = (prev_rejected_count / prev_total * 100) if prev_total > 0 else None
+        
+        # Determine trend
+        if previous_fpr is None:
+            trend = "stable"
+        elif fpr_percentage < previous_fpr:
+            trend = "down"  # Lower FPR is better
+        elif fpr_percentage > previous_fpr:
+            trend = "up"
+        else:
+            trend = "stable"
+        
+        return {
+            'fpr_percentage': round(fpr_percentage, 2),
+            'rejected_count': rejected_count,
+            'total_verified': verified_count,
+            'total_rejected': rejected_count,
+            'trend': trend,
+            'previous_period_fpr': round(previous_fpr, 2) if previous_fpr is not None else None
+        }
+    
+    try:
+        data = await get_or_set(cache_key, fetch_fpr, ttl=CACHE_TTLS.get("analytics:false-positive-rate", 300))
+        return FalsePositiveRateMetric(**data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching false positive rate: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch false positive rate: {str(e)}")
+
+
+@router.get("/source-accuracy", response_model=SourceAccuracyMetric)
+async def get_source_accuracy():
+    """
+    Compare accuracy between RSS feeds and citizen reports (cached for 5 minutes)
+    
+    AI/ML Quality Metric: Shows which source type has better reliability
+    Supports: AAM-05 (Source Reliability Analysis)
+    """
+    cache_key = generate_cache_key("analytics:source-accuracy")
+    
+    async def fetch_source_accuracy():
+        # Get citizen data from citizen_reports 
+        citizen_verified = supabase.schema("gaia").from_('citizen_reports') \
+            .select('id', count='exact') \
+            .eq('status', 'verified') \
+            .execute()
+        citizen_verified_count = citizen_verified.count or 0
+        
+        citizen_rejected = supabase.schema("gaia").from_('citizen_reports') \
+            .select('id', count='exact') \
+            .eq('status', 'rejected') \
+            .execute()
+        citizen_rejected_count = citizen_rejected.count or 0
+
+        citizen_unverified = supabase.schema("gaia").from_('citizen_reports') \
+            .select('id', count='exact') \
+            .eq('status', 'unverified') \
+            .execute()
+        citizen_unverified_count = citizen_unverified.count or 0
+
+        citizen_total = citizen_verified_count + citizen_rejected_count + citizen_unverified_count
+        citizen_accuracy = (citizen_verified_count / citizen_total * 100) if citizen_total > 0 else 0.0
+
+        # Get RSS data from hazards (RSS reports)
+        rss_verified = supabase.schema("gaia").from_('hazards') \
+            .select('id', count='exact') \
+            .eq('validated', 'true') \
+            .execute()
+        rss_verified_count = rss_verified.count or 0
+        
+        rss_rejected = supabase.schema("gaia").from_('hazards') \
+            .select('id', count='exact') \
+            .eq('validated', 'false') \
+            .execute()
+        rss_rejected_count = rss_rejected.count or 0
+
+        rss_total = rss_verified_count + rss_rejected_count
+        rss_accuracy = (rss_verified_count / rss_total * 100) if rss_total > 0 else 0.0
+        
+        # Overall accuracy
+        overall_verified = rss_verified_count + citizen_verified_count
+        overall_total = rss_total + citizen_total
+        overall_accuracy = (overall_verified / overall_total * 100) if overall_total > 0 else 0.0
+        
+        return {
+            'rss_verified_count': rss_verified_count,
+            'rss_rejected_count': rss_rejected_count,
+            'rss_accuracy_percentage': round(rss_accuracy, 2),
+            'citizen_verified_count': citizen_verified_count,
+            'citizen_rejected_count': citizen_rejected_count,
+            'citizen_accuracy_percentage': round(citizen_accuracy, 2),
+            'overall_accuracy_percentage': round(overall_accuracy, 2)
+        }
+    
+    try:
+        data = await get_or_set(cache_key, fetch_source_accuracy, ttl=CACHE_TTLS.get("analytics:source-accuracy", 300))
+        return SourceAccuracyMetric(**data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching source accuracy: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch source accuracy metrics: {str(e)}")
+
+
+@router.get("/processing-rate", response_model=ProcessingRateMetric)
+async def get_processing_rate():
+    """
+    Get hazard processing/detection rate (cached for 1 minute)
+    
+    Performance Metric: Shows system throughput - hazards detected per hour
+    Supports: AAM-06 (Processing Rate Analysis)
+    """
+    cache_key = generate_cache_key("analytics:processing-rate")
+    
+    async def fetch_processing_rate():
+        now = datetime.now()
+        last_24h = now - timedelta(hours=24)
+        last_hour = now - timedelta(hours=1)
+        
+        # Get last 24h data
+        last_24h_response = supabase.schema("gaia").from_('hazards') \
+            .select('detected_at') \
+            .gte('detected_at', last_24h.isoformat()) \
+            .execute()
+        last_24h_count = len(last_24h_response.data or [])
+        
+        # Get last hour data
+        last_hour_response = supabase.schema("gaia").from_('hazards') \
+            .select('detected_at') \
+            .gte('detected_at', last_hour.isoformat()) \
+            .execute()
+        last_hour_count = len(last_hour_response.data or [])
+        
+        # Calculate hourly and daily averages
+        hourly_average = last_24h_count / 24.0
+        daily_average = last_24h_count / 1.0  # Already in 24h window
+        
+        # Find highest hour
+        hourly_counts: Dict[str, int] = {}
+        if last_24h_response.data:
+            for item in last_24h_response.data:
+                detected_at = item.get('detected_at', '')
+                if detected_at:
+                    try:
+                        hour_key = datetime.fromisoformat(detected_at.replace('Z', '+00:00')).strftime('%Y-%m-%d %H:00')
+                        hourly_counts[hour_key] = hourly_counts.get(hour_key, 0) + 1
+                    except:
+                        pass
+        
+        highest_hour = max(hourly_counts.items(), key=lambda x: x[1]) if hourly_counts else (None, 0)
+        
+        # Determine trend (compare to previous 24h)
+        prev_24h_start = last_24h - timedelta(hours=24)
+        prev_24h_response = supabase.schema("gaia").from_('hazards') \
+            .select('id', count='exact') \
+            .gte('detected_at', prev_24h_start.isoformat()) \
+            .lt('detected_at', last_24h.isoformat()) \
+            .execute()
+        prev_24h_count = prev_24h_response.count or 0
+        
+        trend = "stable"
+        if last_24h_count > prev_24h_count:
+            trend = "up"
+        elif last_24h_count < prev_24h_count:
+            trend = "down"
+        
+        return {
+            'hourly_average': round(hourly_average, 2),
+            'daily_average': round(daily_average, 2),
+            'last_24h_total': last_24h_count,
+            'last_hour_count': last_hour_count,
+            'trend': trend,
+            'highest_hour': highest_hour[0],
+            'highest_hour_count': highest_hour[1]
+        }
+    
+    try:
+        data = await get_or_set(cache_key, fetch_processing_rate, ttl=CACHE_TTLS.get("analytics:processing-rate", 60))
+        return ProcessingRateMetric(**data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching processing rate: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch processing rate: {str(e)}")
+
+
+@router.get("/duplicate-rate", response_model=DuplicateDetectionMetric)
+async def get_duplicate_rate():
+    """
+    Get duplicate detection rate (cached for 5 minutes)
+    
+    Data Quality Metric: Shows effectiveness of duplicate detection
+    Supports: AAM-07 (Duplicate Detection Analysis)
+    """
+    cache_key = generate_cache_key("analytics:duplicate-rate")
+    
+    async def fetch_duplicate_rate():
+        # Get total hazards
+        total_response = supabase.schema("gaia").from_('hazards') \
+            .select('id', count='exact') \
+            .execute()
+        total_count = total_response.count or 0
+        
+        # Get duplicates (is_duplicate = true)
+        duplicate_response = supabase.schema("gaia").from_('hazards') \
+            .select('id', count='exact') \
+            .eq('is_duplicate', True) \
+            .execute()
+        duplicate_count = duplicate_response.count or 0
+        
+        duplicate_percentage = (duplicate_count / total_count * 100) if total_count > 0 else 0.0
+        
+        # Calculate trend
+        now = datetime.now()
+        prev_start = now - timedelta(days=14)
+        prev_end = now - timedelta(days=7)
+        
+        prev_total = supabase.schema("gaia").from_('hazards') \
+            .select('id', count='exact') \
+            .gte('detected_at', prev_start.isoformat()) \
+            .lte('detected_at', prev_end.isoformat()) \
+            .execute()
+        prev_total_count = prev_total.count or 0
+        
+        prev_duplicate = supabase.schema("gaia").from_('hazards') \
+            .select('id', count='exact') \
+            .eq('is_duplicate', True) \
+            .gte('detected_at', prev_start.isoformat()) \
+            .lte('detected_at', prev_end.isoformat()) \
+            .execute()
+        prev_duplicate_count = prev_duplicate.count or 0
+        
+        prev_percentage = (prev_duplicate_count / prev_total_count * 100) if prev_total_count > 0 else 0.0
+        
+        trend = "stable"
+        if duplicate_percentage > prev_percentage:
+            trend = "up"
+        elif duplicate_percentage < prev_percentage:
+            trend = "down"
+        
+        return {
+            'duplicate_percentage': round(duplicate_percentage, 2),
+            'duplicate_count': duplicate_count,
+            'total_hazards': total_count,
+            'duplicate_detection_enabled': True,
+            'trend': trend
+        }
+    
+    try:
+        data = await get_or_set(cache_key, fetch_duplicate_rate, ttl=CACHE_TTLS.get("analytics:duplicate-rate", 300))
+        return DuplicateDetectionMetric(**data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching duplicate rate: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch duplicate detection rate: {str(e)}")
+
+
+@router.get("/system-health", response_model=SystemHealthMetric)
+async def get_system_health():
+    """
+    Get system health and performance metrics (cached for 30 seconds)
+    
+    System Health Metric: Overall system status including response time and reliability
+    Supports: AAM-08 (System Health Monitoring)
+    """
+    cache_key = generate_cache_key("analytics:system-health")
+    
+    async def fetch_system_health():
+        # Get error count from audit logs (last 24h)
+        now = datetime.now()
+        last_24h = now - timedelta(hours=24)
+        
+        error_response = supabase.schema("gaia").from_('audit_logs') \
+            .select('id', count='exact') \
+            .gte('created_at', last_24h.isoformat()) \
+            .eq('user_role', 'system')   \
+            .eq('severity', 'CRITICAL') \
+            .execute()
+        error_count = error_response.count or 0
+        
+        # Get total requests (audit logs with user_role='system' in last 24h)
+        total_response = supabase.schema("gaia").from_('audit_logs') \
+            .select('id', count='exact') \
+            .gte('created_at', last_24h.isoformat()) \
+            .eq('user_role', 'system') \
+            .execute()
+        total_count = total_response.count or 1  # Avoid division by zero
+        
+        error_rate = (error_count / total_count * 100) if total_count > 0 else 0.0
+        
+        # Calculate health score (0-100)
+        # Base score: 100
+        # Deduct for error rate: -1 per 1% error (capped at -30)
+        # Deduct for high duplicate rate: -1 per 1% above 5% (capped at -20)
+        # Deduct for low confidence: -1 per 1% below 80% (capped at -20)
+        
+        health_score = 100
+        
+        # Penalize error rate
+        error_penalty = min(error_rate, 30)
+        health_score -= error_penalty
+        
+        # Get duplicate rate penalty
+        duplicate_response = supabase.schema("gaia").from_('hazards') \
+            .select('id', count='exact') \
+            .eq('is_duplicate', True) \
+            .execute()
+        duplicate_count = duplicate_response.count or 0
+        
+        total_hazards_response = supabase.schema("gaia").from_('hazards') \
+            .select('id', count='exact') \
+            .execute()
+        total_hazards = total_hazards_response.count or 1
+        
+        duplicate_rate = (duplicate_count / total_hazards * 100) if total_hazards > 0 else 0.0
+        if duplicate_rate > 5:
+            dup_penalty = min((duplicate_rate - 5) * 2, 20)
+            health_score -= dup_penalty
+        
+        # Get confidence score penalty
+        confidence_response = supabase.schema("gaia").from_('hazards') \
+            .select('confidence_score') \
+            .execute()
+        if confidence_response.data:
+            scores = [h['confidence_score'] for h in confidence_response.data if h.get('confidence_score')]
+            avg_confidence = sum(scores) / len(scores) if scores else 0.5
+            avg_confidence_pct = avg_confidence * 100
+            if avg_confidence_pct < 80:
+                conf_penalty = min((80 - avg_confidence_pct) * 0.25, 20)
+                health_score -= conf_penalty
+        
+        health_score = max(0, min(100, health_score))  # Clamp 0-100
+        
+        # Determine status
+        if health_score >= 90:
+            status = "healthy"
+        elif health_score >= 70:
+            status = "warning"
+        else:
+            status = "critical"
+        
+        return {
+            'health_score': int(health_score),
+            'status': status,
+            'avg_response_time_ms': 45.0,  # Placeholder - would need request timing instrumentation
+            'error_rate_percentage': round(error_rate, 2),
+            'uptime_percentage': 99.9,  # Placeholder - would need monitoring service
+            'metrics_timestamp': now.isoformat()
+        }
+    
+    try:
+        data = await get_or_set(cache_key, fetch_system_health, ttl=CACHE_TTLS.get("analytics:system-health", 30))
+        return SystemHealthMetric(**data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching system health: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch system health metrics: {str(e)}")
+
+
+
+@router.get("/service-health")
+async def get_service_health(
+    days: int = Query(30, ge=7, le=90, description="Number of days to retrieve (7-90)")
+):
+    """
+    Return time-series service health metrics for the last `days` days.
+
+    Response shape:
+    {
+      "uptime": [{"date": "YYYY-MM-DD", "uptime_percent": 99.9, "avg_response_ms": 45.0}, ...],
+      "response_time": [{"date": "YYYY-MM-DD", "uptime_percent": 99.9, "avg_response_ms": 45.0}, ...]
+    }
+    Cached for 30 seconds.
+    """
+    cache_key = generate_cache_key("analytics:service-health", days=days)
+
+    async def fetch_service_health():
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days - 1)
+        start_date_normalized = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        def extract_response_time_ms(metadata: Any) -> Optional[float]:
+            if not isinstance(metadata, dict):
+                return None
+
+            for key in (
+                "response_time_ms",
+                "avg_response_time_ms",
+                "duration_ms",
+                "responseTimeMs",
+            ):
+                value = metadata.get(key)
+                if value is None:
+                    continue
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    continue
+            return None
+
+        # Fetch all data in a single query
+        resp = supabase.schema('gaia').from_('audit_logs') \
+            .select('created_at, severity, status, metadata') \
+            .gte('created_at', start_date_normalized.isoformat()) \
+            .lt('created_at', end_date.isoformat()) \
+            .eq('user_role', 'system') \
+            .execute()
+        rows = resp.data or []
+
+        # Group by date in Python
+        daily_data: Dict[str, Dict] = {}
+        for i in range(days):
+            date_str = (start_date_normalized + timedelta(days=i)).strftime("%Y-%m-%d")
+            daily_data[date_str] = {'total': 0, 'errors': 0, 'response_times': []}
+
+        for r in rows:
+            created = r.get('created_at', '')
+            if created:
+                date_str = created[:10]  # Extract YYYY-MM-DD
+                if date_str in daily_data:
+                    daily_data[date_str]['total'] += 1
+                    sev = (r.get('severity') or '').upper()
+                    status = (r.get('status') or '').lower()
+                    if sev in ('CRITICAL', 'ERROR') or status == 'failure':
+                        daily_data[date_str]['errors'] += 1
+                    rt = extract_response_time_ms(r.get('metadata'))
+                    if rt is not None:
+                        try:
+                            daily_data[date_str]['response_times'].append(float(rt))
+                        except (ValueError, TypeError):
+                            pass
+
+        uptime_series = []
+        response_series = []
+        for date_str in sorted(daily_data.keys()):
+            metrics = daily_data[date_str]
+            total = metrics['total']
+            error_count = metrics['errors']
+            response_times = metrics['response_times']
+
+            uptime_percent = 100.0
+            if total > 0:
+                uptime_percent = max(0.0, 100.0 - (error_count / total * 100.0))
+
+            avg_response_ms = round(sum(response_times) / len(response_times), 2) if response_times else 0.0
+
+            point = {
+                "date": date_str,
+                "uptime_percent": round(uptime_percent, 2),
+                "avg_response_ms": avg_response_ms
+            }
+
+            uptime_series.append(point)
+            response_series.append(dict(point))
+
+        return {"uptime": uptime_series, "response_time": response_series}
+
+    try:
+        data = await get_or_set(cache_key, fetch_service_health, ttl=CACHE_TTLS.get("analytics:service-health", 30))
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching service health: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch service health: {str(e)}")
