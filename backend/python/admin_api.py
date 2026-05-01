@@ -774,9 +774,9 @@ async def update_system_config(
         except Exception as e:
             # Log failure but don't raise - activity logging should not block the response
             logger.error(f"Failed to log config change for {safe_config_key}: {str(e)}", extra={
-                'config_key': config_key,
+                'config_key': safe_config_key,
                 'admin_id': current_user.user_id,
-                'error': str(e)
+                'error': _sanitize_for_log(str(e))
             })
 
         safe_old_value = _sanitize_for_log(old_value)
