@@ -90,7 +90,7 @@ interface TrendIndicatorProps {
 function TrendIndicator({ trend, label, positiveDirection = 'up' }: TrendIndicatorProps) {
   const isPositive = trend === positiveDirection;
   const isNegative = trend !== 'stable' && trend !== positiveDirection;
-  const color = isPositive ? 'text-green-500' : isNegative ? 'text-red-500' : 'text-gray-400';
+  const color = isPositive ? 'text-green-500' : isNegative ? 'text-red-500' : 'text-muted-foreground';
   const symbol = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→';
   
   return (
@@ -109,7 +109,7 @@ interface ProgressBarProps {
 
 function ProgressBar({ value, color = 'bg-blue-500' }: ProgressBarProps) {
   return (
-    <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden">
+    <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
       <div className={`${color} h-1`} style={{ width: `${Math.min(value, 100)}%` }} />
     </div>
   );
@@ -193,9 +193,13 @@ export default function AnalyticsView() {
   };
 
   const getHealthStatusColor = (score: number) => {
-    if (score >= 90) return 'bg-green-100 text-green-800 border-green-300';
-    if (score >= 70) return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-    return 'bg-red-100 text-red-800 border-red-300';
+    if (score >= 90) {
+      return 'bg-green-100 text-green-800 border-green-300 dark:bg-green-950/55 dark:text-green-300 dark:border-green-800';
+    }
+    if (score >= 70) {
+      return 'bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-200 dark:border-yellow-800';
+    }
+    return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950/55 dark:text-red-300 dark:border-red-800';
   };
 
   return (
@@ -207,11 +211,11 @@ export default function AnalyticsView() {
         </Alert>
       )}
 
-      <Card className="border-muted/40 bg-gradient-to-br from-slate-50 via-white to-blue-50/40">
+      <Card className="border-border bg-gradient-to-br from-slate-50 via-white to-blue-50/40 dark:from-card dark:via-card dark:to-card">
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-slate-900">How things are feeling today</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-foreground">How things are feeling today</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 This board summarizes pressure points, confidence signals, and where people may need help first.
               </p>
@@ -226,7 +230,7 @@ export default function AnalyticsView() {
 
       {/* Core KPI Cards */}
       <div>
-        <h2 className="text-lg font-semibold mb-4 text-primary">System Overview</h2>
+        <h2 className="text-lg font-semibold mb-4 text-primary dark:text-white">System Overview</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatsCard
             title="Total Hazards"
@@ -261,7 +265,7 @@ export default function AnalyticsView() {
 
       {/* AI/ML Quality Metrics */}
       <div>
-        <h2 className="text-lg font-semibold mb-4 text-primary">AI/ML Quality Metrics</h2>
+        <h2 className="text-lg font-semibold mb-4 text-primary dark:text-white">AI/ML Quality Metrics</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {/* False Positive Rate */}
           <Card className="hover:shadow-md transition-shadow">

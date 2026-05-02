@@ -136,45 +136,45 @@ export default function StatusAnalyticsView() {
       case 'operational':
         return {
           color: 'bg-green-500',
-          textColor: 'text-green-700',
-          bgColor: 'bg-green-50',
-          borderColor: 'border-green-200',
+          textColor: 'text-green-700 dark:text-green-300',
+          bgColor: 'bg-green-50 dark:bg-green-950/40',
+          borderColor: 'border-green-200 dark:border-green-800',
           icon: CheckCircle2,
           label: 'Operational',
         };
       case 'degraded':
         return {
           color: 'bg-yellow-500',
-          textColor: 'text-yellow-700',
-          bgColor: 'bg-yellow-50',
-          borderColor: 'border-yellow-200',
+          textColor: 'text-yellow-800 dark:text-yellow-200',
+          bgColor: 'bg-yellow-50 dark:bg-yellow-950/35',
+          borderColor: 'border-yellow-200 dark:border-yellow-800',
           icon: AlertTriangle,
           label: 'Degraded',
         };
       case 'down':
         return {
           color: 'bg-red-500',
-          textColor: 'text-red-700',
-          bgColor: 'bg-red-50',
-          borderColor: 'border-red-200',
+          textColor: 'text-red-700 dark:text-red-300',
+          bgColor: 'bg-red-50 dark:bg-red-950/40',
+          borderColor: 'border-red-200 dark:border-red-900',
           icon: AlertCircle,
           label: 'Down',
         };
       case 'maintenance':
         return {
           color: 'bg-blue-500',
-          textColor: 'text-blue-700',
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200',
+          textColor: 'text-blue-700 dark:text-blue-300',
+          bgColor: 'bg-blue-50 dark:bg-blue-950/40',
+          borderColor: 'border-blue-200 dark:border-blue-800',
           icon: Wrench,
           label: 'Under Maintenance',
         };
       default:
         return {
           color: 'bg-gray-500',
-          textColor: 'text-gray-700',
-          bgColor: 'bg-gray-50',
-          borderColor: 'border-gray-200',
+          textColor: 'text-muted-foreground',
+          bgColor: 'bg-muted/60 dark:bg-muted/40',
+          borderColor: 'border-border',
           icon: AlertCircle,
           label: 'Unknown',
         };
@@ -192,8 +192,8 @@ export default function StatusAnalyticsView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Activity className="h-5 w-5 text-primary" />
-          <h2 className="text-2xl font-semibold">Service Health Analytics</h2>
+          <Activity className="h-5 w-5 dark:text-white text-primary" />
+          <h2 className="text-2xl font-semibold dark:text-white text-primary">Service Health Analytics</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setAutoRefresh(!autoRefresh)}>
@@ -213,8 +213,8 @@ export default function StatusAnalyticsView() {
               <overallConfig.icon className={`h-8 w-8 ${overallConfig.textColor}`} />
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="font-semibold text-base sm:text-lg">Overall System Status:</span>
-                  <Badge variant="outline" className={overallConfig.textColor}>
+                  <span className="font-semibold text-base sm:text-lg text-foreground">Overall System Status:</span>
+                  <Badge variant="outline" className={`${overallConfig.textColor} border-current/40`}>
                     {overallConfig.label}
                   </Badge>
                 </div>
@@ -255,9 +255,9 @@ export default function StatusAnalyticsView() {
           ))}
         </div>
       ) : systemStatusError ? (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/35">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-red-700">
+            <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
               <AlertCircle className="h-5 w-5" />
               <span>Failed to load system status. Please try again later.</span>
             </div>
@@ -333,7 +333,7 @@ export default function StatusAnalyticsView() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={serviceHealthData?.uptime || []}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="date" />
                   <YAxis domain={[0, 100]} />
                   <Tooltip />
@@ -358,7 +358,7 @@ export default function StatusAnalyticsView() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={serviceHealthData?.response_time || []}>
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip />

@@ -15,6 +15,7 @@ import { Card } from '../components/ui/card';
 import { Alert } from '../components/ui/alert';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { landingAssets } from '../constants/landingAssets';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 /**
  * Renders the stakeholder login page with email/password inputs, password visibility toggle, error display, and branding.
@@ -98,7 +99,10 @@ export default function Login() {
   // };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex relative">
+      <div className="fixed top-4 right-4 z-[100]">
+        <ThemeToggle />
+      </div>
       {/* ── Brand Panel (desktop left column) ── */}
       <div className="hidden lg:flex lg:w-[420px] xl:w-[460px] flex-shrink-0 auth-brand-panel flex-col items-center justify-center p-12 relative overflow-hidden">
         {/* Orange accent strip */}
@@ -106,7 +110,7 @@ export default function Login() {
 
         <div className="relative z-10 flex flex-col items-center text-center gap-8">
           <img
-            src={landingAssets.logos.gaiaWhite}
+            src={landingAssets.logo.gaia}
             alt="AGAILA Logo"
             className="w-44 h-auto"
             loading="eager"
@@ -148,11 +152,11 @@ export default function Login() {
           </div>
 
           {/* Form Card */}
-          <Card className="p-8 space-y-6 shadow-lg bg-white rounded-xl border border-slate-200 border-t-[3px] border-t-[#0A2A4D]">
+          <Card className="p-8 space-y-6 shadow-lg bg-card text-card-foreground rounded-xl border border-border border-t-[3px] border-t-primary">
 
             {/* Heading */}
             <div className="space-y-1">
-              <h1 className="text-2xl font-bold tracking-tight text-[#0A2A4D]">
+              <h1 className="text-2xl font-bold tracking-tight dark:text-white text-primary">
                 Stakeholder Login
               </h1>
               <p className="text-sm text-muted-foreground">
@@ -171,7 +175,7 @@ export default function Login() {
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-slate-700">
+                <label htmlFor="email" className="text-sm font-medium text-foreground">
                   Email
                 </label>
                 <Input
@@ -187,7 +191,7 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium text-slate-700">
+                <label htmlFor="password" className="text-sm font-medium text-foreground">
                   Password
                 </label>
                 <div className="relative">
@@ -245,8 +249,8 @@ export default function Login() {
             </div> */}
 
             {/* Footer links */}
-            <div className="pt-2 border-t border-slate-100 space-y-3 text-center">
-              <Link to="/" className="inline-block text-sm text-muted-foreground hover:text-[#0A2A4D] transition-colors">
+            <div className="pt-2 border-t border-border space-y-3 text-center">
+              <Link to="/" className="inline-block text-sm text-muted-foreground hover:text-primary transition-colors">
                 ← Back to Home
               </Link>
               <p className="text-xs text-muted-foreground">

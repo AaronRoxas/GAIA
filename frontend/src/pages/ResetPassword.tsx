@@ -7,6 +7,7 @@ import { Input } from '../components/ui/input';
 import { Card } from '../components/ui/card';
 import { Alert } from '../components/ui/alert';
 import { landingAssets } from '../constants/landingAssets';
+import { ThemeToggle } from '../components/ThemeToggle';
 import {
   InputOTP,
   InputOTPGroup,
@@ -236,8 +237,11 @@ const ResetPassword: React.FC = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-auth px-4">
-        <Card className="w-full max-w-md p-8 space-y-6 shadow-lg bg-white rounded-xl border border-slate-200 border-t-[3px] border-t-green-500">
+      <div className="min-h-screen flex items-center justify-center bg-auth px-4 relative">
+        <div className="fixed top-4 right-4 z-[100]">
+          <ThemeToggle />
+        </div>
+        <Card className="w-full max-w-md p-8 space-y-6 shadow-lg bg-card text-card-foreground rounded-xl border border-border border-t-[3px] border-t-green-500">
           <div className="text-center space-y-4">
             <div className="flex justify-center">
               <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-100">
@@ -279,9 +283,12 @@ const ResetPassword: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-auth px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-auth px-4 py-12 relative">
+      <div className="fixed top-4 right-4 z-[100]">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md">
-        <Card className="p-8 space-y-6 shadow-lg bg-white rounded-xl border border-slate-200 border-t-[3px] border-t-primary">
+        <Card className="p-8 space-y-6 shadow-lg bg-card text-card-foreground rounded-xl border border-border border-t-[3px] border-t-primary">
         {/* Header */}
         <div className="text-center space-y-4">
           <div className="flex justify-center">

@@ -28,7 +28,7 @@ import {
  */
 const LandingPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Header />
       <div className="flex flex-col items-center">
         <HeroSection />

@@ -21,6 +21,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { IconDefinition, faTimes, faMapPin, faExclamationTriangle, faChartLine, faEye, faExternalLinkAlt, faClock, faFire, faHouseChimneyCrack, faHouseFloodWater, faHurricane, faHillRockslide, faVolcano, faSunPlantWilt, faHouseFloodWaterCircleArrowRight } from '@fortawesome/free-solid-svg-icons';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
+import { cn } from '../../lib/utils';
 
 interface HazardInfoPanelProps {
   hazard: {
@@ -247,28 +248,28 @@ export function HazardInfoPanel({
       {/* Info Panel - opacity fade (hidden with opacity, visible with opacity-100) */}
       <aside
         ref={panelRef}
-        className={`
-          absolute inset-y-0 right-0 w-full sm:w-96 bg-white shadow-2xl z-[2000]
-          flex flex-col hazard-panel
-          ${isOpen && !isClosing ? 'hazard-panel-visible' : 'hazard-panel-hidden'}
-        `}
+        className={cn(
+          'absolute inset-y-0 right-0 z-[2000] flex w-full flex-col shadow-2xl hazard-panel sm:w-96',
+          'border-l border-border bg-card text-card-foreground',
+          isOpen && !isClosing ? 'hazard-panel-visible' : 'hazard-panel-hidden'
+        )}
         role="complementary"
         aria-label="Hazard details"
         aria-hidden={!isOpen || isClosing}
       >
         {/* Header */}
-        <div className="flex-shrink-0 p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+        <div className="flex-shrink-0 border-b border-border bg-gradient-to-r from-muted/70 to-muted/40 p-6 dark:from-muted/50 dark:to-muted/25">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100">
+            <div className="flex flex-1 items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
                 <FontAwesomeIcon 
                   icon={hazard ? (hazardTypeIcons[hazard.hazard_type] || faExclamationTriangle) : faExclamationTriangle} 
-                  className="text-lg text-gray-700"
+                  className="text-lg text-foreground/80"
                   aria-hidden="true"
                 />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 capitalize">
+                <h2 className="text-xl font-bold capitalize text-foreground">
                   {hazard ? hazard.hazard_type.replace(/_/g, ' ') : 'No hazard selected'}
                 </h2>
                 {/* <p className="text-sm text-gray-600 mt-1">{hazard ? hazard.location_name : 'No hazard selected'}</p> */}
@@ -276,10 +277,10 @@ export function HazardInfoPanel({
             </div>
             <button
               onClick={handleClose}
-              className="flex-shrink-0 p-2 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="flex-shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
               aria-label="Close panel"
             >
-              <FontAwesomeIcon icon={faTimes} className="text-gray-600" aria-hidden="true" />
+              <FontAwesomeIcon icon={faTimes} className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -304,82 +305,88 @@ export function HazardInfoPanel({
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-3">
                 {/* Confidence Score */}
-                <Card className="p-3 text-center border-gray-200">
-                  <div className="flex items-center justify-center mb-2">
-                    <FontAwesomeIcon icon={faChartLine} className="text-blue-600 text-sm" aria-hidden="true" />
+                <Card className="border-border bg-muted/40 p-3 text-center dark:bg-muted/25">
+                  <div className="mb-2 flex items-center justify-center">
+                    <FontAwesomeIcon icon={faChartLine} className="text-sm text-blue-600 dark:text-blue-400" aria-hidden="true" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{confidencePercentage}%</p>
-                  <p className="text-xs text-gray-600 mt-1">Confidence</p>
+                  <p className="text-2xl font-bold text-foreground">{confidencePercentage}%</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Confidence</p>
                 </Card>
 
                 {/* Coordinates */}
-                <Card className="p-3 text-center border-gray-200">
-                  <div className="flex items-center justify-center mb-2">
-                    <FontAwesomeIcon icon={faMapPin} className="text-green-600 text-sm" aria-hidden="true" />
+                <Card className="border-border bg-muted/40 p-3 text-center dark:bg-muted/25">
+                  <div className="mb-2 flex items-center justify-center">
+                    <FontAwesomeIcon icon={faMapPin} className="text-sm text-green-600 dark:text-green-400" aria-hidden="true" />
                   </div>
-                  <p className="text-xs text-gray-900 font-mono">
+                  <p className="font-mono text-xs text-foreground">
                     {hazard.latitude.toFixed(3)}, <br /> {hazard.longitude.toFixed(3)}
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">Location</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Location</p>
                 </Card>
 
                 {/* Validation Status */}
-                <Card className="p-3 text-center border-gray-200">
-                  <div className="flex items-center justify-center mb-2">
+                <Card className="border-border bg-muted/40 p-3 text-center dark:bg-muted/25">
+                  <div className="mb-2 flex items-center justify-center">
                     <FontAwesomeIcon 
                       icon={faEye} 
-                      className={`text-sm ${hazard.validated ? 'text-purple-600' : 'text-gray-400'}`} 
+                      className={cn('text-sm', hazard.validated ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground')} 
                       aria-hidden="true" 
                     />
                   </div>
-                  <p className="text-xs font-bold text-gray-900 uppercase">{hazard.validated ? 'Valid' : 'Pending'}</p>
-                  <p className="text-xs text-gray-600 mt-1">Status</p>
+                  <p className="text-xs font-bold uppercase text-foreground">{hazard.validated ? 'Valid' : 'Pending'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Status</p>
                 </Card>
               </div>
 
               {/* Details */}
               <div className="space-y-3">
                 <div>
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Source Type</p>
-                  <p className="text-sm text-gray-900 mt-1 capitalize">{hazard.source_type}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Source Type</p>
+                  <p className="mt-1 text-sm capitalize text-foreground">{hazard.source_type}</p>
                 </div>
 
                 <div>
                   <div className="flex items-center gap-2">
-                    <FontAwesomeIcon icon={faClock} className="text-gray-400 text-sm" aria-hidden="true" />
-                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Reported</p>
+                    <FontAwesomeIcon icon={faClock} className="text-sm text-muted-foreground" aria-hidden="true" />
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reported</p>
                   </div>
-                  <p className="text-sm text-gray-900 mt-1">{formattedTime}</p>
+                  <p className="mt-1 text-sm text-foreground">{formattedTime}</p>
                 </div>
 
                 {hazard.source_content && (
                   <div>
-                    <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Source Content</p>
-                    <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{hazard.source_content}</p>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Source Content</p>
+                    <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">{hazard.source_content}</p>
                   </div>
                 )}
               </div>
 
               {/* Information Note */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-800">
-                  <strong>Confidence Score:</strong> This indicates how confident the AI model is about this classification. Higher scores mean more reliable predictions.
+              <div
+                className={cn(
+                  'rounded-lg border p-3',
+                  'border-primary/20 bg-gradient-to-br from-secondary/[0.12] via-primary/[0.05] to-card',
+                  'dark:border-primary/40 dark:from-primary/20 dark:via-primary/10 dark:to-secondary/10'
+                )}
+              >
+                <p className="text-xs leading-relaxed text-foreground/90 dark:text-blue-100/90">
+                  <strong className="text-foreground">Confidence Score:</strong> This indicates how confident the AI model is about this classification. Higher scores mean more reliable predictions.
                 </p>
               </div>
             </>
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex h-full items-center justify-center text-muted-foreground">
               <p>No hazard selected</p>
             </div>
           )}
         </div>
 
         {/* Actions Footer - Always Visible */}
-        <div className="flex-shrink-0 p-6 border-t border-gray-200 bg-gray-50 space-y-2">
+        <div className="flex-shrink-0 space-y-2 border-t border-border bg-muted/50 p-6 dark:bg-muted/30">
           <Button
             onClick={() => hazard && onZoomTo?.(hazard.latitude, hazard.longitude)}
             disabled={!hazard}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-sm hover:from-primary/90 hover:to-secondary/90 disabled:cursor-not-allowed disabled:opacity-50"
             size="sm"
             title='Zoom to the selected pin location'
           >
@@ -395,7 +402,7 @@ export function HazardInfoPanel({
                 }
               }}
               variant="outline"
-              className="w-full border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-blue-50"
+              className="w-full border-primary/35 text-foreground hover:bg-primary/10 dark:border-primary/50 dark:hover:bg-primary/15"
               size="sm"
               title="Open original source in new tab"
             >

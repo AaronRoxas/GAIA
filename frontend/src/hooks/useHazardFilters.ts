@@ -13,6 +13,7 @@
  * ```tsx
  * const { filters, updateFilters, resetFilters, applyFilters } = useHazardFilters();
  * const filteredHazards = applyFilters(allHazards);
+ * const perTypeTotals = applyFilters(allHazards, { skipHazardTypes: true });
  * ```
  */
 
@@ -85,6 +86,12 @@ export const ALL_HAZARD_TYPES = [
 
 // All available severities
 export const ALL_SEVERITIES = ['critical', 'severe', 'moderate', 'minor'];
+
+/** Options for {@link applyFilters} (second argument). */
+export interface ApplyFiltersOptions {
+  /** Apply time/source/severity only; omit hazard-type matching (for per-type count badges). */
+  skipHazardTypes?: boolean;
+}
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -355,40 +362,51 @@ export function useHazardFilters() {
   }, [setSearchParams]);
 
   /**
-   * Apply filters to hazard array (client-side filtering)
+   * Apply filters to hazard array (client-side filtering).
+   *
+   * @param hazards - Rows to filter (typically the loaded map dataset).
+   * @param options.skipHazardTypes - When true, still applies severity, time, and source filters
+   *   but not hazard type—use so each type badge can show counts for the active filter slice.
    */
-  const applyFilters = useCallback((hazards: Hazard[]): Hazard[] => {
-    return hazards.filter(hazard => {
-      // Filter by hazard type
-      if (filters.hazardTypes.length > 0 && !filters.hazardTypes.includes(hazard.hazard_type)) {
-        return false;
-      }
-      
-      // Filter by severity
-      if (filters.severities.length > 0 && !filters.severities.includes(hazard.severity)) {
-        return false;
-      }
-      
-      // Filter by time window
-      const dateRange = getDateRange(filters.timeWindow, filters.customDateRange);
-      if (dateRange) {
-        const hazardDate = new Date(hazard.created_at);
-        if (hazardDate < dateRange.start || hazardDate > dateRange.end) {
+  const applyFilters = useCallback(
+    (hazards: Hazard[], options?: ApplyFiltersOptions): Hazard[] => {
+      const skipTypes = Boolean(options?.skipHazardTypes);
+      return hazards.filter(hazard => {
+        if (
+          !skipTypes &&
+          filters.hazardTypes.length > 0 &&
+          !filters.hazardTypes.includes(hazard.hazard_type)
+        ) {
           return false;
         }
-      }
-      
-      // Filter by source type
-      if (filters.sourceTypes.length > 0) {
-        const hazardSourceType = mapSourceToType(hazard.source_type, hazard.validated);
-        if (!filters.sourceTypes.includes(hazardSourceType)) {
+
+        // Filter by severity
+        if (filters.severities.length > 0 && !filters.severities.includes(hazard.severity)) {
           return false;
         }
-      }
-      
-      return true;
-    });
-  }, [filters]);
+
+        // Filter by time window
+        const dateRange = getDateRange(filters.timeWindow, filters.customDateRange);
+        if (dateRange) {
+          const hazardDate = new Date(hazard.created_at);
+          if (hazardDate < dateRange.start || hazardDate > dateRange.end) {
+            return false;
+          }
+        }
+
+        // Filter by source type
+        if (filters.sourceTypes.length > 0) {
+          const hazardSourceType = mapSourceToType(hazard.source_type, hazard.validated);
+          if (!filters.sourceTypes.includes(hazardSourceType)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+    },
+    [filters]
+  );
 
   /**
    * Count active filters

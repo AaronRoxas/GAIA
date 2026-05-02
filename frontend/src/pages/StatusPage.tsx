@@ -16,6 +16,7 @@ import { Skeleton } from '../components/ui/skeleton';
 import { AlertCircle, CheckCircle2, AlertTriangle, Wrench, RefreshCw, ArrowLeft } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { landingAssets } from '../constants/landingAssets';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 interface ServiceStatus {
   name: string;
@@ -142,10 +143,10 @@ const StatusPage: React.FC = () => {
   const overallConfig = data ? getStatusConfig(data.overall_status) : null;
 
   return (
-    <div className="min-h-screen bg-[#F0F4F8]">
+    <div className="min-h-screen bg-background">
       {/* ── Top Navigation ── */}
-      <nav className="sticky top-0 z-50 bg-[#F0F4F8] border-b border-slate-200 shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl flex items-center justify-between h-14">
+      <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border shadow-sm">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl flex items-center justify-between h-14 gap-3">
           <Link to="/" className="flex items-center gap-2">
             <img
               src={landingAssets.logo.gaia}
@@ -156,13 +157,16 @@ const StatusPage: React.FC = () => {
               decoding="async"
             />
           </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-[#0A2A4D] transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Home
-          </Link>
+          <div className="flex items-center gap-1">
+            <ThemeToggle size="sm" />
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to Home
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -171,7 +175,7 @@ const StatusPage: React.FC = () => {
         <div className="mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <div>
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-1 text-[#0A2A4D]">System Status</h1>
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-1 text-primary">System Status</h1>
               <p className="text-muted-foreground text-sm sm:text-base">
                 Real-time operational status of all core system services and external data integrations
               </p>

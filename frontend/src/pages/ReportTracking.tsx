@@ -15,7 +15,9 @@ import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { HazardIcon, getHazardIcon } from '../constants/hazard-icons';
 import { API_BASE_URL } from '../lib/api';
+import { cn } from '../lib/utils';
 import { Skeleton } from '../components/ui/skeleton';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 /**
  * ReportTrackingDetailsSkeleton - Mimics the report details card while loading
@@ -65,7 +67,13 @@ const ReportTrackingDetailsSkeleton = () => (
  * ReportTrackingHelpSkeleton - Mimics the help section while loading
  */
 const ReportTrackingHelpSkeleton = () => (
-  <Card className="p-6 bg-blue-50 border-2 border-blue-200">
+  <Card
+    className={cn(
+      'p-6 border-2 shadow-sm',
+      'border-primary/20 bg-gradient-to-br from-secondary/[0.12] via-primary/[0.05] to-card',
+      'dark:border-primary/45 dark:from-primary/25 dark:via-primary/12 dark:to-secondary/15 dark:shadow-md dark:shadow-black/20'
+    )}
+  >
     <Skeleton className="h-6 w-32 mb-3 rounded-md" />
     <div className="space-y-3">
       {[1, 2, 3].map(i => (
@@ -193,12 +201,15 @@ export function ReportTracking() {
   };
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
+    <div className=" min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8 relative">
+      <div className="fixed top-4 right-4 z-[100]">
+        <ThemeToggle className="text-foreground shrink-0 hover:bg-secondary" />
+      </div>
       <div className="max-w-4xl mx-auto">
         {/* Back Navigation */}
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft size={16} />
           Back to Home
@@ -206,10 +217,10 @@ export function ReportTracking() {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4">
             Track Your Report
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-muted-foreground">
             Enter your tracking ID to check the status of your hazard report
           </p>
         </div>
@@ -218,7 +229,7 @@ export function ReportTracking() {
         <Card className="p-6 mb-8 shadow-lg">
           <form onSubmit={handleSearch} className="space-y-4">
             <div>
-              <label htmlFor="tracking-id" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="tracking-id" className="block text-sm font-medium dark:text-white text-gray-700 mb-2">
                 Tracking ID
               </label>
               <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -270,7 +281,7 @@ export function ReportTracking() {
               {getStatusBadge(report.status)}
               <div className="text-left sm:text-right">
                 <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Tracking ID</p>
-                <code className="text-sm font-mono font-semibold text-gray-900">{report.tracking_id}</code>
+                <code className="text-sm font-mono font-semibold dark:text-white text-gray-900">{report.tracking_id}</code>
               </div>
             </div>
 
@@ -290,7 +301,7 @@ export function ReportTracking() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Hazard Type</p>
-                  <p className="font-semibold text-gray-900 capitalize">{report.hazard_type.replace('_', ' ')}</p>
+                  <p className="font-semibold dark:text-white text-gray-900 capitalize">{report.hazard_type.replace('_', ' ')}</p>
                 </div>
               </div>
 
@@ -301,7 +312,7 @@ export function ReportTracking() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Location</p>
-                  <p className="font-semibold text-gray-900">{report.location_name}</p>
+                  <p className="font-semibold dark:text-white text-gray-900">{report.location_name}</p>
                 </div>
               </div>
 
@@ -312,7 +323,7 @@ export function ReportTracking() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Submitted</p>
-                  <p className="font-semibold text-gray-900">{formatDate(report.submitted_at)}</p>
+                  <p className="font-semibold dark:text-white text-gray-900">{formatDate(report.submitted_at)}</p>
                 </div>
               </div>
 
@@ -323,7 +334,7 @@ export function ReportTracking() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Confidence Level</p>
-                  <p className={`font-semibold ${getConfidenceLevel(report.confidence_score).color}`}>
+                  <p className={`font-semibold dark:text-white ${getConfidenceLevel(report.confidence_score).color}`}>
                     {getConfidenceLevel(report.confidence_score).label} ({Math.round(report.confidence_score * 100)}%)
                   </p>
                 </div>
@@ -332,8 +343,8 @@ export function ReportTracking() {
 
             {/* Description */}
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Description</h3>
-              <p className="text-sm text-gray-800 whitespace-pre-line">{report.description}</p>
+              <h3 className="text-lg font-semibold dark:text-white text-gray-900 mb-2">Description</h3>
+              <p className="text-sm dark:text-white text-gray-800 whitespace-pre-line">{report.description}</p>
             </div>
 
             {/* Verified Date (if applicable) */}
@@ -356,7 +367,7 @@ export function ReportTracking() {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200">
               <Link to="/map" className="flex-1">
-                <Button variant="outline" className="w-full" size="lg">
+                <Button variant="outline" className="w-full hover:bg-secondary" size="lg">
                   View on Hazard Map
                 </Button>
               </Link>
@@ -372,22 +383,36 @@ export function ReportTracking() {
         {/* Help Section */}
         {submittedTrackingId && isFetching && <ReportTrackingHelpSkeleton />}
         {!report && !isFetching && !submittedTrackingId && (
-          <Card className="p-6 bg-blue-50 border-2 border-blue-200">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-blue-600" />
+          <Card
+            className={cn(
+              'p-6 border-2 shadow-sm',
+              // Light: soft brand-tinted panel on top of page background
+              'border-primary/20 bg-gradient-to-br from-secondary/[0.12] via-primary/[0.05] to-card',
+              // Dark: deeper informational surface, readable on charcoal
+              'dark:border-primary/45 dark:from-primary/25 dark:via-primary/12 dark:to-secondary/15 dark:shadow-md dark:shadow-black/20'
+            )}
+          >
+            <h3 className="mb-3 flex items-center gap-2 font-semibold text-foreground">
+              <AlertTriangle className="h-5 w-5 shrink-0 text-secondary dark:text-sky-400" aria-hidden />
               Need Help?
             </h3>
-            <ul className="space-y-2 text-sm text-gray-700">
+            <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold">•</span>
+                <span className="font-bold text-secondary dark:text-sky-400" aria-hidden>
+                  •
+                </span>
                 Make sure you entered the tracking ID exactly as it was provided
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold">•</span>
+                <span className="font-bold text-secondary dark:text-sky-400" aria-hidden>
+                  •
+                </span>
                 Tracking IDs are case-sensitive and start with &ldquo;CR&rdquo; followed by date and unique code
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-blue-600 font-bold">•</span>
+                <span className="font-bold text-secondary dark:text-sky-400" aria-hidden>
+                  •
+                </span>
                 If you lost your tracking ID, you cannot retrieve it. Please submit a new report.
               </li>
             </ul>

@@ -24,6 +24,7 @@ import React from 'react';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { ALL_HAZARD_TYPES } from '../../hooks/useHazardFilters';
+import { cn } from '../../lib/utils';
 import { HAZARD_ICON_REGISTRY, HazardIcon } from '../../constants/hazard-icons';
 
 // ============================================================================
@@ -61,14 +62,9 @@ export function HazardTypeFilter({
   // ============================================================================
   
   /**
-   * Returns the visual state of a hazard type checkbox based on:
-   * - Whether this type is selected
-   * - Whether any types are selected (neutral state when none selected)
-   * 
-   * States:
-   * - 'selected': This type is actively checked
-   * - 'neutral': No types selected (show all are visible)
-   * - 'deselected': Some types selected but not this one
+   * Returns the logical state for interaction (checked / indeterminate-ish / unchecked).
+   * Row chrome uses the shared "accent" styling for both neutral (filter off) and
+   * individually checked rows — only the checkbox glyph differs.
    */
   const getItemState = (typeIsSelected: boolean) => {
     if (typeIsSelected) return 'selected';
@@ -80,14 +76,16 @@ export function HazardTypeFilter({
   // HELPER: Get background class for item container based on state
   // ============================================================================
   
+  const accentTileBackgroundClass =
+    'border-secondary-200 bg-secondary-50 hover:border-secondary-300 dark:border-secondary/35 dark:bg-secondary/15 dark:hover:border-secondary/55';
+
   const getItemBackgroundClass = (state: 'selected' | 'neutral' | 'deselected') => {
     switch (state) {
       case 'selected':
-        return 'border-red-400 bg-gradient-to-br from-red-50 to-red-50/30 shadow-sm';
       case 'neutral':
-        return 'border-secondary-200 bg-secondary-50 hover:border-secondary-300';
+        return accentTileBackgroundClass;
       case 'deselected':
-        return 'border-gray-200 bg-white hover:border-gray-300';
+        return 'border-border bg-muted/50 hover:bg-muted/70 dark:bg-muted/20 dark:hover:bg-muted/35';
     }
   };
 
@@ -95,14 +93,15 @@ export function HazardTypeFilter({
   // HELPER: Get checkbox background class based on state
   // ============================================================================
   
+  const accentCheckboxClass = 'bg-secondary-200 border-secondary-300 dark:bg-secondary-200 dark:border-secondary-300';
+
   const getCheckboxClass = (state: 'selected' | 'neutral' | 'deselected') => {
     switch (state) {
       case 'selected':
-        return 'bg-red-500 border-red-500';
       case 'neutral':
-        return 'bg-secondary-200 border-secondary-300';
+        return accentCheckboxClass;
       case 'deselected':
-        return 'border-gray-300 bg-white group-hover:border-red-300';
+        return 'border-border bg-background group-hover:border-secondary/40 dark:bg-muted dark:group-hover:border-secondary/55';
     }
   };
 
@@ -111,18 +110,18 @@ export function HazardTypeFilter({
   // ============================================================================
   
   const getIconStyles = (state: 'selected' | 'neutral' | 'deselected', color: string) => {
-    const baseScale = state === 'selected' ? 'scale-110' : 'scale-100';
+    const baseScale = 'scale-100';
     const hoverScale = state === 'deselected' ? 'group-hover:scale-105' : '';
     
     let backgroundColor: string;
     let iconColor: string;
 
     if (state === 'neutral') {
-      backgroundColor = '#c0dff3';
-      iconColor = '#005A9C';
+      backgroundColor = 'transparent';
+      iconColor = 'currentColor';
     } else if (state === 'selected') {
-      backgroundColor = `${color}30`;
-      iconColor = color;
+      backgroundColor = 'transparent';
+      iconColor = 'currentColor';
     } else {
       backgroundColor = `${color}15`;
       iconColor = '#9ca3af';
@@ -142,11 +141,10 @@ export function HazardTypeFilter({
   const getLabelClass = (state: 'selected' | 'neutral' | 'deselected') => {
     switch (state) {
       case 'selected':
-        return 'text-slate-900 font-semibold font-lato';
       case 'neutral':
-        return 'text-slate-700 font-lato';
+        return 'text-foreground font-lato';
       case 'deselected':
-        return 'text-slate-700 group-hover:text-slate-900 font-lato';
+        return 'text-muted-foreground group-hover:text-foreground font-lato';
     }
   };
   
@@ -177,7 +175,7 @@ export function HazardTypeFilter({
   };
 
   return (
-    <Card className="p-5 bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <Card className="p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
       <style>{`
         @keyframes slideInDown {
           from {
@@ -212,10 +210,10 @@ export function HazardTypeFilter({
 
       <div className="space-y-4">
         {/* Header with Select All */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="flex items-center justify-between pb-3 border-b border-border">
           <div>
-            <h3 className="text-sm font-semibold text-primary-600 font-lato">Hazard Type</h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-inter">Filter by hazard classification</p>
+            <h3 className="text-sm font-semibold text-foreground font-lato">Hazard Type</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 font-inter">Filter by hazard classification</p>
           </div>
           <button
             onClick={handleToggleAll}
@@ -223,9 +221,9 @@ export function HazardTypeFilter({
             className="
               flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
               rounded-md transition-all duration-200
-              text-slate-700 hover:bg-slate-100 hover:text-slate-900
-              disabled:text-slate-400 disabled:bg-transparent disabled:cursor-not-allowed
-              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+              text-muted-foreground hover:bg-muted hover:text-foreground
+              disabled:text-muted-foreground/50 disabled:bg-transparent disabled:cursor-not-allowed
+              focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background
             "
             aria-label={allSelected ? 'Deselect all hazard types' : 'Select all hazard types'}
           >
@@ -242,12 +240,12 @@ export function HazardTypeFilter({
 
         {/* Summary Badge */}
         {!noneSelected && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-secondary-50 to-secondary-50/50 rounded-lg border border-secondary-100">
-            <Badge variant="secondary" className="font-semibold text-secondary-900 bg-secondary-200">
+          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/15 rounded-lg border border-secondary/25 dark:bg-secondary/10 dark:border-secondary/30">
+            <Badge variant="secondary" className="font-semibold bg-secondary/25 text-secondary-900 dark:bg-secondary/30 dark:text-blue-100">
               {selectedTypes.length} / {ALL_HAZARD_TYPES.length}
             </Badge>
             {totalCount > 0 && (
-              <span className="text-xs font-medium text-slate-600 font-inter">
+              <span className="text-xs font-medium text-muted-foreground font-inter">
                 {totalCount} hazard{totalCount !== 1 ? 's' : ''}
               </span>
             )}
@@ -277,7 +275,7 @@ export function HazardTypeFilter({
                     border-2 transition-all duration-200 cursor-pointer
                     ${itemBgClass}
                     ${disabled ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:shadow-sm'}
-                    focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2
+                    focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background
                   `}
                 >
                   {/* Hidden Checkbox */}
@@ -300,7 +298,7 @@ export function HazardTypeFilter({
                     >
                       {typeIsSelected && (
                         <svg
-                          className="w-3 h-3 text-white"
+                          className="w-3 h-3 text-secondary-700 dark:text-sky-200"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -313,7 +311,7 @@ export function HazardTypeFilter({
                       )}
                       {state === 'neutral' && (
                         <svg
-                          className="w-3 h-3 text-slate-600"
+                          className="w-3 h-3 text-muted-foreground"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -325,15 +323,20 @@ export function HazardTypeFilter({
                   
                   {/* Icon Container */}
                   <div 
-                    className={`
-                      flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0
-                      transition-all duration-200
-                      ${iconStyles.scaleClass}
-                    `}
-                    style={{ 
-                      backgroundColor: iconStyles.backgroundColor,
-                      color: iconStyles.iconColor,
-                    }}
+                    className={cn(
+                      'flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0 transition-all duration-200',
+                      iconStyles.scaleClass,
+                      (state === 'neutral' || state === 'selected') &&
+                        'bg-secondary-100 text-secondary-700 dark:bg-secondary/40 dark:text-sky-200'
+                    )}
+                    style={
+                      state === 'neutral' || state === 'selected'
+                        ? undefined
+                        : {
+                            backgroundColor: iconStyles.backgroundColor,
+                            color: iconStyles.iconColor,
+                          }
+                    }
                   >
                     <HazardIcon hazardType={type} size={18} />
                   </div>
@@ -346,11 +349,11 @@ export function HazardTypeFilter({
                     
                     {/* Count Badge - Always visible, right-aligned */}
                     <Badge
-                      variant={count > 0 ? 'secondary' : 'outline'}
-                      className={`text-xs flex-shrink-0 transition-all duration-200 whitespace-nowrap ${
+                      variant="outline"
+                      className={`text-xs flex-shrink-0 transition-all duration-200 whitespace-nowrap border ${
                         count > 0
-                          ? 'font-bold text-accent-900 bg-accent-200 shadow-sm'
-                          : 'font-normal text-slate-500'
+                          ? 'font-semibold shadow-sm bg-gradient-to-br from-primary/12 to-secondary/12 text-primary border-primary/25 dark:from-primary/90 dark:to-secondary/80 dark:text-primary-foreground dark:border-primary/40'
+                          : 'font-normal text-muted-foreground border-border bg-transparent'
                       }`}
                     >
                       {count}
@@ -364,22 +367,22 @@ export function HazardTypeFilter({
 
         {/* No Selection Message */}
         {noneSelected && (
-          <div className="text-center py-4 px-3 bg-gradient-to-r from-slate-50 to-slate-50/50 rounded-lg border border-slate-200">
-            <p className="text-sm font-medium text-slate-900">
+          <div className="text-center py-4 px-3 bg-muted/40 rounded-lg border border-border">
+            <p className="text-sm font-medium text-foreground">
               All hazard types are visible
             </p>
-            <p className="text-xs text-slate-500 mt-1.5">
+            <p className="text-xs text-muted-foreground mt-1.5">
               Select specific types to filter
             </p>
           </div>
         )}
 
         {/* Info Note */}
-        <div className="text-xs bg-gradient-to-br from-slate-50 to-red-50/30 rounded-lg p-3 border border-slate-200 space-y-1.5">
-          <p className="font-semibold text-slate-900">
+        <div className="text-xs bg-muted/40 rounded-lg p-3 border border-border space-y-1.5">
+          <p className="font-semibold text-foreground">
             Hazard Classification
           </p>
-          <p className="text-slate-600 leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             Filter events based on type of natural hazard detected by our AI system. Includes floods, typhoons, earthquakes, and other environmental threats.
           </p>
         </div>
