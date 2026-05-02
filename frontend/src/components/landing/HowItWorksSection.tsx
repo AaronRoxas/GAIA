@@ -34,10 +34,10 @@ export const HowItWorksSection: React.FC = () => {
   return (
     <div id="how-it-works-section" className="box-border flex flex-col gap-6 items-center justify-center overflow-visible px-4 sm:px-6 lg:px-16 py-16 w-full max-w-screen-xl mx-auto">
       <div className="box-border flex flex-col gap-3 items-center justify-center px-[20px] py-0 text-center">
-        <h2 className="flex flex-col font-lato font-extrabold justify-center text-[28px] sm:text-[32px] md:text-[36px] leading-[1.2] text-slate-700">
+        <h2 className="flex flex-col font-lato font-extrabold justify-center text-[28px] sm:text-[32px] md:text-[36px] leading-[1.2] text-foreground">
           From Raw Data to Real-Time Decision
         </h2>
-        <p className="flex flex-col font-lato justify-center max-w-[720px] text-[14px] sm:text-[16px] leading-[24px] text-black">
+        <p className="flex flex-col font-lato justify-center max-w-[720px] text-[14px] sm:text-[16px] leading-[24px] text-foreground">
           AGAILA&apos;s intelligent pipeline transforms unstructured text reports into verified, actionable geospatial alerts in four steps.
         </p>
       </div>
@@ -46,13 +46,13 @@ export const HowItWorksSection: React.FC = () => {
         {steps.map((step, index) => (
           <React.Fragment key={index}>
             <li className="flex flex-col gap-2 items-start overflow-visible w-full lg:flex-1">
-              <p className="flex flex-col font-lato font-black justify-center text-[44px] sm:text-[52px] md:text-[61px] leading-[1.1] text-neutral-600 w-full">
+              <p className="flex flex-col font-lato font-black justify-center text-[44px] sm:text-[52px] md:text-[61px] leading-[1.1] text-muted-foreground w-full">
                 {step.number}
               </p>
-              <h3 className="flex flex-col font-lato font-bold justify-center text-[18px] sm:text-[20px] leading-[28px] sm:leading-[30px] text-black">
+              <h3 className="flex flex-col font-lato font-bold justify-center text-[18px] sm:text-[20px] leading-[28px] sm:leading-[30px] text-foreground">
                 {step.title}
               </h3>
-              <p className="flex flex-col font-lato justify-center text-[14px] sm:text-[16px] leading-[24px] text-black w-full">
+              <p className="flex flex-col font-lato justify-center text-[14px] sm:text-[16px] leading-[24px] text-muted-foreground w-full">
                 {step.description}
               </p>
             </li>

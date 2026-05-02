@@ -45,7 +45,6 @@ export const landingAssets = {
   },
   logos: {
     gaia: '/assets/img/AGAILA.svg',
-    gaiaWhite: '/assets/img/AGAILA-white.png',
     lpuc: '/assets/img/lpu-c_logo.png',
     astars: '/assets/img/A-stars-logo.svg',
   },

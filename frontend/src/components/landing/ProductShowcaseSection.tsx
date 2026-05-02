@@ -33,11 +33,11 @@ export const ProductShowcaseSection: React.FC = () => {
       <div className="box-border flex flex-col gap-3 items-center justify-center px-[20px] py-0 text-center">
         <h2 
           id="showcase-heading"
-          className="font-lato font-extrabold text-[28px] sm:text-[32px] md:text-[36px] leading-[1.2] text-[#334155]"
+          className="font-lato font-extrabold text-[28px] sm:text-[32px] md:text-[36px] leading-[1.2] text-foreground"
         >
           AGAILA&apos;s AI-Generated Assessments
         </h2>
-        <p className="font-lato max-w-[720px] text-[14px] sm:text-[16px] leading-[24px] text-black">
+        <p className="font-lato max-w-[720px] text-[14px] sm:text-[16px] leading-[24px] text-muted-foreground">
           Explore the real-time outputs from our AI pipeline, turning unstructured reports into live intelligence.
         </p>
       </div>
@@ -46,7 +46,7 @@ export const ProductShowcaseSection: React.FC = () => {
         {showcaseItems.map((item, index) => (
           <li 
             key={index}
-            className="bg-[#d9d9d9] flex flex-col gap-[10px] h-[256px] sm:h-[288px] md:h-[320px] lg:h-[360px] items-start justify-end w-full bg-cover bg-center rounded-lg overflow-hidden"
+            className="bg-muted flex flex-col gap-[10px] h-[256px] sm:h-[288px] md:h-[320px] lg:h-[360px] items-start justify-end w-full bg-cover bg-center rounded-lg overflow-hidden"
             style={{ backgroundImage: `url(${item.backgroundImage})` }}
           >
             <div className="bg-gradient-to-t box-border flex flex-col from-10% from-[rgba(10,42,77,0.9)] gap-[10px] items-start justify-end overflow-clip px-[20px] py-[40px] sm:py-[50px] text-white to-95% to-[rgba(0,0,0,0)] w-full">

@@ -25,6 +25,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Newspaper, UserCheck, ShieldAlert } from 'lucide-react';
+import { cn } from '../../lib/utils';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { supabase } from '../../lib/supabase';
@@ -160,14 +161,11 @@ export function SourceTypeFilter({
   const getItemBackgroundClass = (state: 'selected' | 'neutral' | 'deselected') => {
     switch (state) {
       case 'selected':
-        // Highlight selected source with steel blue accent
-        return 'border-secondary-400 bg-gradient-to-br from-secondary-50 to-secondary-50/30 shadow-sm';
+        return 'border-secondary-400 bg-gradient-to-br from-secondary-50 to-secondary-50/30 shadow-sm dark:border-secondary/55 dark:from-secondary/20 dark:to-secondary/10 dark:shadow-none';
       case 'neutral':
-        // When no selection made, show subtle neutral state
-        return 'border-secondary-200 bg-secondary-50 hover:border-secondary-300';
+        return 'border-secondary-200 bg-secondary-50 hover:border-secondary-300 dark:border-secondary/35 dark:bg-secondary/15 dark:hover:border-secondary/55';
       case 'deselected':
-        // When some sources selected but not this one
-        return 'border-gray-200 bg-white hover:border-gray-300';
+        return 'border-border bg-muted/50 hover:bg-muted/70 dark:bg-muted/20 dark:hover:bg-muted/35';
     }
   };
 
@@ -184,8 +182,7 @@ export function SourceTypeFilter({
         // Steel blue when neutral (no selection)
         return 'bg-secondary-200 border-secondary-300';
       case 'deselected':
-        // Subtle gray when deselected with hover effect
-        return 'border-gray-300 bg-white group-hover:border-secondary-400';
+        return 'border-border bg-background group-hover:border-secondary/55 dark:bg-muted dark:group-hover:border-secondary/45';
     }
   };
 
@@ -201,9 +198,8 @@ export function SourceTypeFilter({
     let iconColor: string;
 
     if (state === 'neutral') {
-      // Steel blue background for neutral state
-      backgroundColor = '#c0dff3';
-      iconColor = '#005A9C';
+      backgroundColor = 'transparent';
+      iconColor = 'currentColor';
     } else if (state === 'selected') {
       // Color-coded for selected state
       backgroundColor = `${color}30`;
@@ -228,11 +224,11 @@ export function SourceTypeFilter({
   const getLabelClass = (state: 'selected' | 'neutral' | 'deselected') => {
     switch (state) {
       case 'selected':
-        return 'text-slate-900 font-semibold font-lato';
+        return 'text-foreground font-semibold font-lato';
       case 'neutral':
-        return 'text-slate-700 font-lato';
+        return 'text-foreground font-lato';
       case 'deselected':
-        return 'text-slate-700 group-hover:text-slate-900 font-lato';
+        return 'text-muted-foreground group-hover:text-foreground font-lato';
     }
   };
 
@@ -269,7 +265,7 @@ export function SourceTypeFilter({
   // ============================================================================
 
   return (
-    <Card className="p-5 bg-white border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <Card className="p-5 border-border shadow-sm hover:shadow-md transition-shadow duration-200">
       <style>{`
         @keyframes slideInDown {
           from {
@@ -301,10 +297,10 @@ export function SourceTypeFilter({
 
       <div className="space-y-4">
         {/* Header with Select All */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="flex items-center justify-between pb-3 border-b border-border">
           <div>
-            <h3 className="text-sm font-semibold text-primary-600 font-lato">Source Type</h3>
-            <p className="text-xs text-slate-500 mt-0.5 font-inter">Filter by information source</p>
+            <h3 className="text-sm font-semibold text-foreground font-lato">Source Type</h3>
+            <p className="text-xs text-muted-foreground mt-0.5 font-inter">Filter by information source</p>
           </div>
           {!isCheckingAuth && (
             <button
@@ -313,9 +309,9 @@ export function SourceTypeFilter({
               className="
                 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
                 rounded-md transition-all duration-200
-                text-slate-700 hover:bg-slate-100 hover:text-slate-900
-                disabled:text-slate-400 disabled:bg-transparent disabled:cursor-not-allowed
-                focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                text-muted-foreground hover:bg-muted hover:text-foreground
+                disabled:text-muted-foreground/50 disabled:bg-transparent disabled:cursor-not-allowed
+                focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background
               "
               aria-label={allSelected ? 'Deselect all source types' : 'Select all source types'}
             >
@@ -333,12 +329,12 @@ export function SourceTypeFilter({
 
         {/* Summary Badge - Shows selection count when not all are visible */}
         {!noneSelected && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-secondary-50 to-secondary-50/50 rounded-lg border border-secondary-100">
-            <Badge variant="secondary" className="font-semibold text-secondary-900 bg-secondary-200">
+          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/15 rounded-lg border border-secondary/25 dark:bg-secondary/10 dark:border-secondary/30">
+            <Badge variant="secondary" className="font-semibold bg-secondary/25 text-secondary-900 dark:bg-secondary/30 dark:text-blue-100">
               {selectedSources.length} / {availableSources.length}
             </Badge>
             {totalCount > 0 && (
-              <span className="text-xs font-medium text-slate-600 font-inter">
+              <span className="text-xs font-medium text-muted-foreground font-inter">
                 {totalCount} hazard{totalCount !== 1 ? 's' : ''}
               </span>
             )}
@@ -373,7 +369,7 @@ export function SourceTypeFilter({
                     border-2 transition-all duration-200 cursor-pointer
                     ${itemBgClass}
                     ${disabled || isCheckingAuth ? 'opacity-50 cursor-not-allowed pointer-events-none' : 'hover:shadow-sm'}
-                    focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2
+                    focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background
                   `}
                 >
                   {/* Hidden Checkbox Input */}
@@ -409,7 +405,7 @@ export function SourceTypeFilter({
                       )}
                       {state === 'neutral' && !sourceIsSelected && (
                         <svg
-                          className="w-3 h-3 text-slate-600"
+                          className="w-3 h-3 text-muted-foreground"
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -424,15 +420,20 @@ export function SourceTypeFilter({
                     <div className="flex items-center gap-3 mb-1">
                       {/* Icon with Dynamic Background */}
                       <div 
-                        className={`
-                          flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0
-                          transition-all duration-200
-                          ${iconStyles.scaleClass}
-                        `}
-                        style={{ 
-                          backgroundColor: iconStyles.backgroundColor,
-                          color: iconStyles.iconColor,
-                        }}
+                        className={cn(
+                          'flex items-center justify-center w-8 h-8 rounded-md flex-shrink-0 transition-all duration-200',
+                          iconStyles.scaleClass,
+                          state === 'neutral' &&
+                            'bg-secondary-100 text-secondary-700 dark:bg-secondary/40 dark:text-sky-200'
+                        )}
+                        style={
+                          state === 'neutral'
+                            ? undefined
+                            : {
+                                backgroundColor: iconStyles.backgroundColor,
+                                color: iconStyles.iconColor,
+                              }
+                        }
                       >
                         <Icon size={18} strokeWidth={2.5} />
                       </div>
@@ -445,11 +446,11 @@ export function SourceTypeFilter({
                         
                         {/* Count Badge - Dynamic styling */}
                         <Badge
-                          variant={count > 0 ? 'secondary' : 'outline'}
-                          className={`text-xs flex-shrink-0 transition-all duration-200 ${
+                          variant="outline"
+                          className={`text-xs flex-shrink-0 transition-all duration-200 border ${
                             count > 0
-                              ? 'font-bold text-accent-900 bg-accent-200 shadow-sm'
-                              : 'font-normal text-slate-500'
+                              ? 'font-semibold shadow-sm bg-gradient-to-br from-primary/12 to-secondary/12 text-primary border-primary/25 dark:from-primary/90 dark:to-secondary/80 dark:text-primary-foreground dark:border-primary/40'
+                              : 'font-normal text-muted-foreground border-border bg-transparent'
                           }`}
                         >
                           {count}
@@ -465,8 +466,8 @@ export function SourceTypeFilter({
 
         {/* Loading State - Show while checking authentication */}
         {isCheckingAuth && (
-          <div className="text-center py-3 px-3 bg-gradient-to-r from-slate-50 to-slate-50/50 rounded-lg border border-slate-200 animate-pulse">
-            <p className="text-xs text-slate-600 font-medium font-inter">
+          <div className="text-center py-3 px-3 bg-muted/40 rounded-lg border border-border animate-pulse">
+            <p className="text-xs text-muted-foreground font-medium font-inter">
               Checking authentication status...
             </p>
           </div>
@@ -475,13 +476,13 @@ export function SourceTypeFilter({
         {/* Authentication Info - Show when user is not authenticated */}
         {!isCheckingAuth && !isAuthenticated && (
           <div className="
-            text-xs bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg p-3.5 
-            border border-amber-200 flex items-start gap-3 shadow-sm
+            text-xs bg-amber-500/10 rounded-lg p-3.5 
+            border border-amber-500/35 dark:bg-amber-950/35 dark:border-amber-800 flex items-start gap-3 shadow-sm
           ">
-            <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5 flex-none" />
+            <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5 flex-none" />
             <div>
-              <p className="font-semibold text-amber-900 mb-1">Limited Access</p>
-              <p className="text-amber-700 leading-relaxed">
+              <p className="font-semibold text-amber-950 dark:text-amber-100 mb-1">Limited Access</p>
+              <p className="text-amber-900 dark:text-amber-200/90 leading-relaxed">
                 Sign in to view unverified citizen reports.
               </p>
             </div>
@@ -490,18 +491,18 @@ export function SourceTypeFilter({
 
         {/* No Selection Message - Show when all sources are deselected */}
         {noneSelected && !isCheckingAuth && (
-          <div className="text-center py-4 px-3 bg-gradient-to-r from-slate-50 to-slate-50/50 rounded-lg border border-slate-200">
-            <p className="text-sm font-medium text-slate-900">All source types are visible</p>
-            <p className="text-xs text-slate-500 mt-1.5 font-inter">
+          <div className="text-center py-4 px-3 bg-muted/40 rounded-lg border border-border">
+            <p className="text-sm font-medium text-foreground">All source types are visible</p>
+            <p className="text-xs text-muted-foreground mt-1.5 font-inter">
               Select specific sources to filter the map
             </p>
           </div>
         )}
 
         {/* Info Note - About source types */}
-        <div className="text-xs bg-gradient-to-br from-slate-50 to-secondary-50/30 rounded-lg p-3 border border-slate-200 space-y-1.5">
-          <p className="font-semibold text-slate-900">About Source Types</p>
-          <p className="text-slate-600 leading-relaxed">
+        <div className="text-xs bg-muted/40 rounded-lg p-3 border border-border space-y-1.5">
+          <p className="font-semibold text-foreground">About Source Types</p>
+          <p className="text-muted-foreground leading-relaxed">
             Unverified citizen reports require manual validation by authorities. Verified sources include official news feeds and confirmed citizen reports.
           </p>
         </div>

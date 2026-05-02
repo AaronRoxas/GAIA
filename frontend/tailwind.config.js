@@ -74,10 +74,8 @@ module.exports = {
           DEFAULT: '#FF7A00',
           foreground: '#ffffff'
         },
-        background: {
-          DEFAULT: '#F0F4F8',
-          dark: '#0a2a4d'
-        },
+        /* Must use CSS variables so dark mode matches index.css (.dark) */
+        background: 'hsl(var(--background))',
         text: {
           DEFAULT: '#334155',
           light: '#64748b',

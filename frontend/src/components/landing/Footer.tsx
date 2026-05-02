@@ -21,7 +21,7 @@ export const Footer: React.FC = () => {
           <div className="flex flex-col gap-4 items-start justify-start sm:col-span-2 md:col-span-1">
             <div className="flex flex-wrap gap-[10px] items-center justify-start w-full">
               <img
-                src={landingAssets.logos.gaiaWhite} 
+                src={landingAssets.logo.gaia} 
                 alt="AGAILA Logo"
                 className="h-[40px] w-auto sm:h-[53px]"
               />
