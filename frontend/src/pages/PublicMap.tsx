@@ -451,6 +451,7 @@ const PublicMap: React.FC = () => {
   // Filter hook (FP-01, FP-02, FP-03, FP-04) - replaces old layer visibility filters
   const { applyFilters } = useHazardFilters();
 
+  const isAdmin = user ? hasRole('master_admin') : false;
   const canAdjustPins = hasRole('master_admin', 'validator', 'lgu_responder');
   const isPinEditingActive = canAdjustPins && isPinEditEnabled;
 
@@ -746,9 +747,9 @@ const PublicMap: React.FC = () => {
           <header className="p-4 border-b border-gray-200 bg-white shrink-0">
             <div className="flex items-center justify-between gap-4">
               <Link 
-                to="/" 
+                to={isAdmin ? "/dashboard" : "/"} 
                 className="flex items-center space-x-3 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-2 rounded-lg p-1 -m-1"
-                aria-label="Go to AGAILA homepage"
+                aria-label={isAdmin ? "Go to AGAILA admin dashboard" : "Go to AGAILA homepage"}
               >
                 <img
                   src="/assets/img/AGAILA.svg"
