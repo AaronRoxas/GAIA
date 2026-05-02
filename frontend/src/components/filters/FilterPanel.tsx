@@ -20,7 +20,7 @@
  * - Respects prefers-reduced-motion
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faRotateLeft } from '@fortawesome/free-solid-svg-icons';
 import { Badge } from '../ui/badge';
@@ -69,11 +69,15 @@ export function FilterPanel({
    * Calculate hazard counts per filter category
    */
   const filteredHazards = applyFilters(hazards);
-  
-  const hazardTypeCounts = hazards.reduce((acc: Record<string, number>, hazard) => {
-    acc[hazard.hazard_type] = (acc[hazard.hazard_type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+
+  /** Per-type counts for the current time/source/severity slice (ignore type toggles). */
+  const hazardTypeCounts = useMemo(() => {
+    const slice = applyFilters(hazards, { skipHazardTypes: true });
+    return slice.reduce((acc: Record<string, number>, hazard) => {
+      acc[hazard.hazard_type] = (acc[hazard.hazard_type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [hazards, applyFilters]);
 
   const sourceCounts = hazards.reduce((acc: Record<SourceType, number>, hazard) => {
     let sourceType: SourceType = 'rss_feed';
@@ -117,10 +121,10 @@ export function FilterPanel({
       `}</style>
 
       {/* Simplified Header: Title + Badge + Reset */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg">
+      <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border border-border rounded-lg">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900 font-lato">Filters</h2>
-          <p className="text-xs text-slate-600 mt-0.5">
+          <h2 className="text-sm font-semibold text-foreground font-lato">Filters</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {filteredHazards.length} of {hazards.length} hazards
           </p>
         </div>
@@ -128,7 +132,7 @@ export function FilterPanel({
         <div className="flex items-center gap-2">
           {activeFilterCount > 0 && (
             <Badge 
-              className="bg-blue-600 text-white text-xs font-semibold"
+              className="bg-secondary text-secondary-foreground text-xs font-semibold dark:bg-secondary dark:text-white"
               aria-label={`${activeFilterCount} active filter${activeFilterCount !== 1 ? 's' : ''}`}
             >
               {activeFilterCount}
@@ -138,7 +142,7 @@ export function FilterPanel({
           {!isDefault && (
             <button
               onClick={resetFilters}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-foreground bg-background hover:bg-muted border border-border rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
               aria-label="Clear filters"
             >
               <FontAwesomeIcon icon={faRotateLeft} className="text-xs" aria-hidden="true" />
@@ -182,7 +186,7 @@ export function FilterPanel({
           {filters.hazardTypes.map((type) => (
             <li key={type}>
               <Badge
-                className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium hover:bg-blue-100 transition-colors"
+                className="bg-secondary/15 text-secondary dark:bg-secondary/25 dark:text-blue-100 border border-secondary/30 text-xs font-medium hover:bg-secondary/25 transition-colors"
               >
                 <span className="capitalize">{type.replace(/_/g, ' ')}</span>
                 <button
@@ -192,7 +196,7 @@ export function FilterPanel({
                       hazardTypes: filters.hazardTypes.filter((t) => t !== type),
                     })
                   }
-                  className="ml-1.5 inline-flex hover:bg-blue-200 rounded-full p-0.5 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="ml-1.5 inline-flex hover:bg-secondary/30 rounded-full p-0.5 transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <FontAwesomeIcon icon={faTimes} className="text-xs" aria-hidden="true" />
                 </button>
@@ -204,7 +208,7 @@ export function FilterPanel({
           {filters.timeWindow !== 'all' && (
             <li>
               <Badge
-                className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium hover:bg-blue-100 transition-colors"
+                className="bg-secondary/15 text-secondary dark:bg-secondary/25 dark:text-blue-100 border border-secondary/30 text-xs font-medium hover:bg-secondary/25 transition-colors"
               >
                 {filters.timeWindow === 'custom'
                   ? 'Custom dates'
@@ -216,7 +220,7 @@ export function FilterPanel({
                 <button
                   aria-label="Remove time filter"
                   onClick={() => updateFilters({ timeWindow: 'all', customDateRange: undefined })}
-                  className="ml-1.5 inline-flex hover:bg-blue-200 rounded-full p-0.5 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="ml-1.5 inline-flex hover:bg-secondary/30 rounded-full p-0.5 transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
                 >
                   <FontAwesomeIcon icon={faTimes} className="text-xs" aria-hidden="true" />
                 </button>
@@ -228,7 +232,7 @@ export function FilterPanel({
           {filters.sourceTypes.map((source) => (
             <li key={source}>
               <Badge
-                className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium hover:bg-blue-100 transition-colors"
+                className="bg-secondary/15 text-secondary dark:bg-secondary/25 dark:text-blue-100 border border-secondary/30 text-xs font-medium hover:bg-secondary/25 transition-colors"
               >
                 {source === 'rss_feed'
                   ? 'News Feed'
@@ -246,7 +250,7 @@ export function FilterPanel({
                     sourceTypes: filters.sourceTypes.filter((s) => s !== source),
                   })
                 }
-                className="ml-1.5 inline-flex hover:bg-blue-200 rounded-full p-0.5 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="ml-1.5 inline-flex hover:bg-secondary/30 rounded-full p-0.5 transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <FontAwesomeIcon icon={faTimes} className="text-xs" aria-hidden="true" />
               </button>

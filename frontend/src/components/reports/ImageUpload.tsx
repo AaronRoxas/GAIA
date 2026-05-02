@@ -299,7 +299,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
     return (
       <div className="space-y-3">
         {/* Preview Container */}
-        <div className="relative border-2 border-gray-200 rounded-lg overflow-hidden">
+        <div className="relative border-2 border-border rounded-lg overflow-hidden bg-card">
           <img
             src={previewUrl}
             alt="Preview"
@@ -329,39 +329,39 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
         </div>
 
         {/* File Info */}
-        <div className="flex items-start justify-between p-3 bg-gray-50 rounded-lg text-sm">
+        <div className="flex items-start justify-between p-3 bg-muted rounded-lg text-sm dark:bg-muted/60">
           <div>
-            <p className="font-medium text-gray-900">{selectedFile.name}</p>
-            <p className="text-gray-500">{formatFileSize(selectedFile.size)}</p>
+            <p className="font-medium text-foreground">{selectedFile.name}</p>
+            <p className="text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
           </div>
-          <div className="flex items-center gap-1 text-green-600">
-            <Check size={16} />
+          <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+            <Check size={16} aria-hidden />
             <span>Uploaded</span>
           </div>
         </div>
 
         {/* EXIF Metadata Display */}
         {metadata && (
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm space-y-1">
-            <p className="font-medium text-blue-900 mb-2">Image Metadata</p>
+          <div className="p-3 rounded-lg border border-primary/25 bg-primary/10 text-sm space-y-1 dark:border-primary/40 dark:bg-primary/15">
+            <p className="font-medium text-foreground mb-2">Image Metadata</p>
             
             {metadata.timestamp && (
-              <p className="text-blue-700">
+              <p className="text-foreground/90">
                 <span className="font-medium">Captured:</span> {metadata.timestamp}
               </p>
             )}
             
             {metadata.device && (
-              <p className="text-blue-700">
+              <p className="text-foreground/90">
                 <span className="font-medium">Device:</span> {metadata.device}
               </p>
             )}
             
             {metadata.gps && (
-              <p className="text-blue-700">
+              <p className="text-foreground/90">
                 <span className="font-medium">GPS Location:</span> Found ✓
                 <br />
-                <span className="text-xs">
+                <span className="text-xs text-muted-foreground">
                   {metadata.gps.latitude.toFixed(6)}, {metadata.gps.longitude.toFixed(6)}
                 </span>
               </p>
@@ -371,9 +371,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
 
         {/* Warning Display (non-error) */}
         {warning && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm flex items-start gap-2">
-            <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
-            <p className="text-amber-800">{warning}</p>
+          <div className="p-3 rounded-lg border border-amber-500/35 bg-amber-500/10 text-sm flex items-start gap-2 dark:bg-amber-500/15 dark:border-amber-500/45">
+            <AlertCircle size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" aria-hidden />
+            <p className="text-amber-950 dark:text-amber-50">{warning}</p>
           </div>
         )}
       </div>
@@ -392,9 +392,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
         onClick={() => !disabled && fileInputRef.current?.click()}
         className={`
           relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400'}
-          ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
-          ${error ? 'border-red-300 bg-red-50' : ''}
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/55'}
+          ${isDragging ? 'border-primary bg-primary/10 dark:bg-primary/15' : 'border-border'}
+          ${error ? 'border-destructive/50 bg-destructive/10 dark:bg-destructive/15' : ''}
         `}
       >
         <input
@@ -407,24 +407,24 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
         />
 
         <div className="flex flex-col items-center gap-3">
-          <div className={`p-3 rounded-full ${error ? 'bg-red-100' : 'bg-gray-100'}`}>
+          <div className={`p-3 rounded-full ${error ? 'bg-destructive/15' : 'bg-muted'}`}>
             {error ? (
-              <AlertCircle className="text-red-500" size={32} />
+              <AlertCircle className="text-destructive" size={32} aria-hidden />
             ) : (
-              <Upload className={isDragging ? 'text-blue-500' : 'text-gray-400'} size={32} />
+              <Upload className={isDragging ? 'text-primary' : 'text-muted-foreground'} size={32} aria-hidden />
             )}
           </div>
 
           {error ? (
             <div className="space-y-1">
-              <p className="text-sm font-medium text-red-600">{error}</p>
+              <p className="text-sm font-medium text-destructive">{error}</p>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setError(null);
                 }}
-                className="text-xs text-red-500 underline hover:no-underline"
+                className="text-xs text-destructive underline hover:no-underline"
               >
                 Try again
               </button>
@@ -432,10 +432,10 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
           ) : (
             <>
               <div>
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium text-foreground">
                   {isDragging ? 'Drop image here' : 'Click to upload or drag and drop'}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   JPEG or PNG (max {formatFileSize(MAX_FILE_SIZE)})
                 </p>
               </div>
@@ -445,7 +445,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onFileSelect, disabled = fals
       </div>
 
       {/* Help Text */}
-      <p className="text-xs text-gray-500 text-center">
+      <p className="text-xs text-muted-foreground text-center">
         📍 If your photo contains GPS data, we&apos;ll automatically extract the location
       </p>
     </div>

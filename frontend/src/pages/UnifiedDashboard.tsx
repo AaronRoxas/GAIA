@@ -60,6 +60,7 @@ import ActivityMonitor from '../components/admin/ActivityMonitor';
 import RSSFeedsView from '../components/admin/RSSFeedsView';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import AdminOnboarding from '../components/admin/AdminOnboarding';
+import { ThemeToggle } from '../components/ThemeToggle';
 import DashboardShellSkeleton from '../components/dashboard/DashboardShellSkeleton';
 
 // Navigation items type
@@ -259,19 +260,18 @@ export default function UnifiedDashboard() {
           <SidebarContent>
             {/* Header */}
             <SidebarGroup>
-              <Link to="/" className="flex items-center gap-2 px-4 py-4 transition-colors cursor-pointer">
-                {/* <Home className="h-6 w-6 text-primary" /> */}
-                <div className="flex flex-col">
-                  {/* <span className="font-semibold text-lg">GAIA</span> */}
-                  <img
-                    src="/assets/img/AGAILA.svg"
-                    alt="AGAILA Logo"
-                    className="w-[3.5rem] sm:w-[4.25rem] lg:w-[4.75rem]"
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    {userProfile?.role.replace('_', ' ').toUpperCase()}
-                  </span>
-                </div>
+              <Link
+                to="/"
+                className="flex min-w-0 items-center gap-2 px-2 py-4 transition-colors cursor-pointer [&:focus-visible]:outline-none [&:focus-visible]:ring-2 [&:focus-visible]:ring-sidebar-ring rounded-md"
+              >
+                <img
+                  src="/assets/img/AGAILA.svg"
+                  alt="AGAILA Logo"
+                  className="w-[4.25rem] sm:w-[5rem] lg:w-[5.5rem] shrink-0"
+                />
+                <span className="min-w-0 flex-1 text-[10px] sm:text-xs font-medium leading-snug text-muted-foreground uppercase tracking-wide line-clamp-2">
+                  {userProfile?.role.replace('_', ' ').toUpperCase()}
+                </span>
               </Link>
               <Separator />
             </SidebarGroup>
@@ -301,7 +301,7 @@ export default function UnifiedDashboard() {
             {/* User Info & Logout */}
             <SidebarGroup className="mt-auto">
               <Separator />
-              <div className="px-4 py-4">
+              <div className="px-2 py-4">
                 <div className="flex flex-col gap-1 mb-2">
                   <span className="text-sm font-medium">{userProfile?.full_name || 'User'}</span>
                   <span className="text-xs text-muted-foreground">{userProfile?.email}</span>
@@ -329,8 +329,8 @@ export default function UnifiedDashboard() {
             <h1 className="text-sm sm:text-base md:text-lg font-semibold truncate">
               {navigationItems.find(item => item.view === activeView)?.title || 'Dashboard'}
             </h1>
-            {/* Notifications Dropdown */}
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-1">
+              <ThemeToggle />
               <NotificationsDropdown />
             </div>
           </header>

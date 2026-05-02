@@ -10,6 +10,7 @@ import { Link } from 'react-router-dom';
 import { Card } from '../components/ui/card';
 import { ShieldAlert } from 'lucide-react';
 import { landingAssets } from '../constants/landingAssets';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 /**
  * Render the registration page informing users that self-registration is disabled.
@@ -22,14 +23,17 @@ import { landingAssets } from '../constants/landingAssets';
  */
 const Register = () => {
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex relative">
+      <div className="fixed top-4 right-4 z-[100]">
+        <ThemeToggle />
+      </div>
       {/* ── Brand Panel (desktop left column) ── */}
       <div className="hidden lg:flex lg:w-[420px] xl:w-[460px] flex-shrink-0 auth-brand-panel flex-col items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1 bg-accent" />
 
         <div className="relative z-10 flex flex-col items-center text-center gap-8">
           <img
-            src={landingAssets.logos.gaiaWhite}
+            src={landingAssets.logo.gaia}
             alt="AGAILA Logo"
             className="w-44 h-auto"
             loading="eager"
@@ -71,7 +75,7 @@ const Register = () => {
           </div>
 
           {/* Info Card */}
-          <Card className="p-8 space-y-6 shadow-lg bg-white rounded-xl border border-slate-200 border-t-[3px] border-t-primary">
+          <Card className="p-8 space-y-6 shadow-lg bg-card text-card-foreground rounded-xl border border-border border-t-[3px] border-t-primary">
 
             <div className="flex flex-col items-center text-center space-y-4">
               <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
@@ -87,8 +91,8 @@ const Register = () => {
                 </p>
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 w-full text-left space-y-2">
-                <p className="text-sm font-medium text-slate-700">
+              <div className="bg-muted border border-border rounded-lg p-4 w-full text-left space-y-2">
+                <p className="text-sm font-medium text-foreground">
                   Need an account?
                 </p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
@@ -98,7 +102,7 @@ const Register = () => {
             </div>
 
             {/* Footer links */}
-            <div className="pt-2 border-t border-slate-100 space-y-3 text-center">
+            <div className="pt-2 border-t border-border space-y-3 text-center">
               <p className="text-sm text-muted-foreground">
                 Already have an account?{' '}
                 <Link to="/login" className="text-secondary hover:text-primary hover:underline font-medium transition-colors">
