@@ -12,6 +12,7 @@ Security:
 import asyncio
 import os
 import logging
+import secrets
 from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request, Response, status, Depends, Query
@@ -37,7 +38,16 @@ from backend.python.lib.supabase_client import supabase
 from backend.python.middleware.activity_logger import ActivityLogger
 
 # Import RBAC for admin-only access and audit logging
-from backend.python.middleware.rbac import require_admin, require_validator, require_master_admin, UserContext, log_admin_action
+from backend.python.middleware.rbac import (
+    get_current_user_optional,
+    require_admin,
+    require_validator,
+    require_master_admin,
+    UserContext,
+    UserRole,
+    UserStatus,
+    log_admin_action,
+)
 
 # Import Redis caching for performance
 from backend.python.middleware.redis_cache import (
@@ -795,7 +805,7 @@ async def set_rss_schedule(
     body: UpdateScheduleRequest,
     request: Request,
     response: Response,
-    current_user: Optional[UserContext] = Depends(lambda: None)  # Allow unauthenticated access for token-based requests
+    current_user: Optional[UserContext] = Depends(get_current_user_optional)
 ):
     """
     Set the next scheduled RSS processing time. Use null to clear.
@@ -808,16 +818,12 @@ async def set_rss_schedule(
         # when `INTERNAL_SERVICE_TOKEN` is configured. This prevents regular
         # client/browser requests from overwriting the canonical `rss.next_run_time`.
         internal_token = os.getenv('INTERNAL_SERVICE_TOKEN')
-        incoming_token = None
-        try:
-            incoming_token = request.headers.get('x-internal-service-token')
-        except Exception:
-            incoming_token = None
+        incoming_token = request.headers.get('x-internal-service-token')
 
         # Validate authorization: token or master_admin role required
-        token_valid = internal_token and incoming_token == internal_token
+        token_valid = bool(internal_token) and bool(incoming_token) and secrets.compare_digest(incoming_token, internal_token)
         is_system = current_user and getattr(current_user, 'email', None) == 'system@gaia.local'
-        is_master_admin = current_user and getattr(current_user, 'role', None) == 'master_admin'
+        is_master_admin = bool(current_user) and getattr(current_user, 'role', None) == UserRole.MASTER_ADMIN
         
         if internal_token:
             # Token is configured: require it (or system user)
@@ -873,22 +879,27 @@ async def set_rss_schedule(
             await ConfigManager.invalidate_cache(key)
             result = inserted.data[0]
 
-        # Log activity for audit trail (skip if no authenticated user for token-based requests)
-        if current_user:
-            try:
-                await log_admin_action(
-                    user=current_user,
-                    action="rss_schedule_updated",
-                    action_description=f"Updated RSS schedule: {body.next_run_time}",
-                    resource_type="system_config",
-                    resource_id=key,
-                    old_values={"next_run_time": old_value},
-                    new_values={"next_run_time": body.next_run_time},
-                    request=request,
-                    event_type="RSS_SCHEDULE_UPDATED",
-                )
-            except Exception as e:
-                logger.error(f"Failed to log admin action: {e}")
+        # Always write an audit entry; token-based requests use a synthetic system principal.
+        audit_user = current_user or UserContext(
+            user_id=None,
+            email='system@gaia.local',
+            role=UserRole.MASTER_ADMIN,
+            status=UserStatus.ACTIVE,
+        )
+        try:
+            await log_admin_action(
+                user=audit_user,
+                action="rss_schedule_updated",
+                action_description=f"Updated RSS schedule: {body.next_run_time}",
+                resource_type="system_config",
+                resource_id=key,
+                old_values={"next_run_time": old_value},
+                new_values={"next_run_time": body.next_run_time},
+                request=request,
+                event_type="RSS_SCHEDULE_UPDATED",
+            )
+        except Exception as e:
+            logger.error(f"Failed to log admin action: {e}")
 
         return result
 
