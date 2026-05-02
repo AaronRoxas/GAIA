@@ -28,7 +28,6 @@ import {
   faBars, 
   faTimes, 
   faSearch, 
-  faChevronLeft, 
   faChevronUp, 
   faChevronDown,
   faMapPin, 
@@ -558,6 +557,14 @@ const PublicMap: React.FC = () => {
     }
   }, [isSidebarOpen]);
 
+  const prevSidebarOpenRef = useRef(isSidebarOpen);
+  useEffect(() => {
+    if (prevSidebarOpenRef.current && !isSidebarOpen) {
+      sidebarToggleRef.current?.focus();
+    }
+    prevSidebarOpenRef.current = isSidebarOpen;
+  }, [isSidebarOpen]);
+
   useEffect(() => {
     if (!canAdjustPins && isPinEditEnabled) {
       setIsPinEditEnabled(false);
@@ -758,36 +765,32 @@ const PublicMap: React.FC = () => {
             <div className="flex items-center justify-between gap-4">
               <Link 
                 to={isAdmin ? "/dashboard" : "/"} 
-                className="flex items-center space-x-3 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-2 rounded-lg p-1 -m-1"
+                className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-2 rounded-lg p-1 -m-1"
                 aria-label={isAdmin ? "Go to AGAILA admin dashboard" : "Go to AGAILA homepage"}
               >
                 <img
                   src="/assets/img/AGAILA.svg"
                   alt="AGAILA Logo"
                   aria-hidden="true"
-                  className="h-10 w-36 sm:h-12 sm:w-36"
+                  className="h-9 w-auto shrink-0 object-contain object-left sm:h-11"
                 />
-                <div>
+                <div className="min-w-0">
                   <h1 className="text-lg sm:text-xl font-bold dark:text-white text-primary">AGAILA</h1>
                   <p className="text-xs sm:text-sm text-muted-foreground">Live Hazard Map</p>
                 </div>
               </Link>
-              {/* Close button - visible on all screens when sidebar is open */}
-            {/* <div className="flex items-center gap-1 shrink-0">
-              <ThemeToggle size="sm" className="text-foreground" />
-              <button
-                onClick={() => {
-                  setIsSidebarOpen(false);
-                  sidebarToggleRef.current?.focus();
-                }}
-                className="p-2 sm:p-2.5 hover:bg-muted rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1"
-                aria-label="Close sidebar"
-                aria-expanded={isSidebarOpen}
-                aria-controls="sidebar-filters"
-              >
-                <FontAwesomeIcon icon={faTimes} className="text-base sm:text-lg text-muted-foreground" aria-hidden="true" />
-              </button>
-            </div> */}
+              {isSidebarOpen && (
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-2.5 shrink-0 hover:bg-muted rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1 border border-border"
+                  aria-label="Close filters"
+                  aria-expanded={isSidebarOpen}
+                  aria-controls="sidebar-filters"
+                >
+                  <FontAwesomeIcon icon={faTimes} className="text-lg text-muted-foreground" aria-hidden="true" />
+                </button>
+              )}
             </div>
           </header>
 
@@ -942,30 +945,22 @@ const PublicMap: React.FC = () => {
           }}
         />
 
-        {/* Sidebar Toggle Button */}
-        <button
-          ref={sidebarToggleRef}
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className={`${
-            isSidebarOpen 
-              ? `${isSidebarExpanded ? 'md:left-[420px]' : 'md:left-80'} hidden md:flex` 
-              : 'left-0 flex'
-          } fixed md:absolute top-20 sm:top-24 z-[1001] bg-card shadow-lg rounded-r-xl p-2.5 sm:p-3 hover:bg-muted/70 transition-all duration-300 motion-reduce:transition-none focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1 items-center justify-center group`}
-          aria-label={isSidebarOpen ? 'Close filters sidebar' : 'Open filters sidebar'}
-          aria-expanded={isSidebarOpen}
-          aria-controls="sidebar-filters"
-        >
-          {isSidebarOpen ? (
-            <FontAwesomeIcon icon={faChevronLeft} className="text-base sm:text-lg text-foreground group-hover:text-[#0a2a4d]" aria-hidden="true" />
-          ) : (
-            <>
-              <FontAwesomeIcon icon={faBars} className="text-base sm:text-lg text-foreground group-hover:text-[#0a2a4d]" aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only sm:ml-2 sm:text-sm sm:font-medium sm:text-foreground sm:group-hover:text-[#0a2a4d]">
-                Filters
-              </span>
-            </>
-          )}
-        </button>
+        {/* Open filters — floating control (close via header X when sidebar is open) */}
+        {!isSidebarOpen && (
+          <button
+            ref={sidebarToggleRef}
+            onClick={() => setIsSidebarOpen(true)}
+            className="left-0 flex fixed md:absolute z-[1001] top-20 sm:top-24 bg-card shadow-lg rounded-r-xl p-2.5 sm:p-3 hover:bg-muted/70 transition-all duration-300 motion-reduce:transition-none focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1 items-center justify-center group"
+            aria-label="Open filters sidebar"
+            aria-expanded={false}
+            aria-controls="sidebar-filters"
+          >
+            <FontAwesomeIcon icon={faBars} className="text-base sm:text-lg text-foreground group-hover:text-[#0a2a4d]" aria-hidden="true" />
+            <span className="sr-only sm:not-sr-only sm:ml-2 sm:text-sm sm:font-medium sm:text-foreground sm:group-hover:text-[#0a2a4d]">
+              Filters
+            </span>
+          </button>
+        )}
 
         {/* Mobile Overlay when sidebar is open */}
         {isSidebarOpen && (
