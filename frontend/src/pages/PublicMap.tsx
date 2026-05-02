@@ -746,7 +746,7 @@ const PublicMap: React.FC = () => {
           <header className="p-4 border-b border-gray-200 bg-white shrink-0">
             <div className="flex items-center justify-between gap-4">
               <Link 
-                to="/" 
+                to="/dashboard" 
                 className="flex items-center space-x-3 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-2 rounded-lg p-1 -m-1"
                 aria-label="Go to AGAILA homepage"
               >

@@ -120,9 +120,9 @@ async def lifespan(app: FastAPI):
 
 # Initialize FastAPI application with lifespan handler
 app = FastAPI(
-    title="GAIA API",
-    description="Geospatial AI-driven Assessment for Philippine Environmental Hazards",
-    version="0.1.0",
+    title="AGAILA API",
+    description="A Framework Integrating Zero-Shot Classification and Geo-NER for Natural Hazard Detection",
+    version="1.1.14",
     lifespan=lifespan,
     openapi_tags=[
         {
@@ -402,8 +402,8 @@ class ProcessRSSRequest(BaseModel):
 async def root():
     """Root endpoint"""
     return {
-        "message": "GAIA API - Geospatial AI-driven Assessment",
-        "version": "0.1.0",
+        "message": "AGAILA API - A Framework Integrating Zero-Shot Classification and Geo-NER for Natural Hazard Detection",
+        "version": "1.1.14",
         "status": "running",
         "capabilities": [
             "Zero-Shot Hazard Classification",
