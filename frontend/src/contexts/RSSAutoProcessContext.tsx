@@ -247,7 +247,7 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     // overwrite the shared next-run value. Keep the value in localStorage
     // for client-side persistence only.
     return next;
-  }, [setSchedule, setNextRunTime]);
+  }, [setNextRunTime]);
 
   /**
    * Update countdown display
