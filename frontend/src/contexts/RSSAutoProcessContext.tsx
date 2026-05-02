@@ -240,17 +240,14 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     const next = new Date(Date.now() + AUTO_PROCESS_INTERVAL_MS);
     setNextRunTime(next);
     lastProcessedTimeRef.current = null; // Reset the trigger flag for new scheduled time
-    
-    // Persist next run to backend so Celery and other clients can sync
-    // Use debounced setter from useRssSchedule to avoid duplicate POSTs
-    try {
-      setSchedule(next.toISOString());
-    } catch (e) {
-      // swallow errors silently; server persistence is best-effort
-      console.warn('[RSS Auto-Process] Failed to sync with backend:', e);
-    }
+    // NOTE: Do NOT persist local-scheduled times to the backend here.
+    // The server (Celery worker) is authoritative for `rss.next_run_time` and
+    // will update it after a successful background run. Persisting local
+    // schedules from arbitrary clients causes races where different users
+    // overwrite the shared next-run value. Keep the value in localStorage
+    // for client-side persistence only.
     return next;
-  }, [setSchedule, setNextRunTime]);
+  }, [setNextRunTime]);
 
   /**
    * Update countdown display
@@ -383,25 +380,15 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     if (!nextRunTimeRef.current || nextRunTimeRef.current.getTime() < Date.now()) {
       scheduleNextRun();
     } else {
-      // Only post the local schedule to the server if it's strictly newer than the server value.
+      // Prefer the server schedule when available. Do not POST a local
+      // schedule to the backend from a regular client — this avoids
+      // competing writes between different users. If the server has no
+      // schedule yet, keep the client-local value but do not attempt to
+      // persist it here.
       try {
-        const local = nextRunTimeRef.current;
         const server = schedule ? new Date(schedule) : null;
-
         if (server && !isNaN(server.getTime())) {
-          // If backend is already synced, compare timestamps and only post if local is newer
-          if (local && local.getTime() > server.getTime()) {
-            setSchedule(local.toISOString());
-          } else {
-            // Prefer server schedule
-            setNextRunTime(server);
-          }
-        } else {
-          // Backend schedule not available yet; defer posting until server sync completes
-          if (backendSyncDone) {
-            // If backendSyncDone and no server schedule, it's safe to post local
-            setSchedule(local!.toISOString());
-          }
+          setNextRunTime(server);
         }
       } catch (e) {
         console.warn('[RSS Auto-Process] Failed to sync restored schedule:', e);

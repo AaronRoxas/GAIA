@@ -271,13 +271,13 @@ const UpdatePassword: React.FC = () => {
           <button
             onClick={async () => {
               // Sign out user to prevent auto-redirect to dashboard
-              await supabase.auth.signOut();
-              navigate('/login');
+              // await supabase.auth.signOut();
+              navigate('/dashboard');
             }}
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors"
           >
             <ArrowLeft className="h-3 w-3" />
-            Back to Login
+            Back to Dashboard
           </button>
         </div>
       </Card>

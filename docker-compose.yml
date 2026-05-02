@@ -31,6 +31,8 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - RSS_UPDATE_INTERVAL_MINUTES=5
+      # Internal Service Token (for protecting internal API endpoints)
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
     volumes:
       - ./backend/python:/app/backend/python
       - ./models:/app/models
@@ -116,6 +118,7 @@ services:
       - GAIA_ENCRYPTION_KEY=${GAIA_ENCRYPTION_KEY}
       - GAIA_ENCRYPTION_SALT=${GAIA_ENCRYPTION_SALT}
       - GAIA_AUDIT_HMAC_SECRET=${GAIA_AUDIT_HMAC_SECRET}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
     volumes:
       - ./backend/python:/app/backend/python
       - ./models:/app/models
@@ -148,6 +151,7 @@ services:
       - GAIA_ENCRYPTION_KEY=${GAIA_ENCRYPTION_KEY}
       - GAIA_ENCRYPTION_SALT=${GAIA_ENCRYPTION_SALT}
       - GAIA_AUDIT_HMAC_SECRET=${GAIA_AUDIT_HMAC_SECRET}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
     volumes:
       - ./backend/python:/app/backend/python
     networks:

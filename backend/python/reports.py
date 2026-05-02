@@ -338,17 +338,25 @@ def create_hazard_cards(hazards: List[HazardData], styles) -> List:
 
         # ----- LEFT CELL: hazard details -----
         hazard_type = _escape(hazard.hazard_type.replace('_', ' ').title())
-        severity_text = _escape(hazard.severity.upper()) if hazard.severity else 'UNKNOWN'
+        severity_value = (hazard.severity or '').strip()
+        severity_text = ''
+        if severity_value and severity_value.lower() not in ('unknown', 'n/a', 'none'):
+            severity_text = _escape(severity_value.upper())
         geo_text = _escape(format_geo_ner_location(hazard))
         confidence_pct = int(round((hazard.confidence_score or 0.0) * 100))
 
         accent_hex = _hex(accent)
+        severity_segment = (
+            f'<b>Severity:</b> {severity_text} &nbsp;&middot;&nbsp; '
+            if severity_text
+            else ''
+        )
         left_html = (
             f'<font size="11" color="{accent_hex}">'
             f'<b>#{idx:02d} &middot; {hazard_type}</b></font><br/>'
             f'<font size="8" color="#374151"><b>Location (Geo-NER):</b> {geo_text}</font><br/>'
-            f'<font size="8" color="#374151"><b>Severity:</b> {severity_text} '
-            f'&nbsp;&middot;&nbsp; <b>Confidence:</b> {confidence_pct}% '
+            f'<font size="8" color="#374151">{severity_segment}'
+            f'<b>Confidence:</b> {confidence_pct}% '
             f'&nbsp;&middot;&nbsp; <b>Urgency:</b> '
             f'<font color="{accent_hex}"><b>{urgency_label}</b></font></font><br/>'
             f'<font size="7.5" color="#6b7280"><b>Coordinates:</b> '
@@ -611,12 +619,20 @@ def create_trend_section(hazards: List[HazardData], styles) -> List:
     )
 
     # Per-type comparison table with mini ASCII bars
+    header_style = ParagraphStyle(
+        'TrendTableHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        textColor=colors.white,
+        alignment=1,
+    )
     header_row = [
-        Paragraph('<b>Hazard Type</b>', styles['Normal']),
-        Paragraph('<b>Prev Week</b>', styles['Normal']),
-        Paragraph('<b>This Week</b>', styles['Normal']),
-        Paragraph('<b>Δ</b>', styles['Normal']),
-        Paragraph('<b>Trend</b>', styles['Normal']),
+        Paragraph('<b>Hazard Type</b>', header_style),
+        Paragraph('<b>Prev Week</b>', header_style),
+        Paragraph('<b>This Week</b>', header_style),
+        Paragraph('<b>Δ</b>', header_style),
+        Paragraph('<b>Trend</b>', header_style),
     ]
     rows = [header_row]
 

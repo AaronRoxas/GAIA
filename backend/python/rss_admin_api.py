@@ -12,6 +12,7 @@ Security:
 import asyncio
 import os
 import logging
+import secrets
 from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request, Response, status, Depends, Query
@@ -37,7 +38,16 @@ from backend.python.lib.supabase_client import supabase
 from backend.python.middleware.activity_logger import ActivityLogger
 
 # Import RBAC for admin-only access and audit logging
-from backend.python.middleware.rbac import require_admin, require_validator, require_master_admin, UserContext, log_admin_action
+from backend.python.middleware.rbac import (
+    get_current_user_optional,
+    require_admin,
+    require_validator,
+    require_master_admin,
+    UserContext,
+    UserRole,
+    UserStatus,
+    log_admin_action,
+)
 
 # Import Redis caching for performance
 from backend.python.middleware.redis_cache import (
@@ -795,14 +805,46 @@ async def set_rss_schedule(
     body: UpdateScheduleRequest,
     request: Request,
     response: Response,
-    current_user: UserContext = Depends(require_master_admin)
+    current_user: Optional[UserContext] = Depends(get_current_user_optional)
 ):
     """
     Set the next scheduled RSS processing time. Use null to clear.
 
-    Permissions: Master Admin
+    Permissions: Master Admin role OR internal service token (x-internal-service-token header).
+    If token is set, only token-bearing requests are allowed. Otherwise master_admin required.
     """
     try:
+        # Server-side guard: allow schedule updates only from internal services
+        # when `INTERNAL_SERVICE_TOKEN` is configured. This prevents regular
+        # client/browser requests from overwriting the canonical `rss.next_run_time`.
+        internal_token = os.getenv('INTERNAL_SERVICE_TOKEN')
+        incoming_token = request.headers.get('x-internal-service-token')
+
+        # Validate authorization: token or master_admin role required
+        token_valid = bool(internal_token) and bool(incoming_token) and secrets.compare_digest(incoming_token, internal_token)
+        is_system = current_user and getattr(current_user, 'email', None) == 'system@gaia.local'
+        is_master_admin = bool(current_user) and getattr(current_user, 'role', None) == UserRole.MASTER_ADMIN
+        
+        if internal_token:
+            # Token is configured: require it (or system user)
+            if not (token_valid or is_system):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail='Forbidden: valid internal service token required in x-internal-service-token header'
+                )
+        else:
+            # No token configured: fall back to master_admin requirement
+            if not is_master_admin:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail='Forbidden: master admin role or internal service token required'
+                )
+            logger.warning('INTERNAL_SERVICE_TOKEN not configured; schedule updates accepted only from master_admin')
+
+        # For token-based access without user context, we don't set modified_by (to avoid FK constraint violation).
+        # Only set if we have an authenticated user.
+        modified_by_user_id = current_user.user_id if current_user else None
+
         # Check if config exists
         key = 'rss.next_run_time'
         existing = supabase.schema('gaia').from_('system_config').select('*').eq('config_key', key).execute()
@@ -811,9 +853,10 @@ async def set_rss_schedule(
         if existing.data:
             update_data = {
                 'config_value': body.next_run_time,
-                'modified_by': current_user.user_id,
                 'modified_at': datetime.utcnow().isoformat()
             }
+            if modified_by_user_id:
+                update_data['modified_by'] = modified_by_user_id
             updated = supabase.schema('gaia').from_('system_config').update(update_data).eq('config_key', key).execute()
             if not updated.data:
                 raise HTTPException(status_code=500, detail="Failed to update RSS schedule")
@@ -825,20 +868,27 @@ async def set_rss_schedule(
                 'config_key': key,
                 'config_value': body.next_run_time,
                 'value_type': 'string',
-                'modified_by': current_user.user_id,
                 'modified_at': datetime.utcnow().isoformat(),
                 'created_at': datetime.utcnow().isoformat()
             }
+            if modified_by_user_id:
+                insert_data['modified_by'] = modified_by_user_id
             inserted = supabase.schema('gaia').from_('system_config').insert(insert_data).execute()
             if not inserted.data:
                 raise HTTPException(status_code=500, detail="Failed to set RSS schedule")
             await ConfigManager.invalidate_cache(key)
             result = inserted.data[0]
 
-        # Log activity for audit trail (FP-04 Activity Monitor)
+        # Always write an audit entry; token-based requests use a synthetic system principal.
+        audit_user = current_user or UserContext(
+            user_id=None,
+            email='system@gaia.local',
+            role=UserRole.MASTER_ADMIN,
+            status=UserStatus.ACTIVE,
+        )
         try:
             await log_admin_action(
-                user=current_user,
+                user=audit_user,
                 action="rss_schedule_updated",
                 action_description=f"Updated RSS schedule: {body.next_run_time}",
                 resource_type="system_config",
