@@ -17,6 +17,7 @@ const routeTitles: Record<string, string> = {
   '/reset-password': 'Forgot Password | AGAILA',
   '/update-password': 'Update Password | AGAILA',
   '/status': 'System Status | AGAILA',
+  '/hazard-info': 'Hazard Info | AGAILA',
 };
 
 /**
