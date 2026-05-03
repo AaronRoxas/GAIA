@@ -1022,6 +1022,8 @@ const PublicMap: React.FC = () => {
                       mapContainerRef={mapContainerRef}
                       onReportGenerated={() => {
                         setAnnouncement('Report generated successfully.');
+                        // Close mobile controls panel when report is generated
+                        setIsMobileControlsOpen(false);
                       }}
                       triggerButton={
                         <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-primary-foreground bg-gradient-to-br from-primary to-secondary shadow-sm transition-all hover:from-primary/90 hover:to-secondary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background">
