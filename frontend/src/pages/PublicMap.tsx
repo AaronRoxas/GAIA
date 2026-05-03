@@ -774,10 +774,10 @@ const PublicMap: React.FC = () => {
                   aria-hidden="true"
                   className="h-9 w-auto shrink-0 object-contain object-left sm:h-11"
                 />
-                <div className="min-w-0">
+                {/* <div className="min-w-0">
                   <h1 className="text-lg sm:text-xl font-bold dark:text-white text-primary">AGAILA</h1>
                   <p className="text-xs sm:text-sm text-muted-foreground">Live Hazard Map</p>
-                </div>
+                </div> */}
               </Link>
               {isSidebarOpen && (
                 <button
