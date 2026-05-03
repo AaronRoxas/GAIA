@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { landingAssets } from '../../constants/landingAssets';
 import { ThemeToggle } from '../ThemeToggle';
+import { cn } from '../../lib/utils';
 
 export const Header: React.FC = () => {
   const { user } = useAuth();
@@ -61,6 +62,17 @@ export const Header: React.FC = () => {
             className="font-inter font-medium text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] text-foreground whitespace-nowrap transition-colors hover:text-secondary"
           >
             View Live Map
+          </Link>
+          <Link
+            to="/hazard-info"
+            className={cn(
+              'font-inter font-medium text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] whitespace-nowrap transition-colors px-3 py-2 rounded-lg',
+              location.pathname === '/hazard-info'
+                ? 'text-primary bg-primary/10 ring-2 ring-primary shadow-sm font-semibold dark:text-white dark:bg-primary/20'
+                : 'text-foreground dark:text-neutral-50 hover:text-secondary dark:hover:text-secondary/80'
+            )}
+          >
+            Hazard info
           </Link>
           <Link
             to={dashboardLink.to}
@@ -128,8 +140,21 @@ export const Header: React.FC = () => {
               </li>
               <li>
                 <Link
+                  to="/hazard-info"
+                  className={cn(
+                    'block w-full font-inter font-medium text-[16px] px-4 py-3 rounded-[10px] transition-colors',
+                    location.pathname === '/hazard-info'
+                      ? 'bg-primary/10 ring-2 ring-inset ring-primary dark:ring-primary/50 dark:text-white text-primary font-semibold'
+                      : 'text-foreground dark:text-neutral-50 hover:bg-muted dark:hover:bg-muted/50'
+                  )}
+                >
+                  Hazard info
+                </Link>
+              </li>
+              <li>
+                <Link
                   to={dashboardLink.to}
-                  className="block w-full text-center bg-primary text-primary-foreground font-inter font-semibold text-[16px] px-4 py-3 rounded-[10px] transition-colors hover:bg-primary/90"
+                  className="block w-full text-center bg-primary dark:bg-primary/80 dark:text-neutral-50 text-primary-foreground font-inter font-semibold text-[16px] px-4 py-3 rounded-[10px] transition-colors hover:bg-primary/90"
                 >
                   {dashboardLink.label}
                 </Link>
