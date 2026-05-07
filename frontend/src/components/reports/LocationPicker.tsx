@@ -250,7 +250,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
           type="button"
           onClick={handleUseCurrentLocation}
           disabled={isGettingLocation}
-          className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-4 py-2 text-sm text-primary-foreground bg-primary rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isGettingLocation ? (
             <>
@@ -266,8 +266,8 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
         </button>
 
         {markerPosition && (
-          <p className="text-sm text-gray-600">
-            <span className="font-medium">Coordinates:</span>{' '}
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Coordinates:</span>{' '}
             {markerPosition[0].toFixed(6)}, {markerPosition[1].toFixed(6)}
           </p>
         )}
@@ -275,14 +275,14 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
 
       {/* Error Message */}
       {error && (
-        <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-600">
-          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 p-3 rounded-md border border-destructive/25 bg-destructive/10 text-sm text-destructive dark:bg-destructive/15 dark:border-destructive/40">
+          <AlertCircle size={16} className="flex-shrink-0 mt-0.5" aria-hidden />
           <p>{error}</p>
         </div>
       )}
 
       {/* Map Container */}
-      <div className="border rounded-lg overflow-hidden h-[280px] sm:h-[350px] md:h-[400px]">
+      <div className="border border-border rounded-lg overflow-hidden h-[280px] sm:h-[350px] md:h-[400px]">
         <MapContainer
           center={markerPosition || DEFAULT_CENTER}
           zoom={markerPosition ? 13 : DEFAULT_ZOOM}
@@ -317,7 +317,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       </div>
 
       {/* Instructions */}
-      <div className="text-xs text-gray-500 space-y-1">
+      <div className="text-xs text-muted-foreground space-y-1 [&_strong]:font-semibold [&_strong]:text-foreground">
         <p>💡 <strong>Click</strong> anywhere on the map to place a marker</p>
         <p>🖱️ <strong>Drag</strong> the marker to adjust the exact location</p>
         <p>🌍 Location must be within the Philippines</p>

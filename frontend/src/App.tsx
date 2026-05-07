@@ -7,6 +7,7 @@ import { Analytics } from '@vercel/analytics/react';
 import './App.css';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { SkipLink } from './components/SkipLink';
 import { queryClient } from './lib/queryClient';
@@ -27,6 +28,7 @@ const CitizenReportForm  = React.lazy(() => import('./pages/CitizenReportForm'))
 const ReportConfirmation = React.lazy(() => import('./pages/ReportConfirmation'));
 const ReportTracking   = React.lazy(() => import('./pages/ReportTracking'));
 const StatusPage       = React.lazy(() => import('./pages/StatusPage'));
+const HazardInfoPage   = React.lazy(() => import('./pages/HazardInfoPage'));
 
 /**
  * Component that applies document title based on route
@@ -62,6 +64,7 @@ const AppContent = () => {
             <Route path="/report/confirmation/:trackingId" element={<ReportConfirmation />} />
             <Route path="/track" element={<ReportTracking />} />
             <Route path="/status" element={<StatusPage />} />
+            <Route path="/hazard-info" element={<HazardInfoPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
@@ -115,9 +118,11 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
       {/* React Query DevTools - only visible in development */}
       {process.env.NODE_ENV === 'development' && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>

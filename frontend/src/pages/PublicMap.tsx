@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, ZoomControl, ScaleControl, LayersControl, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
@@ -28,7 +28,6 @@ import {
   faBars, 
   faTimes, 
   faSearch, 
-  faChevronLeft, 
   faChevronUp, 
   faChevronDown,
   faMapPin, 
@@ -45,6 +44,7 @@ import {
   HazardIcon,
 } from '../constants/hazard-icons';
 import { toast } from 'sonner';
+// import { ThemeToggle } from '../components/ThemeToggle';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -557,6 +557,14 @@ const PublicMap: React.FC = () => {
     }
   }, [isSidebarOpen]);
 
+  const prevSidebarOpenRef = useRef(isSidebarOpen);
+  useEffect(() => {
+    if (prevSidebarOpenRef.current && !isSidebarOpen) {
+      sidebarToggleRef.current?.focus();
+    }
+    prevSidebarOpenRef.current = isSidebarOpen;
+  }, [isSidebarOpen]);
+
   useEffect(() => {
     if (!canAdjustPins && isPinEditEnabled) {
       setIsPinEditEnabled(false);
@@ -581,6 +589,15 @@ const PublicMap: React.FC = () => {
 
   // Apply filters using hook (includes hazard type, time, source, and severity)
   const filteredHazards = applyFilters(hazards);
+
+  const hazardTypeCountMap = useMemo(() => {
+    const slice = applyFilters(hazards, { skipHazardTypes: true });
+    const acc: Record<string, number> = {};
+    for (const h of slice) {
+      acc[h.hazard_type] = (acc[h.hazard_type] || 0) + 1;
+    }
+    return acc;
+  }, [hazards, applyFilters]);
 
   // Search location using Nominatim geocoding API
   // Initialize geocoding provider (Leaflet-Geosearch)
@@ -709,7 +726,7 @@ const PublicMap: React.FC = () => {
   // Use getHazardIcon(hazardType) for individual icon config
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Skip Navigation Link - WCAG 2.4.1 (Level A) */}
       <a
         href="#public-map-container"
@@ -741,40 +758,39 @@ const PublicMap: React.FC = () => {
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           } ${
             isSidebarExpanded ? 'md:w-[420px]' : 'md:w-80'
-          } w-full md:max-w-none fixed md:absolute left-0 top-0 h-full transition-all duration-300 ease-in-out motion-reduce:transition-none bg-white shadow-2xl z-[1000] overflow-hidden flex flex-col`}
+          } w-full md:max-w-none fixed md:absolute left-0 top-0 h-full transition-all duration-300 ease-in-out motion-reduce:transition-none bg-card shadow-2xl z-[1000] overflow-hidden flex flex-col`}
         >
           {/* Sidebar Header - Fixed */}
-          <header className="p-4 border-b border-gray-200 bg-white shrink-0">
+          <header className="p-4 border-b border-border bg-card shrink-0">
             <div className="flex items-center justify-between gap-4">
               <Link 
                 to={isAdmin ? "/dashboard" : "/"} 
-                className="flex items-center space-x-3 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-2 rounded-lg p-1 -m-1"
+                className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-2 rounded-lg p-1 -m-1"
                 aria-label={isAdmin ? "Go to AGAILA admin dashboard" : "Go to AGAILA homepage"}
               >
                 <img
                   src="/assets/img/AGAILA.svg"
                   alt="AGAILA Logo"
                   aria-hidden="true"
-                  className="h-10 w-36 sm:h-12 sm:w-36"
+                  className="h-9 w-auto shrink-0 object-contain object-left sm:h-11"
                 />
-                <div>
-                  <h1 className="text-lg sm:text-xl font-bold text-[#0a2a4d]">AGAILA</h1>
-                  <p className="text-xs sm:text-sm text-gray-600">Live Hazard Map</p>
-                </div>
+                {/* <div className="min-w-0">
+                  <h1 className="text-lg sm:text-xl font-bold dark:text-white text-primary">AGAILA</h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Live Hazard Map</p>
+                </div> */}
               </Link>
-              {/* Close button - visible on all screens when sidebar is open */}
-              <button
-                onClick={() => {
-                  setIsSidebarOpen(false);
-                  sidebarToggleRef.current?.focus();
-                }}
-                className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1"
-                aria-label="Close sidebar"
-                aria-expanded={isSidebarOpen}
-                aria-controls="sidebar-filters"
-              >
-                <FontAwesomeIcon icon={faTimes} className="text-base sm:text-lg text-gray-600" aria-hidden="true" />
-              </button>
+              {isSidebarOpen && (
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-2.5 shrink-0 hover:bg-muted rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1 border border-border"
+                  aria-label="Close filters"
+                  aria-expanded={isSidebarOpen}
+                  aria-controls="sidebar-filters"
+                >
+                  <FontAwesomeIcon icon={faTimes} className="text-lg text-muted-foreground" aria-hidden="true" />
+                </button>
+              )}
             </div>
           </header>
 
@@ -786,11 +802,11 @@ const PublicMap: React.FC = () => {
             ) : (
               <>
                 {/* Search Location */}
-                <div className="p-4 border-b border-gray-200">
+                <div className="p-4 border-b border-border">
                   <label htmlFor="location-search" className="sr-only">Search for a location in the Philippines</label>
                   <div className="relative" role="search">
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                      <FontAwesomeIcon icon={faSearch} className="text-base text-gray-400" aria-hidden="true" />
+                      <FontAwesomeIcon icon={faSearch} className="text-base text-muted-foreground" aria-hidden="true" />
                     </div>
                     <input
                       id="location-search"
@@ -804,7 +820,7 @@ const PublicMap: React.FC = () => {
                           setShowSuggestions(false);
                         }
                       }}
-                      className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:border-transparent transition-shadow"
+                      className="w-full pl-10 pr-12 py-2.5 sm:py-3 border border-input rounded-lg text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:border-transparent transition-shadow"
                       aria-describedby="search-hint"
                       aria-autocomplete="list"
                       aria-controls="search-suggestions"
@@ -817,14 +833,14 @@ const PublicMap: React.FC = () => {
                     <button 
                       type="button"
                       aria-label={isSearching ? 'Searching...' : 'Search location'}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-[#0a2a4d] hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1.5 text-[#0a2a4d] hover:bg-muted rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
                       onClick={() => searchQuery && searchLocation(searchQuery)}
                       disabled={isSearching}
                     >
                       {isSearching ? (
                         <FontAwesomeIcon icon={faRotateRight} className="text-base animate-spin" aria-hidden="true" />
                       ) : (
-                        <FontAwesomeIcon icon={faSearch} className="text-base" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faSearch} className="text-base dark:text-white" aria-hidden="true" />
                       )}
                     </button>
                     
@@ -834,21 +850,21 @@ const PublicMap: React.FC = () => {
                         id="search-suggestions"
                         role="listbox"
                         aria-label="Location suggestions"
-                        className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto"
+                        className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto"
                       >
                         {searchSuggestions.map((suggestion) => (
                           <li key={suggestion.place_id} role="option" aria-selected={false}>
                             <button
                               onClick={() => handleSelectSuggestion(suggestion)}
-                              className="w-full text-left px-4 py-3 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-b border-gray-100 last:border-b-0 transition-colors"
+                              className="w-full text-left px-4 py-3 hover:bg-accent focus:bg-accent focus:outline-none border-b border-border last:border-b-0 transition-colors"
                             >
                               <div className="flex items-start gap-3">
-                                <FontAwesomeIcon icon={faMapPin} className="text-sm text-gray-400 mt-0.5 shrink-0" aria-hidden="true" />
+                                <FontAwesomeIcon icon={faMapPin} className="text-sm text-muted-foreground mt-0.5 shrink-0" aria-hidden="true" />
                                 <div className="min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                  <p className="text-sm font-medium text-foreground truncate">
                                     {suggestion.display_name.split(',')[0]}
                                   </p>
-                                  <p className="text-xs text-gray-500 truncate">
+                                  <p className="text-xs text-muted-foreground truncate">
                                     {suggestion.display_name}
                                   </p>
                                 </div>
@@ -887,18 +903,18 @@ const PublicMap: React.FC = () => {
           </div>
 
           {/* Active Hazards Count - Fixed at bottom */}
-          <div className="p-4 border-t border-gray-200 bg-white shrink-0">
+          <div className="p-4 border-t border-border bg-card shrink-0">
             {loading ? (
               <HazardCountSkeleton />
             ) : (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 sm:p-4 border border-blue-100">
+              <div className="bg-gradient-to-r from-muted to-muted/80 rounded-lg p-3 sm:p-4 border border-border">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm sm:text-base text-gray-700">
-                      <strong className="text-[#0a2a4d] text-lg sm:text-xl">{filteredHazards.length}</strong>
+                    <p className="text-sm sm:text-base text-foreground">
+                      <strong className="dark:text-white text-[#0a2a4d] text-lg sm:text-xl">{filteredHazards.length}</strong>
                       <span className="ml-1">hazard{filteredHazards.length !== 1 ? 's' : ''} visible</span>
                     </p>
-                    <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                       {hazards.length - filteredHazards.length > 0 && (
                         <span className="text-amber-600 font-medium">
                           {hazards.length - filteredHazards.length} hidden by filters
@@ -907,7 +923,7 @@ const PublicMap: React.FC = () => {
                       {hazards.length - filteredHazards.length === 0 && 'All hazards shown'}
                     </p>
                   </div>
-                  <Badge variant="outline" className="hidden sm:flex bg-white text-[#0a2a4d] border-[#0a2a4d]">
+                  <Badge variant="outline" className="hidden sm:flex bg-card dark:text-white text-primary dark:bg-primary border-primary">
                     Live
                   </Badge>
                 </div>
@@ -929,30 +945,22 @@ const PublicMap: React.FC = () => {
           }}
         />
 
-        {/* Sidebar Toggle Button */}
-        <button
-          ref={sidebarToggleRef}
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className={`${
-            isSidebarOpen 
-              ? `${isSidebarExpanded ? 'md:left-[420px]' : 'md:left-80'} hidden md:flex` 
-              : 'left-0 flex'
-          } fixed md:absolute top-20 sm:top-24 z-[1001] bg-white shadow-lg rounded-r-xl p-2.5 sm:p-3 hover:bg-gray-50 transition-all duration-300 motion-reduce:transition-none focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1 items-center justify-center group`}
-          aria-label={isSidebarOpen ? 'Close filters sidebar' : 'Open filters sidebar'}
-          aria-expanded={isSidebarOpen}
-          aria-controls="sidebar-filters"
-        >
-          {isSidebarOpen ? (
-            <FontAwesomeIcon icon={faChevronLeft} className="text-base sm:text-lg text-gray-700 group-hover:text-[#0a2a4d]" aria-hidden="true" />
-          ) : (
-            <>
-              <FontAwesomeIcon icon={faBars} className="text-base sm:text-lg text-gray-700 group-hover:text-[#0a2a4d]" aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only sm:ml-2 sm:text-sm sm:font-medium sm:text-gray-700 sm:group-hover:text-[#0a2a4d]">
-                Filters
-              </span>
-            </>
-          )}
-        </button>
+        {/* Open filters — floating control (close via header X when sidebar is open) */}
+        {!isSidebarOpen && (
+          <button
+            ref={sidebarToggleRef}
+            onClick={() => setIsSidebarOpen(true)}
+            className="left-0 flex fixed md:absolute z-[1001] top-20 sm:top-24 bg-card shadow-lg rounded-r-xl p-2.5 sm:p-3 hover:bg-muted/70 transition-all duration-300 motion-reduce:transition-none focus:outline-none focus:ring-2 focus:ring-[#0a2a4d] focus:ring-offset-1 items-center justify-center group"
+            aria-label="Open filters sidebar"
+            aria-expanded={false}
+            aria-controls="sidebar-filters"
+          >
+            <FontAwesomeIcon icon={faBars} className="text-base sm:text-lg text-foreground group-hover:text-[#0a2a4d]" aria-hidden="true" />
+            <span className="sr-only sm:not-sr-only sm:ml-2 sm:text-sm sm:font-medium sm:text-foreground sm:group-hover:text-[#0a2a4d]">
+              Filters
+            </span>
+          </button>
+        )}
 
         {/* Mobile Overlay when sidebar is open */}
         {isSidebarOpen && (
@@ -974,7 +982,7 @@ const PublicMap: React.FC = () => {
           {/* Mobile Controls Toggle Button — visible only on small screens when sidebar is closed */}
           {!isSidebarOpen && (
             <button
-              className="sm:hidden absolute top-4 right-4 z-[1001] p-2.5 bg-white/95 backdrop-blur-sm shadow-lg rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
+              className="sm:hidden absolute top-4 right-4 z-[1001] p-2.5 bg-card/95 backdrop-blur-sm shadow-lg rounded-lg border border-border hover:bg-muted/70 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
               onClick={() => setIsMobileControlsOpen(prev => !prev)}
               aria-label={isMobileControlsOpen ? 'Hide map controls' : 'Show map controls'}
               aria-expanded={isMobileControlsOpen}
@@ -982,8 +990,8 @@ const PublicMap: React.FC = () => {
               data-map-control="true"
             >
               {isMobileControlsOpen
-                ? <FontAwesomeIcon icon={faTimes} className="text-base text-gray-700" aria-hidden="true" />
-                : <FontAwesomeIcon icon={faLayerGroup} className="text-base text-gray-700" aria-hidden="true" />
+                ? <FontAwesomeIcon icon={faTimes} className="text-base text-foreground" aria-hidden="true" />
+                : <FontAwesomeIcon icon={faLayerGroup} className="text-base text-foreground" aria-hidden="true" />
               }
             </button>
           )}
@@ -991,7 +999,7 @@ const PublicMap: React.FC = () => {
           {/* Unified Floating Controls Panel - Top Right */}
           <Card
             id="mobile-controls-panel"
-            className={`absolute right-4 sm:right-6 z-[1000] bg-white/95 backdrop-blur-sm shadow-lg border border-gray-200 w-[280px] sm:w-[300px] max-h-[75vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all duration-300 motion-reduce:transition-none ${
+            className={`absolute right-4 sm:right-6 z-[1000] bg-card/95 backdrop-blur-sm shadow-lg border border-border w-[280px] sm:w-[300px] max-h-[75vh] sm:max-h-none overflow-y-auto sm:overflow-visible transition-all duration-300 motion-reduce:transition-none ${
               isMobileControlsOpen && !isSidebarOpen ? 'top-[3.75rem] block' : 'top-4 sm:top-6 hidden sm:block'
             } ${
               isSidebarOpen ? 'sm:opacity-0 sm:pointer-events-none md:opacity-100 md:pointer-events-auto' : ''
@@ -1008,15 +1016,17 @@ const PublicMap: React.FC = () => {
               <>
                 {/* Report Generator Button (RG-02) - Only for authenticated users */}
                 {user && (
-                  <div className="p-3 border-b border-gray-100">
+                  <div className="p-3 border-b border-border">
                     <ReportGenerator 
                       hazards={filteredHazards}
                       mapContainerRef={mapContainerRef}
                       onReportGenerated={() => {
                         setAnnouncement('Report generated successfully.');
+                        // Close mobile controls panel when report is generated
+                        setIsMobileControlsOpen(false);
                       }}
                       triggerButton={
-                        <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
+                        <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm text-primary-foreground bg-gradient-to-br from-primary to-secondary shadow-sm transition-all hover:from-primary/90 hover:to-secondary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background">
                           <FontAwesomeIcon icon={faFile} className="text-xs" />
                           Generate Report
                         </button>
@@ -1026,9 +1036,9 @@ const PublicMap: React.FC = () => {
                 )}
 
                 {/* Legend Section */}
-                <div className="p-3 sm:p-4 border-b border-gray-100">
+                <div className="p-3 sm:p-4 border-b border-border">
                   <div className="flex items-center justify-between">
-                    <h2 id="legend-heading" className="text-sm sm:text-base font-semibold text-gray-800">
+                    <h2 id="legend-heading" className="text-sm sm:text-base font-semibold text-foreground">
                       Legend
                     </h2>
                     <div className="flex items-center gap-2">
@@ -1041,15 +1051,15 @@ const PublicMap: React.FC = () => {
                       </Badge>
                       <button
                         onClick={() => setIsLegendVisible(!isLegendVisible)}
-                        className="p-1.5 hover:bg-gray-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
+                        className="p-1.5 hover:bg-muted rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0a2a4d]"
                         aria-expanded={isLegendVisible}
                         aria-controls="legend-content"
                         aria-label={isLegendVisible ? 'Collapse legend' : 'Expand legend'}
                       >
                         {isLegendVisible ? (
-                          <FontAwesomeIcon icon={faChevronUp} className="text-xs text-gray-500" aria-hidden="true" />
+                          <FontAwesomeIcon icon={faChevronUp} className="text-xs text-muted-foreground" aria-hidden="true" />
                         ) : (
-                          <FontAwesomeIcon icon={faChevronDown} className="text-xs text-gray-500" aria-hidden="true" />
+                          <FontAwesomeIcon icon={faChevronDown} className="text-xs text-muted-foreground" aria-hidden="true" />
                         )}
                       </button>
                     </div>
@@ -1057,17 +1067,17 @@ const PublicMap: React.FC = () => {
                   {isLegendVisible && (
                     <ul 
                       id="legend-content"
-                      className="space-y-1 max-h-[200px] overflow-y-auto mt-3 -mx-1 px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+                      className="space-y-1 max-h-[200px] overflow-y-auto mt-3 -mx-1 px-1 scrollbar-thin"
                       aria-label="Hazard types and counts"
                     >
                       {Object.entries(HAZARD_ICON_REGISTRY).map(([key, config]) => {
-                        const count = filteredHazards.filter(h => h.hazard_type === key).length;
+                        const count = hazardTypeCountMap[key] ?? 0;
                         const hasCount = count > 0;
                         return (
                           <li
                             key={key}
                             className={`flex items-center justify-between p-1.5 rounded-lg transition-colors ${
-                              hasCount ? 'hover:bg-gray-50 cursor-default' : 'opacity-40'
+                              hasCount ? 'hover:bg-muted/70 cursor-default' : 'opacity-40'
                             }`}
                             aria-label={`${config.label}: ${count} ${count === 1 ? 'hazard' : 'hazards'}`}
                           >
@@ -1082,7 +1092,7 @@ const PublicMap: React.FC = () => {
                               >
                                 <HazardIcon hazardType={key} size={16} />
                               </div>
-                              <span className={`text-xs font-medium ${hasCount ? 'text-gray-700' : 'text-gray-400'}`}>
+                              <span className={`text-xs font-medium ${hasCount ? 'text-foreground' : 'text-muted-foreground'}`}>
                                 {config.label}
                               </span>
                             </div>
@@ -1090,8 +1100,8 @@ const PublicMap: React.FC = () => {
                               variant={hasCount ? "secondary" : "outline"} 
                               className={`text-xs h-5 min-w-[1.75rem] justify-center ${
                                 hasCount 
-                                  ? 'bg-gray-100 text-gray-700' 
-                                  : 'bg-transparent text-gray-400 border-gray-200'
+                                  ? 'bg-muted text-foreground' 
+                                  : 'bg-transparent text-muted-foreground border-border'
                               }`}
                             >
                               {count}
@@ -1111,7 +1121,7 @@ const PublicMap: React.FC = () => {
                       <div className="p-1.5 bg-blue-50 rounded-md">
                         <FontAwesomeIcon icon={faLayerGroup} className="text-xs text-blue-600" aria-hidden="true" />
                       </div>
-                      <span id="clustering-label" className="text-sm font-medium text-gray-700">
+                      <span id="clustering-label" className="text-sm font-medium text-foreground">
                         Clustering
                       </span>
                     </div>
@@ -1123,7 +1133,7 @@ const PublicMap: React.FC = () => {
                         relative inline-flex h-6 w-11 items-center rounded-full
                         transition-colors duration-200 motion-reduce:transition-none
                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                        ${clusteringEnabled ? 'bg-blue-600' : 'bg-gray-300'}
+                        ${clusteringEnabled ? 'bg-blue-600' : 'bg-muted'}
                       `}
                       role="switch"
                       aria-checked={clusteringEnabled}
@@ -1145,15 +1155,15 @@ const PublicMap: React.FC = () => {
                   {/* Heatmap Toggle */}
                   <div className="flex items-center justify-between" data-tour="heatmap-section">
                     <div className="flex items-center gap-2">
-                      <div className={`p-1.5 rounded-md ${currentZoom > heatmapSettings.maxZoom ? 'bg-gray-100' : 'bg-orange-50'}`}>
+                      <div className={`p-1.5 rounded-md ${currentZoom > heatmapSettings.maxZoom ? 'bg-muted' : 'bg-orange-50 dark:bg-orange-950/40'}`}>
                         <FontAwesomeIcon 
-                          className={`text-xs ${currentZoom > heatmapSettings.maxZoom ? 'text-gray-400' : 'text-orange-600'}`}
+                          className={`text-xs ${currentZoom > heatmapSettings.maxZoom ? 'text-muted-foreground' : 'text-orange-600'}`}
                           icon={faMap} 
                           aria-hidden="true" 
                         />
                       </div>
                       <div className="flex flex-col">
-                        <span id="heatmap-label" className="text-sm font-medium text-gray-700">
+                        <span id="heatmap-label" className="text-sm font-medium text-foreground">
                           Heatmap
                         </span>
                         {currentZoom > heatmapSettings.maxZoom && (
@@ -1172,7 +1182,7 @@ const PublicMap: React.FC = () => {
                         relative inline-flex h-6 w-11 items-center rounded-full
                         transition-colors duration-200 motion-reduce:transition-none
                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                        ${heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom ? 'bg-blue-600' : 'bg-gray-300'}
+                        ${heatmapSettings.enabled && currentZoom <= heatmapSettings.maxZoom ? 'bg-blue-600' : 'bg-muted'}
                         ${currentZoom > heatmapSettings.maxZoom ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                       `}
                       role="switch"
@@ -1197,18 +1207,18 @@ const PublicMap: React.FC = () => {
                   {canAdjustPins && (
                     <div className="flex items-center justify-between" data-tour="pin-adjust-section">
                       <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-md ${isPinEditingActive ? 'bg-amber-50' : 'bg-gray-100'}`}>
+                        <div className={`p-1.5 rounded-md ${isPinEditingActive ? 'bg-amber-50 dark:bg-amber-950/40' : 'bg-muted'}`}>
                           <FontAwesomeIcon
-                            className={`text-xs ${isPinEditingActive ? 'text-amber-600' : 'text-gray-500'}`}
+                            className={`text-xs ${isPinEditingActive ? 'text-amber-600' : 'text-muted-foreground'}`}
                             icon={faMapPin}
                             aria-hidden="true"
                           />
                         </div>
                         <div className="flex flex-col">
-                          <span id="pin-adjust-label" className="text-sm font-medium text-gray-700">
+                          <span id="pin-adjust-label" className="text-sm font-medium text-foreground">
                             Adjust Pins
                           </span>
-                          <span className="text-[10px] text-gray-500 leading-tight">
+                          <span className="text-[10px] text-muted-foreground leading-tight">
                             Drag markers to correct locations
                           </span>
                         </div>
@@ -1220,7 +1230,7 @@ const PublicMap: React.FC = () => {
                           relative inline-flex h-6 w-11 items-center rounded-full
                           transition-colors duration-200 motion-reduce:transition-none
                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                          ${isPinEditingActive ? 'bg-amber-500' : 'bg-gray-300'}
+                          ${isPinEditingActive ? 'bg-amber-500' : 'bg-muted'}
                         `}
                         role="switch"
                         aria-checked={isPinEditingActive}
@@ -1250,7 +1260,7 @@ const PublicMap: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowSettings(!showSettings)}
-                    className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors pt-1"
+                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors pt-1"
                     aria-expanded={showSettings}
                   >
                     <FontAwesomeIcon icon={faCog} className="text-xs" aria-hidden="true" />
@@ -1259,11 +1269,11 @@ const PublicMap: React.FC = () => {
 
                   {/* Heatmap Settings Panel */}
                   {showSettings && (
-                    <div className="pt-3 border-t border-gray-100 space-y-3">
+                    <div className="pt-3 border-t border-border space-y-3">
                       <div>
-                        <label htmlFor="heatmap-radius" className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                        <label htmlFor="heatmap-radius" className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                           <span>Radius</span>
-                          <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{heatmapSettings.radius}px</span>
+                          <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{heatmapSettings.radius}px</span>
                         </label>
                         <input
                           id="heatmap-radius"
@@ -1272,13 +1282,13 @@ const PublicMap: React.FC = () => {
                           max="50"
                           value={heatmapSettings.radius}
                           onChange={(e) => updateHeatmapSettings({ radius: Number(e.target.value) })}
-                          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
                       </div>
                       <div>
-                        <label htmlFor="heatmap-blur" className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                        <label htmlFor="heatmap-blur" className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                           <span>Blur</span>
-                          <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{heatmapSettings.blur}px</span>
+                          <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{heatmapSettings.blur}px</span>
                         </label>
                         <input
                           id="heatmap-blur"
@@ -1287,7 +1297,7 @@ const PublicMap: React.FC = () => {
                           max="30"
                           value={heatmapSettings.blur}
                           onChange={(e) => updateHeatmapSettings({ blur: Number(e.target.value) })}
-                          className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-blue-600"
                         />
                       </div>
                     </div>
@@ -1325,7 +1335,7 @@ const PublicMap: React.FC = () => {
           {/* Loading State - Enhanced Accessibility */}
           {loading && hazards.length === 0 && (
             <div 
-              className="fixed inset-0 flex items-center justify-center bg-gray-50/90 backdrop-blur-sm z-[999]"
+              className="fixed inset-0 flex items-center justify-center bg-background/90 backdrop-blur-sm z-[999]"
               role="status"
               aria-live="polite"
               aria-busy="true"
@@ -1333,12 +1343,12 @@ const PublicMap: React.FC = () => {
               <div className="w-full max-w-6xl p-6 sm:p-8">
                 <span className="sr-only">Loading hazard map data, please wait...</span>
                 <div className="grid gap-6 md:grid-cols-2">
-                  <div className="h-72 bg-gray-100 rounded-md animate-pulse border border-gray-200" />
+                  <div className="h-72 bg-muted rounded-md animate-pulse border border-border" />
                   <div className="space-y-4">
-                    <div className="h-6 bg-gray-200 rounded w-40 animate-pulse" />
+                    <div className="h-6 bg-muted rounded w-40 animate-pulse" />
                     <div className="space-y-3">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="p-3 rounded-lg bg-gray-100 animate-pulse border border-gray-200" />
+                        <div key={i} className="p-3 rounded-lg bg-muted animate-pulse border border-border" />
                       ))}
                     </div>
                   </div>
@@ -1473,43 +1483,43 @@ const PublicMap: React.FC = () => {
 
       {/* Stats Footer - Enhanced Responsiveness and Accessibility */}
       <footer 
-        className="bg-white border-t border-gray-200 py-2 sm:py-3 z-[9999] relative" 
+        className="bg-card border-t border-border py-2 sm:py-3 z-[9999] relative" 
         data-realtime-footer="true"
         role="contentinfo"
         aria-label="Hazard statistics and controls"
       >
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
             {/* Hazard Count */}
             <div className="flex items-center gap-2">
               <Badge 
                 variant="outline" 
-                className="bg-green-50 text-green-700 border-green-200 font-semibold"
+                className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800 font-semibold"
                 aria-label={`${hazards.length} active hazards displayed`}
               >
                 <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse" aria-hidden="true" />
                 {hazards.length} Active
               </Badge>
-              <span className="hidden sm:inline text-gray-400">|</span>
+              <span className="hidden sm:inline text-muted-foreground">|</span>
               <span className="hidden sm:inline">
                 hazard{hazards.length !== 1 ? 's' : ''} displayed
               </span>
             </div>
 
             {/* Last Updated & Auto-refresh */}
-            <div className="flex items-center gap-2 text-gray-500">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <FontAwesomeIcon icon={faRotateRight} className="text-xs" aria-hidden="true" />
               <span>
                 Updated: {lastUpdated.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
               </span>
-              <span className="text-gray-300">•</span>
-              <span className="text-green-600 font-medium">Auto-refresh: 30s</span>
+              <span className="text-muted-foreground/40">•</span>
+              <span className="text-green-600 dark:text-green-400 font-medium">Auto-refresh: 30s</span>
             </div>
 
             {/* Report a Hazard Link */}
             <Link 
               to="/report" 
-              className="flex items-center gap-1.5 text-[#005a9c] hover:text-[#003d66] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#005a9c] focus:ring-offset-2 rounded px-2 py-1 -mx-2 transition-colors"
+              className="flex items-center gap-1.5 text-secondary dark:text-secondary-foreground hover:text-secondary/80 font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded px-2 py-1 -mx-2 transition-colors"
               aria-label="Report a hazard - opens citizen report form"
             >
               <FontAwesomeIcon icon={faExclamationTriangle} className="text-xs" aria-hidden="true" />
@@ -1518,7 +1528,7 @@ const PublicMap: React.FC = () => {
             </Link>
             <Link
               to="/track"
-              className="flex items-center gap-1.5 text-[#005a9c] hover:text-[#003d66] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#005a9c] focus:ring-offset-2 rounded px-2 py-1 -mx-2 transition-colors"
+              className="flex items-center gap-1.5 text-secondary dark:text-secondary-foreground hover:text-secondary/80 font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded px-2 py-1 -mx-2 transition-colors"
               aria-label="Track report status page"
             >
               <span>Track Report</span>

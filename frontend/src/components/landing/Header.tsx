@@ -3,18 +3,18 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { landingAssets } from '../../constants/landingAssets';
+import { ThemeToggle } from '../ThemeToggle';
+import { cn } from '../../lib/utils';
 
 export const Header: React.FC = () => {
   const { user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
 
-  // Close the mobile menu whenever the route changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Prevent background scroll while the mobile menu is open
   useEffect(() => {
     if (isMobileMenuOpen) {
       const prevOverflow = document.body.style.overflow;
@@ -30,9 +30,8 @@ export const Header: React.FC = () => {
     : { to: '/login', label: 'Login' };
 
   return (
-    <header className="sticky top-0 z-50 bg-[#f0f4f8] w-full flex items-center justify-center px-4 sm:px-6 lg:px-16 py-3 sm:py-4 shadow-sm">
+    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 border-b border-border w-full flex items-center justify-center px-4 sm:px-6 lg:px-16 py-3 sm:py-4 shadow-sm">
       <div className="w-full max-w-screen-xl flex items-center justify-between gap-3">
-        {/* Company Logo */}
         <Link to="/" className="flex gap-[8px] items-center shrink-0" aria-label="GAIA home">
           <div className="w-[133px] sm:w-[133px] lg:w-[150px] xl:w-[170px]">
             <img
@@ -43,41 +42,52 @@ export const Header: React.FC = () => {
           </div>
         </Link>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-3 lg:gap-[24px]">
+        <nav className="hidden md:flex items-center gap-2 lg:gap-[24px]">
+          <ThemeToggle className="text-foreground shrink-0 hover:bg-secondary" />
           <Link
             to="/report"
             aria-label="Report a hazard"
-            className="bg-[#C75D00] text-white font-inter font-semibold text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] px-[14px] lg:px-[16px] py-[10px] lg:py-[12px] rounded-[10px] lg:rounded-[12px] whitespace-nowrap transition-colors hover:bg-[#B85500] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0a2a4d]"
+            className="bg-gradient-to-br from-primary to-secondary text-primary-foreground font-inter font-semibold text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] px-[14px] lg:px-[16px] py-[10px] lg:py-[12px] rounded-[10px] lg:rounded-[12px] whitespace-nowrap shadow-md transition-all hover:shadow-lg hover:from-primary/90 hover:to-secondary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             Report a Hazard
           </Link>
           <Link
             to="/track"
-            className="font-inter font-medium text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] text-[#0a2a4d] whitespace-nowrap transition-colors hover:text-[#005a9c] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#005a9c]"
+            className="font-inter font-medium text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] text-foreground whitespace-nowrap transition-colors hover:text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             Track Report
           </Link>
           <Link
             to="/map"
-            className="font-inter font-medium text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] text-[#0a2a4d] whitespace-nowrap transition-colors hover:text-[#005a9c]"
+            className="font-inter font-medium text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] text-foreground whitespace-nowrap transition-colors hover:text-secondary"
           >
             View Live Map
           </Link>
           <Link
+            to="/hazard-info"
+            className={cn(
+              'font-inter font-medium text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] whitespace-nowrap transition-colors px-3 py-2 rounded-lg',
+              location.pathname === '/hazard-info'
+                ? 'text-primary bg-primary/10 ring-2 ring-primary shadow-sm font-semibold dark:text-white dark:bg-primary/20'
+                : 'text-foreground dark:text-neutral-50 hover:text-secondary dark:hover:text-secondary/80'
+            )}
+          >
+            Hazard info
+          </Link>
+          <Link
             to={dashboardLink.to}
-            className="bg-[#0a2a4d] text-white font-inter font-medium text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] px-[14px] lg:px-[16px] py-[10px] lg:py-[12px] rounded-[10px] lg:rounded-[12px] whitespace-nowrap transition-colors hover:bg-[#0a2a4d]/90"
+            className="bg-primary text-primary-foreground font-inter font-medium text-[14px] lg:text-[16px] leading-[1.45] tracking-[-0.08px] px-[14px] lg:px-[16px] py-[10px] lg:py-[12px] rounded-[10px] lg:rounded-[12px] whitespace-nowrap transition-colors hover:bg-primary/90"
           >
             {dashboardLink.label}
           </Link>
         </nav>
 
-        {/* Mobile: primary CTA + hamburger */}
         <div className="flex md:hidden items-center gap-2">
+          <ThemeToggle size="sm" className="text-foreground shrink-0" />
           <Link
             to="/report"
             aria-label="Report a hazard"
-            className="bg-[#C75D00] text-white font-inter font-semibold text-[13px] leading-[1.45] tracking-[-0.08px] px-[12px] py-[8px] rounded-[10px] whitespace-nowrap transition-colors hover:bg-[#B85500] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0a2a4d]"
+            className="bg-gradient-to-br from-primary to-secondary text-primary-foreground font-inter font-semibold text-[13px] leading-[1.45] tracking-[-0.08px] px-[12px] py-[8px] rounded-[10px] whitespace-nowrap shadow-md transition-all hover:shadow-lg hover:from-primary/90 hover:to-secondary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             Report
           </Link>
@@ -87,7 +97,7 @@ export const Header: React.FC = () => {
             aria-expanded={isMobileMenuOpen}
             aria-controls="mobile-nav"
             aria-label={isMobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] text-[#0a2a4d] hover:bg-white/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#005a9c]"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-[10px] text-foreground hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             {isMobileMenuOpen ? (
               <X className="w-6 h-6" aria-hidden="true" />
@@ -98,10 +108,8 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile drawer */}
       {isMobileMenuOpen && (
         <>
-          {/* Overlay */}
           <button
             type="button"
             aria-label="Close navigation menu"
@@ -111,13 +119,13 @@ export const Header: React.FC = () => {
           <nav
             id="mobile-nav"
             aria-label="Mobile primary"
-            className="md:hidden absolute top-full left-0 right-0 z-50 bg-[#f0f4f8] border-t border-[#0a2a4d]/10 shadow-lg"
+            className="md:hidden absolute top-full left-0 right-0 z-50 bg-background border-t border-border shadow-lg"
           >
             <ul className="flex flex-col p-4 gap-2 max-w-screen-xl mx-auto">
               <li>
                 <Link
                   to="/track"
-                  className="block w-full font-inter font-medium text-[16px] text-[#0a2a4d] px-4 py-3 rounded-[10px] hover:bg-white transition-colors"
+                  className="block w-full font-inter font-medium text-[16px] text-foreground px-4 py-3 rounded-[10px] hover:bg-muted transition-colors"
                 >
                   Track Report
                 </Link>
@@ -125,15 +133,28 @@ export const Header: React.FC = () => {
               <li>
                 <Link
                   to="/map"
-                  className="block w-full font-inter font-medium text-[16px] text-[#0a2a4d] px-4 py-3 rounded-[10px] hover:bg-white transition-colors"
+                  className="block w-full font-inter font-medium text-[16px] text-foreground px-4 py-3 rounded-[10px] hover:bg-muted transition-colors"
                 >
                   View Live Map
                 </Link>
               </li>
               <li>
                 <Link
+                  to="/hazard-info"
+                  className={cn(
+                    'block w-full font-inter font-medium text-[16px] px-4 py-3 rounded-[10px] transition-colors',
+                    location.pathname === '/hazard-info'
+                      ? 'bg-primary/10 ring-2 ring-inset ring-primary dark:ring-primary/50 dark:text-white text-primary font-semibold'
+                      : 'text-foreground dark:text-neutral-50 hover:bg-muted dark:hover:bg-muted/50'
+                  )}
+                >
+                  Hazard info
+                </Link>
+              </li>
+              <li>
+                <Link
                   to={dashboardLink.to}
-                  className="block w-full text-center bg-[#0a2a4d] text-white font-inter font-semibold text-[16px] px-4 py-3 rounded-[10px] transition-colors hover:bg-[#0a2a4d]/90"
+                  className="block w-full text-center bg-primary dark:bg-primary/80 dark:text-neutral-50 text-primary-foreground font-inter font-semibold text-[16px] px-4 py-3 rounded-[10px] transition-colors hover:bg-primary/90"
                 >
                   {dashboardLink.label}
                 </Link>

@@ -20,6 +20,7 @@ import React, { useEffect, useRef } from 'react';
 import { X, MapPin, AlertTriangle, TrendingUp, Eye, ExternalLink, Clock } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
+import { cn } from '../../lib/utils';
 
 interface HazardInfoPanelProps {
   hazard: {
@@ -192,7 +193,7 @@ export function HazardInfoPanel({
         aria-hidden={!isOpen}
       >
         {/* Header */}
-        <div className="flex-shrink-0 p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
+        <div className="flex-shrink-0 border-b border-border bg-gradient-to-r from-muted/70 to-muted/40 p-6 dark:from-muted/50 dark:to-muted/25">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3 flex-1">
               <span className="text-3xl">{emoji}</span>
@@ -233,36 +234,36 @@ export function HazardInfoPanel({
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-3">
                 {/* Confidence Score */}
-                <Card className="p-3 text-center border-gray-200">
-                  <div className="flex items-center justify-center mb-2">
-                    <FontAwesomeIcon icon={faChartLine} className="text-blue-600 text-sm" aria-hidden="true" />
+                <Card className="border-border bg-muted/40 p-3 text-center dark:bg-muted/25">
+                  <div className="mb-2 flex items-center justify-center">
+                    <FontAwesomeIcon icon={faChartLine} className="text-sm text-blue-600 dark:text-blue-400" aria-hidden="true" />
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{confidencePercentage}%</p>
-                  <p className="text-xs text-gray-600 mt-1">Confidence</p>
+                  <p className="text-2xl font-bold text-foreground">{confidencePercentage}%</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Confidence</p>
                 </Card>
 
                 {/* Coordinates */}
-                <Card className="p-3 text-center border-gray-200">
-                  <div className="flex items-center justify-center mb-2">
-                    <FontAwesomeIcon icon={faMapPin} className="text-green-600 text-sm" aria-hidden="true" />
+                <Card className="border-border bg-muted/40 p-3 text-center dark:bg-muted/25">
+                  <div className="mb-2 flex items-center justify-center">
+                    <FontAwesomeIcon icon={faMapPin} className="text-sm text-green-600 dark:text-green-400" aria-hidden="true" />
                   </div>
-                  <p className="text-xs text-gray-900 font-mono">
+                  <p className="font-mono text-xs text-foreground">
                     {hazard.latitude.toFixed(3)}, <br /> {hazard.longitude.toFixed(3)}
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">Location</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Location</p>
                 </Card>
 
                 {/* Validation Status */}
-                <Card className="p-3 text-center border-gray-200">
-                  <div className="flex items-center justify-center mb-2">
+                <Card className="border-border bg-muted/40 p-3 text-center dark:bg-muted/25">
+                  <div className="mb-2 flex items-center justify-center">
                     <FontAwesomeIcon 
                       icon={faEye} 
-                      className={`text-sm ${hazard.validated ? 'text-purple-600' : 'text-gray-400'}`} 
+                      className={cn('text-sm', hazard.validated ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground')} 
                       aria-hidden="true" 
                     />
                   </div>
-                  <p className="text-xs font-bold text-gray-900 uppercase">{hazard.validated ? 'Valid' : 'Pending'}</p>
-                  <p className="text-xs text-gray-600 mt-1">Status</p>
+                  <p className="text-xs font-bold uppercase text-foreground">{hazard.validated ? 'Valid' : 'Pending'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Status</p>
                 </Card>
               </div>
             </div>
@@ -332,7 +333,7 @@ export function HazardInfoPanel({
         </div>
 
         {/* Actions Footer - Always Visible */}
-        <div className="flex-shrink-0 p-6 border-t border-gray-200 bg-gray-50 space-y-2">
+        <div className="flex-shrink-0 space-y-2 border-t border-border bg-muted/50 p-6 dark:bg-muted/30">
           <Button
             onClick={() => onZoomTo?.(hazard.latitude, hazard.longitude)}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white"

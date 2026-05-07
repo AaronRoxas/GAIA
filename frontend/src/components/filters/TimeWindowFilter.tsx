@@ -189,16 +189,16 @@ export function TimeWindowFilter({
   };
 
   return (
-    <Card className="p-5 bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <Card className="p-5 shadow-sm transition-shadow duration-200 hover:shadow-md">
       <div className="space-y-4">
         {/* Header */}
-        <div className="pb-3 border-b border-slate-100">
+        <div className="pb-3 border-b border-border">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900 font-lato">
+              <h3 className="text-sm font-semibold text-foreground font-lato">
                 Time Window
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5 font-inter">Filter hazards by date range</p>
+              <p className="text-xs text-muted-foreground mt-0.5 font-inter">Filter hazards by date range</p>
             </div>
             {timeWindow !== 'all' && (
               <button
@@ -207,9 +207,9 @@ export function TimeWindowFilter({
                 className="
                   text-xs font-medium px-2.5 py-1 rounded-md
                   transition-all duration-200
-                  text-slate-600 hover:text-orange-700 hover:bg-orange-50
-                  disabled:text-slate-300 disabled:bg-transparent disabled:cursor-not-allowed
-                  focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2
+                  text-muted-foreground hover:text-primary hover:bg-primary/10 dark:hover:text-primary-foreground dark:hover:bg-primary/20
+                  disabled:text-muted-foreground/40 disabled:bg-transparent disabled:cursor-not-allowed
+                  focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background
                 "
                 aria-label="Clear time window filter"
               >
@@ -221,9 +221,9 @@ export function TimeWindowFilter({
 
         {/* Active Selection Display */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg border border-slate-200">
-            <Clock className="w-4 h-4 text-slate-600" aria-hidden="true" />
-            <span className="text-sm font-medium text-slate-700">
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/60 rounded-lg border border-border">
+            <Clock className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <span className="text-sm font-medium text-foreground">
               {formatTimeWindow(timeWindow, customDateRange)}
             </span>
           </div>
@@ -244,10 +244,10 @@ export function TimeWindowFilter({
                   'px-3 py-2.5 rounded-lg border-2 transition-all',
                   'text-sm font-medium',
                   isActive
-                    ? 'border-orange-500 bg-orange-50 text-orange-900 shadow-sm'
-                    : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50',
+                    ? 'border-primary/30 bg-primary/15 text-primary shadow-sm dark:border-[#005f73]/60 dark:bg-[#005f73]/30 dark:text-foreground'
+                    : 'border-border bg-muted/40 text-foreground hover:border-secondary/45 hover:bg-muted',
                   disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
-                  'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1'
+                  'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 focus:ring-offset-background'
                 )}
               >
                 {option.label}
@@ -258,14 +258,14 @@ export function TimeWindowFilter({
 
         {/* Custom Date Range Input */}
         {showCustomRange && (
-          <div className="space-y-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+          <div className="space-y-3 p-3 bg-muted/40 border border-border rounded-lg">
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <Calendar className="w-4 h-4" aria-hidden="true" />
               Select Custom Date Range
             </div>
             <div className="space-y-2">
               <div>
-                <label htmlFor="startDate" className="text-xs font-medium text-slate-600 block mb-1">Start Date</label>
+                <label htmlFor="startDate" className="text-xs font-medium text-muted-foreground block mb-1">Start Date</label>
                 <input
                   id="startDate"
                   type="date"
@@ -273,14 +273,14 @@ export function TimeWindowFilter({
                   onChange={(e) => setStartDate(e.target.value)}
                   disabled={disabled}
                   className={cn(
-                    'w-full px-2.5 py-1.5 border border-slate-300 rounded-md text-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-orange-500',
-                    disabled && 'opacity-50 cursor-not-allowed bg-slate-100'
+                    'w-full px-2.5 py-1.5 border border-input rounded-md text-sm bg-background text-foreground',
+                    'focus:outline-none focus:ring-2 focus:ring-ring',
+                    disabled && 'opacity-50 cursor-not-allowed bg-muted'
                   )}
                 />
               </div>
               <div>
-                <label htmlFor="endDate" className="text-xs font-medium text-slate-600 block mb-1">End Date</label>
+                <label htmlFor="endDate" className="text-xs font-medium text-muted-foreground block mb-1">End Date</label>
                 <input
                   id="endDate"
                   type="date"
@@ -288,15 +288,15 @@ export function TimeWindowFilter({
                   onChange={(e) => setEndDate(e.target.value)}
                   disabled={disabled}
                   className={cn(
-                    'w-full px-2.5 py-1.5 border border-slate-300 rounded-md text-sm',
-                    'focus:outline-none focus:ring-2 focus:ring-orange-500',
-                    disabled && 'opacity-50 cursor-not-allowed bg-slate-100'
+                    'w-full px-2.5 py-1.5 border border-input rounded-md text-sm bg-background text-foreground',
+                    'focus:outline-none focus:ring-2 focus:ring-ring',
+                    disabled && 'opacity-50 cursor-not-allowed bg-muted'
                   )}
                 />
               </div>
             </div>
             {dateError && (
-              <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded p-2" role="alert">
+              <div className="text-xs text-red-700 bg-red-50 border border-red-200 dark:bg-red-950/45 dark:text-red-300 dark:border-red-900 rounded p-2" role="alert">
                 {dateError}
               </div>
             )}
@@ -307,7 +307,8 @@ export function TimeWindowFilter({
                 className={cn(
                   'flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors',
                   'bg-orange-600 text-white hover:bg-orange-700',
-                  'disabled:bg-slate-300 disabled:cursor-not-allowed'
+                  'disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600',
+                  'dark:disabled:bg-muted dark:disabled:text-muted-foreground'
                 )}
               >
                 Apply
@@ -317,7 +318,7 @@ export function TimeWindowFilter({
                 disabled={disabled}
                 className={cn(
                   'flex-1 px-3 py-2 text-xs font-medium rounded-md transition-colors',
-                  'bg-slate-200 text-slate-700 hover:bg-slate-300',
+                  'bg-muted text-foreground hover:bg-muted/80 border border-border',
                   'disabled:opacity-50 disabled:cursor-not-allowed'
                 )}
               >
@@ -328,9 +329,9 @@ export function TimeWindowFilter({
         )}
 
         {/* Philippine Time Note */}
-        <div className="text-xs bg-slate-50 rounded-lg p-3 border border-slate-200 space-y-1">
-          <p className="font-semibold text-slate-900">Philippine Time (GMT+8)</p>
-          <p className="text-slate-600">
+        <div className="text-xs bg-muted/40 rounded-lg p-3 border border-border space-y-1">
+          <p className="font-semibold text-foreground">Philippine Time (GMT+8)</p>
+          <p className="text-muted-foreground">
             All times displayed and filtered in Philippine Time.
           </p>
         </div>

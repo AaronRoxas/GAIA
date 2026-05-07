@@ -35,7 +35,7 @@ const LOCALSTORAGE_ENABLED_KEY = 'gaia_rss_auto_process_enabled';
 const RSS_API_BASE = (() => {
   const apiUrl = process.env.REACT_APP_API_URL;
   // Only treat null/undefined as missing; empty string is valid proxy behavior
-  if (apiUrl == null || typeof apiUrl === 'undefined') {
+  if (apiUrl == null) {
     console.error('[RSS Auto-Process] REACT_APP_API_URL is not set. Please configure the API URL.');
     return '';
   }
@@ -126,12 +126,9 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
   const { schedule, setSchedule, isUpdating } = useRssSchedule();
   
   // Refs for intervals
-  const autoProcessIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isProcessingRef = useRef(false);
   const nextRunTimeRef = useRef<Date | null>(nextRunTime);
-  const lastProcessedTimeRef = useRef<number | null>(null);  // Prevent multiple triggers
-  const retryAfterRef = useRef<number>(0);  // Exponential backoff for failed retries
   
   // Wrapper to save enabled state to localStorage when changed
   const setIsEnabled = useCallback((enabled: boolean | ((prev: boolean) => boolean)) => {
@@ -239,7 +236,6 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
   const scheduleNextRun = useCallback(() => {
     const next = new Date(Date.now() + AUTO_PROCESS_INTERVAL_MS);
     setNextRunTime(next);
-    lastProcessedTimeRef.current = null; // Reset the trigger flag for new scheduled time
     // NOTE: Do NOT persist local-scheduled times to the backend here.
     // The server (Celery worker) is authoritative for `rss.next_run_time` and
     // will update it after a successful background run. Persisting local
@@ -252,7 +248,7 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
   /**
    * Update countdown display
    */
-  const updateCountdown = useCallback(async () => {
+  const updateCountdown = useCallback(() => {
     const currentNextRunTime = nextRunTimeRef.current;
 
     if (!currentNextRunTime) {
@@ -262,47 +258,16 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     
     const remaining = currentNextRunTime.getTime() - Date.now();
     if (remaining <= 0) {
-      // Timer has expired - trigger processing only once per scheduled time
-      const scheduledTime = currentNextRunTime.getTime();
-      const now = Date.now();
-      
-      if (!isProcessingRef.current && (!lastProcessedTimeRef.current || scheduledTime !== lastProcessedTimeRef.current)) {
-        // Only attempt if we're past the retry backoff window
-        if (now >= retryAfterRef.current) {
-          try {
-            const accepted = await processFeeds();
-            if (accepted) {
-              lastProcessedTimeRef.current = scheduledTime;
-              retryAfterRef.current = 0;  // Reset backoff on success
-              scheduleNextRun();
-            } else {
-              // Failed: set exponential backoff (start at 30s, cap at 5min)
-              const backoffMs = Math.min(30000 * Math.pow(2, Math.floor((now - retryAfterRef.current) / 30000)), 5 * 60000);
-              retryAfterRef.current = now + backoffMs;
-              console.warn(`[RSS Auto-Process] processing failed, retry after ${Math.round(backoffMs / 1000)}s`);
-            }
-          } catch (e) {
-            // Do not advance schedule on failure - allow retry/backoff
-            const backoffMs = Math.min(30000 * Math.pow(2, Math.floor((now - retryAfterRef.current) / 30000)), 5 * 60000);
-            retryAfterRef.current = now + backoffMs;
-            console.warn('[RSS Auto-Process] processing failed, will not advance schedule', e);
-          }
-        }
-      }
       setCountdown('00:00');
     } else {
       setCountdown(formatCountdown(remaining));
     }
-  }, [formatCountdown, processFeeds, scheduleNextRun]);
+  }, [formatCountdown]);
 
 /**
    * Stop auto-processing interval
    */
   const stopAutoProcessing = useCallback(() => {
-    if (autoProcessIntervalRef.current) {
-      window.clearInterval(autoProcessIntervalRef.current);
-      autoProcessIntervalRef.current = null;
-    }
     if (countdownIntervalRef.current) {
       window.clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
@@ -315,22 +280,26 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
   useEffect(() => {
     // Treat any change to schedule (including null) as a valid server response
     if (!backendSyncDone && schedule !== undefined) {
-      if (schedule === null || schedule === '') {
-        // Server has no schedule (paused or not set)
-        setBackendSyncDone(true);
-      } else if (typeof schedule === 'string') {
+      if (typeof schedule === 'string' && schedule !== '') {
         const next = new Date(schedule);
         if (!isNaN(next.getTime())) {
-          // Only use backend schedule if it's different from localStorage or localStorage is empty
-          const localStorageTime = nextRunTimeRef.current;
-          if (!localStorageTime || next.getTime() !== localStorageTime.getTime()) {
-            setNextRunTime(next);
-          }
+          setNextRunTime(next);
+        }
+        setBackendSyncDone(true);
+      } else {
+        // Server has no schedule (paused or not set). Fall back to a local
+        // timer only if there is still a valid cached value; otherwise seed a
+        // fresh client-local countdown so the UI remains usable offline.
+        const localStorageTime = nextRunTimeRef.current;
+        if (localStorageTime && localStorageTime.getTime() > Date.now()) {
+          setNextRunTime(localStorageTime);
+        } else {
+          scheduleNextRun();
         }
         setBackendSyncDone(true);
       }
     }
-  }, [schedule, backendSyncDone, setNextRunTime]);
+  }, [schedule, backendSyncDone, scheduleNextRun, setNextRunTime]);
   /**
    * Toggle auto-processing on/off
    */
@@ -360,13 +329,14 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
       const ok = await processFeeds();
       // Only reset timer if processing succeeded
       if (ok && isEnabled) {
-        scheduleNextRun();
+        queryClient.invalidateQueries({ queryKey: ['rss', 'schedule'] });
+        queryClient.invalidateQueries({ queryKey: rssQueryKeys.currentJob() });
       }
     } catch (e) {
       // Errors already logged by processFeeds
       console.warn('[RSS Auto-Process] processNow failed:', e);
     }
-  }, [processFeeds, isEnabled, scheduleNextRun]);
+  }, [processFeeds, isEnabled, queryClient]);
 
   // Initialize auto-processing on mount and when enabled state changes
   useEffect(() => {
@@ -379,20 +349,6 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
     // Otherwise schedule a fresh one
     if (!nextRunTimeRef.current || nextRunTimeRef.current.getTime() < Date.now()) {
       scheduleNextRun();
-    } else {
-      // Prefer the server schedule when available. Do not POST a local
-      // schedule to the backend from a regular client — this avoids
-      // competing writes between different users. If the server has no
-      // schedule yet, keep the client-local value but do not attempt to
-      // persist it here.
-      try {
-        const server = schedule ? new Date(schedule) : null;
-        if (server && !isNaN(server.getTime())) {
-          setNextRunTime(server);
-        }
-      } catch (e) {
-        console.warn('[RSS Auto-Process] Failed to sync restored schedule:', e);
-      }
     }
 
     // Start the countdown timer update
@@ -403,56 +359,17 @@ export function RSSAutoProcessProvider({ children }: { children: React.ReactNode
       updateCountdown();
     }, COUNTDOWN_UPDATE_INTERVAL_MS);
 
-    // Start auto-process interval
-    if (autoProcessIntervalRef.current) {
-      clearInterval(autoProcessIntervalRef.current);
-    }
-    autoProcessIntervalRef.current = setInterval(() => {
-      (async () => {
-        if (nextRunTimeRef.current) {
-          const scheduledTime = nextRunTimeRef.current.getTime();
-          const now = Date.now();
-          if (scheduledTime <= now && !isProcessingRef.current && 
-              (!lastProcessedTimeRef.current || scheduledTime !== lastProcessedTimeRef.current)) {
-            // Only attempt if we're past the retry backoff window
-            if (now >= retryAfterRef.current) {
-              try {
-                const accepted = await processFeeds();
-                if (accepted) {
-                  lastProcessedTimeRef.current = scheduledTime;
-                  retryAfterRef.current = 0;  // Reset backoff on success
-                  scheduleNextRun();
-                } else {
-                  // Failed: set exponential backoff
-                  const backoffMs = Math.min(30000 * Math.pow(2, Math.floor((now - retryAfterRef.current) / 30000)), 5 * 60000);
-                  retryAfterRef.current = now + backoffMs;
-                }
-              } catch (e) {
-                console.warn('[RSS Auto-Process] scheduled processing failed', e);
-                const backoffMs = Math.min(30000 * Math.pow(2, Math.floor((now - retryAfterRef.current) / 30000)), 5 * 60000);
-                retryAfterRef.current = now + backoffMs;
-              }
-            }
-          }
-        }
-      })();
-    }, COUNTDOWN_UPDATE_INTERVAL_MS); // Check every second if we should process
-
     // Initial countdown update
     updateCountdown();
 
     // Cleanup on unmount
     return () => {
-      if (autoProcessIntervalRef.current) {
-        window.clearInterval(autoProcessIntervalRef.current);
-        autoProcessIntervalRef.current = null;
-      }
       if (countdownIntervalRef.current) {
         window.clearInterval(countdownIntervalRef.current);
         countdownIntervalRef.current = null;
       }
     };
-  }, [isEnabled, stopAutoProcessing, scheduleNextRun, updateCountdown, processFeeds, setSchedule, backendSyncDone, schedule, setNextRunTime]);
+  }, [isEnabled, stopAutoProcessing, scheduleNextRun, updateCountdown, setSchedule, backendSyncDone, setNextRunTime]);
 
   // Update countdown when nextRunTime changes
   useEffect(() => {

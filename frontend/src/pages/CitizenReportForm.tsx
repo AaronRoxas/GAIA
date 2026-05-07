@@ -24,6 +24,7 @@ import { HAZARD_ICON_REGISTRY, HazardIcon } from '../constants/hazard-icons';
 import ImageUpload from '../components/reports/ImageUpload';
 // import { supabase } from '../lib/supabase'; // TEMPORARILY DISABLED - backend handles image upload
 import { API_BASE_URL } from '../lib/api';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { isValidPhilippinePhoneNumber } from '../utils/phoneValidation';
 import { z } from 'zod';
 
@@ -377,12 +378,15 @@ const CitizenReportForm: React.FC = () => {
   // ============================================================================
 
   return (
-    <div className="min-h-screen bg-[#F0F4F8] py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8 relative">
+      <div className="fixed top-4 right-4 z-[100]">
+        <ThemeToggle />
+      </div>
       <div className="max-w-3xl mx-auto">
         {/* Back Navigation */}
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft size={16} />
           Back to Home
@@ -390,27 +394,27 @@ const CitizenReportForm: React.FC = () => {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             Report a Hazard
           </h1>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Help your community by reporting environmental hazards you&apos;ve witnessed.
             All reports are reviewed by local authorities.
           </p>
           <p className="mt-3 text-sm">
-            <Link to="/track" className="text-[#005a9c] font-semibold hover:underline">
+            <Link to="/track" className="text-secondary font-semibold hover:underline">
               Track an existing report
             </Link>
           </p>
         </div>
 
         {/* Form Container */}
-        <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
+        <div className="bg-card text-card-foreground rounded-lg shadow-md border border-border p-6 sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Hazard Type Select */}
             <div>
-              <label htmlFor="hazard-type" className="block text-sm font-medium text-gray-700 mb-2">
-                Hazard Type <span className="text-red-500">*</span>
+              <label htmlFor="hazard-type" className="block text-sm font-medium text-foreground mb-2">
+                Hazard Type <span className="text-destructive">*</span>
               </label>
               
               {/* Custom styled hazard type buttons */}
@@ -426,8 +430,8 @@ const CitizenReportForm: React.FC = () => {
                       disabled={isSubmitting}
                       className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all ${
                         isSelected
-                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-primary dark:text-white bg-primary/10 ring-2 ring-ring dark:bg-primary/20'
+                          : 'border-border bg-card hover:border-muted-foreground/35 hover:bg-muted/60'
                       } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                       aria-pressed={isSelected}
                     >
@@ -440,7 +444,7 @@ const CitizenReportForm: React.FC = () => {
                       >
                         <HazardIcon hazardType={type} size={16} useHazardColor />
                       </div>
-                      <span className={`text-xs font-medium ${isSelected ? 'text-blue-700' : 'text-gray-700'}`}>
+                      <span className={`text-xs font-medium ${isSelected ? 'text-primary dark:text-white' : 'text-foreground'}`}>
                         {config?.label || type.replace(/_/g, ' ')}
                       </span>
                     </button>
@@ -449,8 +453,8 @@ const CitizenReportForm: React.FC = () => {
               </div>
               
               {errors.hazardType && (
-                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle size={14} />
+                <p className="mt-2 text-sm text-destructive flex items-center gap-1">
+                  <AlertCircle size={14} aria-hidden />
                   {errors.hazardType}
                 </p>
               )}
@@ -458,8 +462,8 @@ const CitizenReportForm: React.FC = () => {
 
             {/* Name Input */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Your Name <span className="text-red-500">*</span>
+              <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
+                Your Name <span className="text-destructive">*</span>
               </label>
               <input
                 id="name"
@@ -468,19 +472,19 @@ const CitizenReportForm: React.FC = () => {
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 maxLength={nameMax}
                 placeholder="Enter your full name"
-                className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.name ? 'border-red-500' : 'border-gray-300'
+                className={`w-full rounded-md border bg-background px-4 py-2 text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
+                  errors.name ? 'border-destructive' : 'border-input'
                 }`}
                 disabled={isSubmitting}
               />
               <div className="mt-1 flex justify-between items-center">
                 {errors.name ? (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle size={14} />
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle size={14} aria-hidden />
                     {errors.name}
                   </p>
                 ) : (
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-muted-foreground">
                     {formData.name.length}/{nameMax}
                   </span>
                 )}
@@ -489,8 +493,8 @@ const CitizenReportForm: React.FC = () => {
 
             {/* Contact Number Input */}
             <div>
-              <label htmlFor="contact-number" className="block text-sm font-medium text-gray-700 mb-2">
-                Contact Number <span className="text-red-500">*</span>
+              <label htmlFor="contact-number" className="block text-sm font-medium text-foreground mb-2">
+                Contact Number <span className="text-destructive">*</span>
               </label>
               <input
                 id="contact-number"
@@ -498,26 +502,26 @@ const CitizenReportForm: React.FC = () => {
                 value={formData.contactNumber}
                 onChange={(e) => handleInputChange('contactNumber', e.target.value)}
                 placeholder="e.g., 09123456789 or +63 912 345 6789"
-                className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.contactNumber ? 'border-red-500' : 'border-gray-300'
+                className={`w-full rounded-md border bg-background px-4 py-2 text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
+                  errors.contactNumber ? 'border-destructive' : 'border-input'
                 }`}
                 disabled={isSubmitting}
               />
               {errors.contactNumber && (
-                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle size={14} />
+                <p className="mt-1 text-sm text-destructive flex items-center gap-1">
+                  <AlertCircle size={14} aria-hidden />
                   {errors.contactNumber}
                 </p>
               )}
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Philippine mobile or landline number (e.g., 09123456789, +63 912 345 6789, (02) 123-4567)
               </p>
             </div>
 
             {/* Description Textarea */}
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-                Description <span className="text-red-500">*</span>
+              <label htmlFor="description" className="block text-sm font-medium text-foreground mb-2">
+                Description <span className="text-destructive">*</span>
               </label>
               <textarea
                 id="description"
@@ -526,24 +530,24 @@ const CitizenReportForm: React.FC = () => {
                 maxLength={descriptionMax}
                 rows={5}
                 placeholder="Please describe what you observed, when it happened, and any immediate dangers..."
-                className={`w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
-                  errors.description ? 'border-red-500' : 'border-gray-300'
+                className={`w-full rounded-md border bg-background px-4 py-2 text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none ${
+                  errors.description ? 'border-destructive' : 'border-input'
                 }`}
                 disabled={isSubmitting}
               />
               <div className="mt-1 flex justify-between items-center">
                 {errors.description ? (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle size={14} />
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle size={14} aria-hidden />
                     {errors.description}
                   </p>
                 ) : (
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-muted-foreground">
                     Minimum 20 characters
                   </span>
                 )}
                 <span className={`text-sm ${
-                  descriptionLength > descriptionMax ? 'text-red-600' : 'text-gray-500'
+                  descriptionLength > descriptionMax ? 'text-destructive' : 'text-muted-foreground'
                 }`}>
                   {descriptionLength}/{descriptionMax}
                 </span>
@@ -552,37 +556,37 @@ const CitizenReportForm: React.FC = () => {
 
             {/* Image Upload Component */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Photo Evidence (Optional)
               </label>
               <ImageUpload
                 onFileSelect={handleImageUpload}
                 disabled={isSubmitting}
               />
-              <p className="mt-2 text-xs text-gray-500 flex items-center gap-1">
-                <ImageIcon size={12} />
+              <p className="mt-2 text-xs text-muted-foreground flex items-center gap-1">
+                <ImageIcon size={12} aria-hidden />
                 Max 5MB. JPEG or PNG format. GPS coordinates will be extracted if available.
               </p>
             </div>
 
             {/* Location Picker (Required) - Pin on map or use GPS */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Hazard Location <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Hazard Location <span className="text-destructive">*</span>
               </label>
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-sm text-muted-foreground mb-2">
                 Click on the map to place a marker, drag to adjust, or use &quot;Use My Current Location&quot; for GPS.
               </p>
               {errors.location && (
-                <p className="mb-2 text-sm text-red-600 flex items-center gap-1">
-                  <AlertCircle size={14} />
+                <p className="mb-2 text-sm text-destructive flex items-center gap-1">
+                  <AlertCircle size={14} aria-hidden />
                   {errors.location}
                 </p>
               )}
-              <div className={`border rounded-lg overflow-hidden ${errors.location ? 'ring-2 ring-red-200' : ''}`}>
+              <div className={`rounded-lg border border-border overflow-hidden ${errors.location ? 'ring-2 ring-destructive/40' : ''}`}>
                 <React.Suspense fallback={
-                  <div className="h-[300px] flex items-center justify-center bg-slate-50 rounded-lg">
-                    <div className="w-6 h-6 rounded-full border-3 border-[#0A2A4D] border-t-transparent animate-spin" />
+                  <div className="h-[300px] flex items-center justify-center bg-muted rounded-lg">
+                    <div className="w-6 h-6 rounded-full border-3 border-primary border-t-transparent animate-spin" aria-hidden />
                   </div>
                 }>
                   <LocationPicker
@@ -628,9 +632,9 @@ const CitizenReportForm: React.FC = () => {
 
             {/* Submit Error */}
             {(errors.submit) && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-600 flex items-center gap-2">
-                  <AlertCircle size={16} />
+              <div className="p-4 rounded-md border border-destructive/30 bg-destructive/10 dark:bg-destructive/15 dark:border-destructive/40">
+                <p className="text-sm text-destructive flex items-center gap-2">
+                  <AlertCircle size={16} aria-hidden />
                   {errors.submit}
                 </p>
               </div>
@@ -641,7 +645,7 @@ const CitizenReportForm: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate('/')}
-                className="px-6 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                className="px-6 py-2 rounded-md border border-input bg-muted text-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 Cancel
@@ -649,11 +653,11 @@ const CitizenReportForm: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting || rateLimitRetryAt != null}
-                className="flex items-center gap-2 px-6 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-6 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <span className="flex items-center gap-2" role="status" aria-live="polite">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" aria-hidden="true" />
                     <span>Submitting...</span>
                   </span>
                 ) : (
@@ -666,12 +670,12 @@ const CitizenReportForm: React.FC = () => {
             </div>
 
             {/* Privacy Notice */}
-            <div className="pt-4 border-t border-gray-200">
-              <p className="text-xs text-gray-500 text-center">
+            <div className="pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground text-center">
                 Your report will be reviewed by local authorities. This form collects personal
                 information (name and contact number) solely for follow-up purposes by the
                 responding authorities. Your data is handled in accordance with our{' '}
-                <a href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</a>.
+                <a href="/privacy" className="text-secondary font-medium hover:underline">Privacy Policy</a>.
               </p>
             </div>
           </form>

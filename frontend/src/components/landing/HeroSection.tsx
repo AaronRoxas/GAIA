@@ -6,10 +6,9 @@ export const HeroSection: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="relative bg-white min-h-[60vh] sm:min-h-[70vh] md:min-h-[calc(100vh-101px)] overflow-hidden w-full flex items-center justify-center">
-      {/* Full-Width Background Container - Covers entire viewport */}
+    <section className="relative bg-background min-h-[60vh] sm:min-h-[70vh] md:min-h-[calc(100vh-101px)] overflow-hidden w-full flex items-center justify-center">
+      {/* Full-Width Background Container */}
       <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none" aria-hidden="true">
-        {/* Combined Background: Grid Plane + Heatmap Overlay - Centered and extending beyond viewport */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <img
             src={landingAssets.hero.background}
@@ -22,6 +21,10 @@ export const HeroSection: React.FC = () => {
             height={1125}
           />
         </div>
+        <div
+          className="absolute inset-0 bg-background/0 dark:bg-background/70 pointer-events-none"
+          aria-hidden="true"
+        />
       </div>
 
       {/* Content Container - Centered with max-width for content positioning */}
@@ -79,14 +82,14 @@ export const HeroSection: React.FC = () => {
 
         {/* Hero Content */}
         <div className="flex flex-col items-center gap-5 sm:gap-[48px] w-full max-w-[740px]">
-          <h1 className="font-lato font-bold text-[28px] sm:text-[44px] md:text-[56px] lg:text-[64px] leading-[1.15] sm:leading-[1.1] tracking-[-0.5px] sm:tracking-[-0.8px] md:tracking-[-1.1px] lg:tracking-[-1.28px] text-[#005a9c] text-center text-balance">
+          <h1 className="font-lato font-bold text-[28px] sm:text-[44px] md:text-[56px] lg:text-[64px] leading-[1.15] sm:leading-[1.1] tracking-[-0.5px] sm:tracking-[-0.8px] md:tracking-[-1.1px] lg:tracking-[-1.28px] text-primary text-center text-balance drop-shadow-sm dark:drop-shadow-md dark:text-primary-foreground">
             Empower Your Response. Protect Your Community.
           </h1>
 
           <div className="flex flex-col sm:flex-row sm:flex-wrap gap-[10px] sm:gap-[16px] items-stretch sm:items-center justify-center w-full sm:w-auto">
             <button
               type="button"
-              className="bg-[#FF7A00] text-white hover:bg-[#e96d00] px-[20px] sm:px-[16px] py-[10px] sm:py-[8px] text-[15px] sm:text-[14px] font-lato font-semibold rounded-[8px] sm:rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7A00]"
+              className="inline-flex items-center justify-center bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-md hover:shadow-lg hover:from-primary/90 hover:to-secondary/90 px-[20px] sm:px-[16px] py-[10px] sm:py-[8px] text-[15px] sm:text-[14px] font-lato font-semibold rounded-[8px] sm:rounded-[6px] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               onClick={() => navigate("/report")}
               aria-label="Report a Hazard"
             >
@@ -94,7 +97,7 @@ export const HeroSection: React.FC = () => {
             </button>
             <button
               type="button"
-              className="bg-[#0a2a4d] text-white hover:bg-[#0a2a4d]/90 px-[20px] sm:px-[16px] py-[10px] sm:py-[8px] text-[15px] sm:text-[14px] font-lato font-medium rounded-[8px] sm:rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0a2a4d]"
+              className="inline-flex items-center justify-center border-2 border-secondary/45 bg-transparent text-foreground hover:border-secondary hover:bg-secondary/10 px-[20px] sm:px-[16px] py-[10px] sm:py-[8px] text-[15px] sm:text-[14px] font-lato font-medium rounded-[8px] sm:rounded-[6px] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:border-secondary/50 dark:hover:bg-secondary/15"
               onClick={() => navigate("/map")}
               aria-label="View Live Hazard Map"
             >
@@ -102,7 +105,7 @@ export const HeroSection: React.FC = () => {
             </button>
             <button
               type="button"
-              className="border border-[#005a9c] border-solid text-[#005a9c] hover:bg-[#005a9c] hover:text-white px-[20px] sm:px-[16px] py-[10px] sm:py-[8px] text-[15px] sm:text-[14px] font-lato font-medium rounded-[8px] sm:rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#005a9c]"
+              className="inline-flex items-center justify-center border-2 border-secondary/45 bg-transparent text-foreground hover:border-secondary hover:bg-secondary/10 px-[20px] sm:px-[16px] py-[10px] sm:py-[8px] text-[15px] sm:text-[14px] font-lato font-medium rounded-[8px] sm:rounded-[6px] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:border-secondary/50 dark:hover:bg-secondary/15"
               onClick={() => {
                 document
                   .getElementById("how-it-works-section")
@@ -117,7 +120,7 @@ export const HeroSection: React.FC = () => {
 
         {/* Glassmorphism Card with Showcase Image */}
         <div
-          className="w-full max-w-[709px] h-[200px] sm:h-[340px] md:h-[415px] rounded-[20px] sm:rounded-[32px] backdrop-blur-[4.7px] bg-[rgba(26,66,224,0.2)] border border-[rgba(255,255,255,0.4)] opacity-80 overflow-hidden p-2 sm:p-3 md:p-4"
+          className="w-full max-w-[709px] h-[200px] sm:h-[340px] md:h-[415px] rounded-[20px] sm:rounded-[32px] backdrop-blur-[4.7px] bg-secondary/20 dark:bg-card/40 border border-white/40 dark:border-border overflow-hidden p-2 sm:p-3 md:p-4 opacity-95 dark:opacity-100"
           style={{
             boxShadow:
               "inset 2.15px 1.72px 8.6px 0px rgba(255,255,255,0.15), inset 1.15px 0.92px 4.3px 0px rgba(255,255,255,0.15)",
