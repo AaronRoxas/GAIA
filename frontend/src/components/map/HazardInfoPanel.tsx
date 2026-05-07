@@ -5,7 +5,7 @@
  * Replaces modal popups for cleaner, less intrusive UX.
  * 
  * Features:
- * - Smooth fade animation (always in DOM, opacity hidden)
+ * - Smooth slide-in animation from right
  * - Quick stats display (severity, confidence, location)
  * - Action buttons (zoom to, view source)
  * - Close button with keyboard support (Esc)
@@ -16,9 +16,8 @@
  * Design: Minimalist + Flat design (Eleken guidelines)
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { IconDefinition, faTimes, faMapPin, faExclamationTriangle, faChartLine, faEye, faExternalLinkAlt, faClock, faFire, faHouseChimneyCrack, faHouseFloodWater, faHurricane, faHillRockslide, faVolcano, faSunPlantWilt, faHouseFloodWaterCircleArrowRight } from '@fortawesome/free-solid-svg-icons';
+import React, { useEffect, useRef } from 'react';
+import { X, MapPin, AlertTriangle, TrendingUp, Eye, ExternalLink, Clock } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
@@ -51,15 +50,15 @@ interface HazardInfoPanelProps {
 //   unknown: { color: 'bg-gray-500', textColor: 'text-gray-700', bgLight: 'bg-gray-50', label: 'Unknown' },
 // };
 
-const hazardTypeIcons: Record<string, IconDefinition> = {
-  flood: faHouseFloodWater,
-  earthquake: faHouseChimneyCrack,
-  typhoon: faHurricane,
-  landslide: faHillRockslide,
-  volcanic_eruption: faVolcano,
-  storm_surge: faHouseFloodWaterCircleArrowRight,
-  drought: faSunPlantWilt,
-  wildfire: faFire,
+const hazardTypeEmoji: Record<string, string> = {
+  flood: '🌊',
+  earthquake: '🏚️',
+  typhoon: '🌪️',
+  landslide: '🏔️',
+  volcanic_eruption: '🌋',
+  storm_surge: '🌊💨',
+  drought: '☀️',
+  wildfire: '🔥',
 };
 
 export function HazardInfoPanel({
@@ -68,40 +67,14 @@ export function HazardInfoPanel({
   onClose,
   onZoomTo,
 }: HazardInfoPanelProps) {
-  const panelRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLBaseElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
-  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [isClosing, setIsClosing] = useState(false);
-
-  // Handle close with animation delay
-  const handleClose = useCallback(() => {
-    // Clear any existing timeout to prevent duplicate timers
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-    }
-    setIsClosing(true);
-    // Wait for animation to complete before calling onClose
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsClosing(false);
-      onClose();
-    }, 300); // Match animation duration
-  }, [onClose]);
-
-  // Cleanup timeout on unmount or when closing
-  useEffect(() => {
-    return () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-        closeTimeoutRef.current = null;
-      }
-    };
-  }, []);
 
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !isClosing) {
-        handleClose();
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
       }
     };
 
@@ -109,18 +82,14 @@ export function HazardInfoPanel({
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isOpen, isClosing, handleClose]);
+  }, [isOpen, onClose]);
 
-  // Save previous focus when panel opens/closes
-  useEffect(() => {
-    if (isOpen && document.activeElement && document.activeElement instanceof HTMLElement) {
-      previousFocusRef.current = document.activeElement;
-    }
-  }, [isOpen]);
-
-  // Implement focus trap - only depends on isOpen to avoid resetting focus when hazard changes
+  // Implement focus trap
   useEffect(() => {
     if (!isOpen || !panelRef.current) return;
+
+    // Save the previously focused element
+    previousFocusRef.current = document.activeElement as HTMLElement;
 
     // Get all focusable elements in the panel
     const focusableElements = panelRef.current.querySelectorAll<HTMLElement>(
@@ -129,7 +98,7 @@ export function HazardInfoPanel({
     const firstElement = focusableElements[0];
     const lastElement = focusableElements[focusableElements.length - 1];
 
-    // Focus the first focusable element when the panel opens
+    // Focus the first element when panel opens
     if (firstElement) {
       firstElement.focus();
     }
@@ -178,8 +147,17 @@ export function HazardInfoPanel({
     }
   }, [isOpen]);
 
-  // No overflow handling needed - panel is absolutely positioned and doesn't affect body layout
-  // The backdrop overlay prevents interaction with content behind the panel
+  // Prevent body scroll when panel is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }
+  }, [isOpen]);
+
+  if (!hazard) return null;
 
   // const severity = hazard ? (severityConfig[hazard.severity as keyof typeof severityConfig] || severityConfig.unknown) : severityConfig.unknown;
   const confidencePercentage = hazard ? Math.round(hazard.confidence_score * 100) : 0;
@@ -193,94 +171,45 @@ export function HazardInfoPanel({
 
   return (
     <>
-      <style>{`
-        .hazard-panel {
-          transition: opacity 0.3s ease;
-          will-change: opacity;
-        }
+      {/* Backdrop overlay when panel is open - positioned absolute within parent */}
+      {isOpen && (
+        <div
+          className="absolute inset-0 bg-black/30 z-[499]"
+          aria-hidden="true"
+        />
+      )}
 
-        .hazard-panel-visible {
-          opacity: 1;
-          pointer-events: auto;
-        }
-
-        .hazard-panel-hidden {
-          opacity: 0;
-          pointer-events: none;
-        }
-
-        .hazard-backdrop {
-          transition: opacity 0.3s ease;
-          will-change: opacity;
-        }
-
-        .hazard-backdrop-visible {
-          opacity: 1;
-          visibility: visible;
-          pointer-events: auto;
-        }
-
-        .hazard-backdrop-hidden {
-          opacity: 0;
-          visibility: hidden;
-          pointer-events: none;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .hazard-panel,
-          .hazard-backdrop {
-            transition: none;
-          }
-        }
-      `}</style>
-
-      {/* Backdrop overlay - always in DOM (purely decorative, close handled by panel button) */}
-      <div
-        onClick={isOpen && !isClosing ? handleClose : undefined}
-        className={`
-          absolute inset-0 z-[1999] cursor-pointer hazard-backdrop
-          ${isOpen && !isClosing ? 'hazard-backdrop-visible bg-black/30' : 'hazard-backdrop-hidden bg-transparent'}
-        `}
-        aria-hidden="true"
-      />
-    
-
-      {/* Info Panel - opacity fade (hidden with opacity, visible with opacity-100) */}
+      {/* Slide-in Panel - Positioned absolute to match parent height */}
       <aside
         ref={panelRef}
-        className={cn(
-          'absolute inset-y-0 right-0 z-[2000] flex w-full flex-col shadow-2xl hazard-panel sm:w-96',
-          'border-l border-border bg-card text-card-foreground',
-          isOpen && !isClosing ? 'hazard-panel-visible' : 'hazard-panel-hidden'
-        )}
+        className={`
+          absolute right-0 top-0 h-full w-full sm:w-96 bg-white shadow-2xl z-[2000]
+          transform transition-transform duration-300 ease-out motion-reduce:transition-none
+          ${isOpen ? 'translate-x-0' : 'translate-x-full'}
+          flex flex-col
+        `}
         role="complementary"
         aria-label="Hazard details"
-        aria-hidden={!isOpen || isClosing}
+        aria-hidden={!isOpen}
       >
         {/* Header */}
         <div className="flex-shrink-0 border-b border-border bg-gradient-to-r from-muted/70 to-muted/40 p-6 dark:from-muted/50 dark:to-muted/25">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex flex-1 items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
-                <FontAwesomeIcon 
-                  icon={hazard ? (hazardTypeIcons[hazard.hazard_type] || faExclamationTriangle) : faExclamationTriangle} 
-                  className="text-lg text-foreground/80"
-                  aria-hidden="true"
-                />
-              </div>
+            <div className="flex items-center gap-3 flex-1">
+              <span className="text-3xl">{emoji}</span>
               <div>
-                <h2 className="text-xl font-bold capitalize text-foreground">
-                  {hazard ? hazard.hazard_type.replace(/_/g, ' ') : 'No hazard selected'}
+                <h2 className="text-xl font-bold text-gray-900 capitalize">
+                  {hazard.hazard_type.replace(/_/g, ' ')}
                 </h2>
                 {/* <p className="text-sm text-gray-600 mt-1">{hazard ? hazard.location_name : 'No hazard selected'}</p> */}
               </div>
             </div>
             <button
-              onClick={handleClose}
-              className="flex-shrink-0 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+              onClick={onClose}
+              className="flex-shrink-0 p-2 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label="Close panel"
             >
-              <FontAwesomeIcon icon={faTimes} className="h-5 w-5" aria-hidden="true" />
+              <X className="w-5 h-5 text-gray-600" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -337,64 +266,85 @@ export function HazardInfoPanel({
                   <p className="mt-1 text-xs text-muted-foreground">Status</p>
                 </Card>
               </div>
-
-              {/* Details */}
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Source Type</p>
-                  <p className="mt-1 text-sm capitalize text-foreground">{hazard.source_type}</p>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2">
-                    <FontAwesomeIcon icon={faClock} className="text-sm text-muted-foreground" aria-hidden="true" />
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reported</p>
-                  </div>
-                  <p className="mt-1 text-sm text-foreground">{formattedTime}</p>
-                </div>
-
-                {hazard.source_content && (
-                  <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Source Content</p>
-                    <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">{hazard.source_content}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Information Note */}
-              <div
-                className={cn(
-                  'rounded-lg border p-3',
-                  'border-primary/20 bg-gradient-to-br from-secondary/[0.12] via-primary/[0.05] to-card',
-                  'dark:border-primary/40 dark:from-primary/20 dark:via-primary/10 dark:to-secondary/10'
-                )}
-              >
-                <p className="text-xs leading-relaxed text-foreground/90 dark:text-blue-100/90">
-                  <strong className="text-foreground">Confidence Score:</strong> This indicates how confident the AI model is about this classification. Higher scores mean more reliable predictions.
-                </p>
-              </div>
-            </>
-          ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              <p>No hazard selected</p>
             </div>
-          )}
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {/* Confidence Score */}
+            <Card className="p-3 text-center border-gray-200">
+              <div className="flex items-center justify-center mb-2">
+                <TrendingUp className="w-4 h-4 text-blue-600" aria-hidden="true" />
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{confidencePercentage}%</p>
+              <p className="text-xs text-gray-600 mt-1">Confidence</p>
+            </Card>
+
+            {/* Coordinates */}
+            <Card className="p-3 text-center border-gray-200">
+              <div className="flex items-center justify-center mb-2">
+                <MapPin className="w-4 h-4 text-green-600" aria-hidden="true" />
+              </div>
+              <p className="text-xs text-gray-900 font-mono text-[10px]">
+                {hazard.latitude.toFixed(3)}, <br /> {hazard.longitude.toFixed(3)}
+              </p>
+              <p className="text-xs text-gray-600 mt-1">Location</p>
+            </Card>
+
+            {/* Validation Status */}
+            <Card className="p-3 text-center border-gray-200">
+              <div className="flex items-center justify-center mb-2">
+                <Eye className={`w-4 h-4 ${hazard.validated ? 'text-purple-600' : 'text-gray-400'}`} aria-hidden="true" />
+              </div>
+              <p className="text-xs font-bold text-gray-900 uppercase">{hazard.validated ? 'Valid' : 'Pending'}</p>
+              <p className="text-xs text-gray-600 mt-1">Status</p>
+            </Card>
+          </div>
+
+          {/* Details */}
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Source Type</p>
+              <p className="text-sm text-gray-900 mt-1 capitalize">{hazard.source_type}</p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Reported</p>
+              </div>
+              <p className="text-sm text-gray-900 mt-1">{formattedTime}</p>
+            </div>
+
+            {hazard.source_content && (
+              <div>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Source Content</p>
+                <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">{hazard.source_content}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Information Note */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-xs text-blue-800">
+              <strong>Confidence Score:</strong> This indicates how confident the AI model is about this classification. Higher scores mean more reliable predictions.
+            </p>
+          </div>
         </div>
 
         {/* Actions Footer - Always Visible */}
         <div className="flex-shrink-0 space-y-2 border-t border-border bg-muted/50 p-6 dark:bg-muted/30">
           <Button
-            onClick={() => hazard && onZoomTo?.(hazard.latitude, hazard.longitude)}
-            disabled={!hazard}
-            className="w-full bg-gradient-to-br from-primary to-secondary text-primary-foreground shadow-sm hover:from-primary/90 hover:to-secondary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => onZoomTo?.(hazard.latitude, hazard.longitude)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             size="sm"
             title='Zoom to the selected pin location'
           >
-            <FontAwesomeIcon icon={faMapPin} className="mr-2 text-sm" aria-hidden="true" />
+            <MapPin className="w-4 h-4 mr-2" aria-hidden="true" />
             Zoom to Location
           </Button>
 
-          {hazard?.source_url?.trim() && (
+          {(hazard.source_url?.trim() || hazard.source_content) && (
             <Button
               onClick={() => {
                 if (hazard.source_url?.trim()) {
@@ -402,11 +352,12 @@ export function HazardInfoPanel({
                 }
               }}
               variant="outline"
-              className="w-full border-primary/35 text-foreground hover:bg-primary/10 dark:border-primary/50 dark:hover:bg-primary/15"
+              className="w-full border-blue-200 text-blue-600 hover:bg-blue-50"
               size="sm"
-              title="Open original source in new tab"
+              disabled={!hazard.source_url?.trim()}
+              title={!hazard.source_url?.trim() ? 'Source URL not available' : 'Open original source in new tab'}
             >
-              <FontAwesomeIcon icon={faExternalLinkAlt} className="mr-2 text-sm" aria-hidden="true" />
+              <ExternalLink className="w-4 h-4 mr-2" aria-hidden="true" />
               View Full Source
             </Button>
           )}
