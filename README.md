@@ -1,23 +1,21 @@
 <div align="center">
 
-<img src="./frontend/public/assets/img/AGAILA.png" /><br />
-# AGAILA Geospatial AI-driven Assessment
+<img src="./frontend/public/assets/img/AGAILA.png" alt="AGAILA Logo" width="200px" /><br />
 
-*AI-powered environmental hazard detection for the Philippines*
+# AGAILA: Geospatial AI-driven Assessment
 
-[![Build Status](https://img.shields.io/badge/Build-Passing-success?style=flat-square)]()
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)]()
-[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)]()
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)]()
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat-square&logo=typescript&logoColor=white)]()
-[![License](https://img.shields.io/badge/License-TBD-yellow?style=flat-square)]()
-[![GitHub deployments](https://img.shields.io/github/deployments/badges/shields/shields-staging?style=flat-square&logo=vercel&label=Vercel&color=000000)]()
-[![GitHub deployments](https://img.shields.io/github/deployments/badges/shields/shields-staging?style=flat-square&logo=Railway&label=Railway&color=0B0D0E)]()
-[![CodeQL Advanced](https://github.com/AlexisRellon/GAIA/actions/workflows/codeql.yml/badge.svg)](https://github.com/AlexisRellon/GAIA/actions/workflows/codeql.yml)
+**AI-powered real-time environmental hazard detection and geospatial visualization for disaster response in the Philippines**
 
+[![Build Status](https://img.shields.io/badge/Build-Passing-success?style=flat-square)](https://github.com/AlexisRellon/AGAILA/actions)
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com)
+[![DigitalOcean](https://img.shields.io/badge/DigitalOcean-Deployment-008BCF?style=flat-square&logo=digitalocean&logoColor=white)](https://www.digitalocean.com)
+[![CodeQL](https://img.shields.io/badge/CodeQL-Scanning-informational?style=flat-square)](https://github.com/AlexisRellon/AGAILA/security/code-scanning)
+[![License](https://img.shields.io/badge/License-TBD-yellow?style=flat-square)](#license)
 
-
-[Overview](#overview) • [Features](#features) • [Getting Started](#getting-started) • [Architecture](#architecture) • [Documentation](#documentation)
+[Overview](#overview) • [Features](#features) • [Getting Started](#getting-started) • [Architecture](#architecture) • [Deployment](#deployment) • [Resources](#resources)
 
 </div>
 
@@ -25,45 +23,42 @@
 
 ## Overview
 
-AGAILA is a real-time environmental hazard detection and visualization system built specifically for the Philippines. The system automatically processes news feeds and citizen reports to detect, classify, and map environmental hazards including typhoons, floods, earthquakes, landslides, and wildfires.
+AGAILA is a real-time environmental hazard detection and visualization system designed for the Philippines. The system automatically processes news feeds and citizen reports to detect, classify, and map environmental hazards including typhoons, floods, earthquakes, landslides, and wildfires.
 
-Using state-of-the-art AI models and geospatial validation, AGAILA provides disaster management agencies, local government units (LGUs), and emergency responders with actionable intelligence to support rapid response and resource allocation.
+Using advanced AI models (Zero-Shot Classification with Climate-NLI and Geospatial Named Entity Recognition) combined with PostGIS validation, AGAILA provides disaster management agencies, local government units (LGUs), and emergency responders with actionable intelligence to support rapid response and resource allocation.
 
-<div align="center">
-  <img src="./Project-context/img/gaia-architecture-diagram.png" alt="AGAILA Architecture" width="800px" />
-</div>
-
-> **Target Time-to-Action**: Less than 5 minutes from article publication to hazard visualization on the map.
+> **Target Time-to-Action**: Less than 5 minutes from article publication to hazard visualization on the interactive map.
 
 ## Features
 
-### AI-Powered Detection
-- **Zero-Shot Classification**: Uses Climate-NLI model for hazard type detection without extensive training data
-- **Geo-NER Extraction**: Custom model extracts Philippine location names from unstructured text
-- **Multi-lingual Support**: Handles code-switching between English, Tagalog, and regional dialects
-- **Confidence Scoring**: Provides uncertainty quantification for all AI predictions
+**AI & Detection**
+- Zero-Shot Classification using Climate-NLI for hazard type detection without extensive training data
+- Custom Geospatial Named Entity Recognition (Geo-NER) extracts Philippine location names from unstructured text
+- Multi-lingual support handles code-switching between English, Tagalog, and regional dialects
+- Confidence scoring provides uncertainty quantification for all AI predictions
 
-### Real-Time Monitoring
-- **RSS Feed Aggregation**: Automatic ingestion from Philippine news outlets (GMA News, ABS-CBN, Inquirer.net)
-- **Live Updates**: Supabase Realtime pushes new hazards instantly to the map
-- **Background Processing**: Celery workers handle AI pipeline and RSS processing asynchronously
+**Real-Time Monitoring**
+- Automatic RSS feed aggregation from Philippine news outlets (GMA News, ABS-CBN, Inquirer.net)
+- Supabase Realtime pushes new hazards instantly to the map
+- Asynchronous background processing via Celery workers maintains API responsiveness
 
-### Interactive Visualization
-- **Progressive Web App**: Offline-capable React application with responsive design
-- **Dynamic Mapping**: Leaflet-powered interactive maps with marker clustering
-- **Advanced Filtering**: Filter by hazard type, region, time window, and source
-- **Heatmap Visualization**: Density-based visualization for high-concentration areas
+**Interactive Visualization**
+- Progressive Web App (PWA) with offline capability and responsive design
+- Leaflet-powered interactive maps with dynamic marker clustering
+- Advanced filtering by hazard type, region, time window, and data source
+- Heatmap visualization for high-concentration hazard areas
 
-### Citizen Reporting
-- **Public Submission**: Anonymous hazard reporting with reCAPTCHA protection
-- **Image Upload**: Support for photo evidence with geotag extraction
-- **Manual Triage**: Human-in-the-loop validation for low-confidence reports
+**Citizen Engagement**
+- Public hazard reporting with spam-protection options and moderation workflows
+- Image upload support with automatic geotag extraction
+- Manual triage workflow for low-confidence AI predictions
+- Tracking system for citizen-submitted reports
 
-### Administrative Tools
-- **Report Triage**: Validate or reject citizen-submitted reports
-- **User Management**: Role-based access control (Master Admin, Validator, LGU Responder)
-- **Activity Logging**: Complete audit trail of all system actions
-- **Analytics Dashboard**: Performance metrics and trend analysis
+**Administrative Capabilities**
+- Report validation and manual triage dashboard
+- Role-based access control (Master Admin, Validator, LGU Responder)
+- Complete activity and audit logging for compliance
+- Analytics dashboard with performance metrics and trend analysis
 
 ## Getting Started
 
@@ -75,12 +70,12 @@ Using state-of-the-art AI models and geospatial validation, AGAILA provides disa
 - [Git](https://git-scm.com/downloads)
 
 **For Local Development**
-- [Node.js](https://nodejs.org/) 18 LTS or later
+- [Node.js](https://nodejs.org/) 20 LTS or later
 - [Python](https://www.python.org/downloads/) 3.9+
 - [PostgreSQL](https://www.postgresql.org/download/) 14+ with PostGIS extension
-- Git
+- [Git](https://git-scm.com/downloads)
 
-### Quick Start with Docker
+### Quick Start (Docker)
 
 The fastest way to get AGAILA running locally:
 
@@ -89,12 +84,12 @@ The fastest way to get AGAILA running locally:
 git clone https://github.com/AlexisRellon/AGAILA.git
 cd AGAILA
 
-# Copy environment files
+# Copy and configure environment files
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 
-# Edit .env files with your Supabase credentials
-# Required: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+# Edit .env files with your Supabase credentials:
+# SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
 # Start all services with Docker Compose
 docker-compose up --build
@@ -105,333 +100,276 @@ docker-compose up --build
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
 
-### Production Deployment
+> [!TIP]
+> For detailed local setup without Docker, see the repository setup guides.
 
-AGAILA supports multiple deployment options for different needs:
+## Deployment
 
-#### Option 1: Vercel + Railway (Recommended)
+AGAILA supports multiple deployment options optimized for scalability and cost-efficiency:
 
-**Frontend**: Vercel (Global CDN, free tier generous)
-**Backend**: Railway (Docker support, AI/ML workloads)
-**Database**: Supabase (managed PostgreSQL + PostGIS)
+### Option 1: Vercel + DigitalOcean (Recommended)
+
+Best for teams that want global CDN performance for the frontend and a managed container host for backend workloads.
+
+- **Frontend**: Vercel (Global CDN)
+- **Backend**: DigitalOcean App Platform or DigitalOcean Droplets (Docker)
+- **Database**: Supabase (Managed PostgreSQL + PostGIS)
 
 ```bash
 # Deploy frontend to Vercel
 cd frontend
 vercel --prod
 
-# Deploy backend to Railway
-railway login
-railway init
-railway up
+# Example backend flow: build and push Docker image, then deploy on DigitalOcean
+docker build -t registry.digitalocean.com/<registry>/agaila-backend:latest -f Dockerfile.backend .
+doctl registry login
+docker push registry.digitalocean.com/<registry>/agaila-backend:latest
+# Deploy via DigitalOcean App Platform or use a Droplet with Docker Compose
 ```
 
-**Monthly Cost Estimate**: ~$25-65 (Vercel: Free + Railway: $25-65 + Supabase Pro: $25)
+### Option 2: DigitalOcean Only
 
-#### Option 2: Railway Only
+Run all services on DigitalOcean using App Platform, Managed Databases, and Managed Redis, or use Droplets and Docker Compose for more control.
 
-AGAILA supports production deployment on Railway with a single command:
+- **All Services**: DigitalOcean (App Platform or Droplets)
+- **Database**: Supabase (Managed PostgreSQL + PostGIS) or DigitalOcean Managed Databases
 
 ```bash
-# Install Railway CLI
-npm i -g @railway/cli
-
-# Login and deploy
-railway login
-railway init
-railway up
-
-# View logs
-railway logs --service backend
+# Example: use DigitalOcean App Platform or Droplets to host services
+# See DigitalOcean documentation and the `doctl` CLI for deployment commands
+doctl apps create --spec app.yaml
 ```
 
-**Monthly Cost Estimate**: ~$65-105 (Railway: $40-80 + Supabase Pro: $25)
-
-For complete deployment instructions including environment variables, database setup, and custom domains, see the [Railway Deployment Guide](docs/guides/RAILWAY_DEPLOYMENT.md).
+For complete deployment instructions including environment variables, database setup, and custom domains, consult the project's internal deployment documentation or contact the maintainers.
 
 ## Architecture
 
-AGAILA follows a three-tiered serverless architecture designed for real-time processing and scalability:
+### System Design
 
-### 1. Data Ingestion Layer
-- **RSS Aggregation**: Celery Beat scheduler triggers hourly RSS feed ingestion
-- **Citizen Reports**: Public API endpoint with reCAPTCHA validation
-- **Reference Data**: Philippine administrative boundaries from NAMRIA
+AGAILA follows a three-tiered architecture optimized for real-time processing, scalability, and reliability:
 
-### 2. Core Processing (AI Pipeline)
+**1. Data Ingestion Layer**
+- RSS aggregation via Celery Beat (hourly scheduler)
+- Citizen report submission API with optional spam-protection integrations and moderation workflow
+- Reference data: Philippine administrative boundaries
+
+**2. Core Processing (AI Pipeline)**
 ```
-Text Input → Preprocessing (spaCy/NLTK) → Climate-NLI (Hazard Type) 
-  → Geo-NER (Location) → PostGIS Validation → Database Storage
-```
-
-**Output Format**: `{Hazard Type, Latitude, Longitude, Confidence Score}`
-
-- Only events within Philippine administrative boundaries are processed
-- Low-confidence predictions (<0.7) are flagged for manual triage
-- All processing happens in background workers to maintain API responsiveness
-
-### 3. Presentation Layer (PWA)
-- **React 18** with TypeScript for type-safe development
-- **TailwindCSS + ShadCN UI** for modern, accessible components
-- **Leaflet** for interactive geospatial visualization
-- **React Query** for efficient data fetching and caching
-- **Zustand** for lightweight state management
-
-### Service Architecture
-
-**Production Deployment Options**:
-
-**Option 1: Vercel + Railway (Recommended)**
-```
-┌─────────────┐   ┌─────────────┐   ┌──────────┐
-│   Frontend  │──▶│   Backend   │──▶│ Supabase │
-│   Vercel    │   │  Railway    │   │(PostGIS) │
-│  (CDN)      │   │  (FastAPI)  │   └──────────┘
-└─────────────┘   └─────────────┘          │
-                         │                 ▼
-                         ▼          ┌─────────────┐
-                  ┌─────────────┐   │    Redis    │
-                  │    Redis    │   │  Railway    │
-                  └─────────────┘   └─────────────┘
-                         │
-          ┌──────────────┴──────────────┐
-          ▼                             ▼
-   ┌─────────────┐              ┌─────────────┐
-   │   Celery    │              │   Celery    │
-   │   Worker    │              │    Beat     │
-   │ Railway     │              │  Railway    │
-   └─────────────┘              └─────────────┘
+Raw Text → Preprocessing (spaCy) → Climate-NLI (Hazard Detection)
+→ Geo-NER (Location Extraction) → PostGIS Validation → Storage
 ```
 
-**Option 2: Railway Only (5 Services)**
+Output format: `{HazardType, Latitude, Longitude, ConfidenceScore}`
+
+Key features:
+- Only processes events within Philippine administrative boundaries
+- Flags low-confidence predictions (<0.7) for manual triage
+- Asynchronous processing maintains API responsiveness
+
+**3. Presentation Layer**
+- React 18 with TypeScript for type-safe development
+- TailwindCSS + ShadCN UI for modern, accessible components
+- Leaflet for interactive geospatial visualization
+- React Query for efficient data fetching
+- Zustand for lightweight state management
+
+### Service Deployment
+
+**Vercel + DigitalOcean (Recommended)**
 ```
-┌─────────────┐   ┌─────────────┐   ┌──────────┐
-│   Frontend  │──▶│   Backend   │──▶│ Supabase │
-│  Railway    │   │  Railway    │   │(PostGIS) │
-│  (Nginx)    │   │  (FastAPI)  │   └──────────┘
-└─────────────┘   └─────────────┘          │
-                         │                 ▼
-                         ▼          ┌─────────────┐
-                  ┌─────────────┐   │    Redis    │
-                  │    Redis    │   │  Railway    │
-                  └─────────────┘   └─────────────┘
-                         │
-          ┌──────────────┴──────────────┐
-          ▼                             ▼
-   ┌─────────────┐              ┌─────────────┐
-   │   Celery    │              │   Celery    │
-   │   Worker    │              │    Beat     │
-   │ Railway     │              │  Railway    │
-   └─────────────┘              └─────────────┘
+┌────────────────────────────────────────────────────┐
+│ Frontend (Vercel CDN) → Backend (DigitalOcean App) │
+│                                      ↓              │
+│                       Redis (Managed) → Cache      │
+│                       Celery Workers (Droplets)    │
+└────────────────────────────────────────────────────┘
 ```
 
-### Tech Stack
+**DigitalOcean Only**
+```
+┌────────────────────────────────────────────────────┐
+│ All Services on DigitalOcean (App Platform/Droplets)
+│ Frontend (CDN) → Backend (Docker) → Redis → DB     │
+│                     ↓          ↓                    │
+│              Celery Workers  Cache                 │
+└────────────────────────────────────────────────────┘
+```
 
-**Frontend**
-- React 18, TypeScript, TailwindCSS
-- Leaflet (interactive maps), react-leaflet-cluster
-- ShadCN UI (11 components), Radix UI primitives
-- React Query (data fetching), Zustand (state)
+### Technology Stack
 
-**Backend**
-- Python 3.9+, FastAPI, Uvicorn
-- Transformers (Climate-NLI), spaCy (Geo-NER)
-- Celery + Redis (background tasks)
-- Supabase Python SDK
+| Layer | Technologies |
+|-------|-------------|
+| **Frontend** | React 18, TypeScript, TailwindCSS, Leaflet, ShadCN UI |
+| **Backend** | Python 3.9+, FastAPI, Transformers (Climate-NLI), spaCy (Geo-NER) |
+| **Data** | Supabase (PostgreSQL + PostGIS), Supabase Realtime |
+| **Cache & Tasks** | Redis, Celery, Celery Beat |
+| **Deployment** | Docker, Docker Compose, DigitalOcean, Vercel |
 
-**Database & Storage**
-- Supabase (managed PostgreSQL + PostGIS)
-- Supabase Auth (RBAC), Storage (images)
-- Supabase Realtime (live notifications)
+## Resources
 
-**Deployment**
-- Docker + Docker Compose (local dev)
-- Railway (production hosting)
-- GitHub Actions (CI/CD)
+### Documentation
+- Project documentation, checklists, and research artifacts are maintained internally; contact the maintainers for access and the latest copies.
 
-## Documentation
+### Deployment & Setup
+- Deployment and setup guides (platform-specific instructions, environment variables, and database configuration) are available in internal documentation or from the maintainers.
 
-### Core Documentation
-- **[MODULE_CHECKLIST.md](MODULE_CHECKLIST.md)** - Implementation status tracker
-- **[docs/README.md](docs/README.md)** - Complete documentation index
-- **[AGENTS.md](AGENTS.md)** - AI agent navigation guide
+### Security & Best Practices
+- Security scanning and audit guidance is maintained in-repo; run dependency and DAST/SCA scans as part of CI and follow the repository security guide.
 
-### Setup Guides
-- **[Railway Deployment](docs/guides/RAILWAY_DEPLOYMENT.md)** - Production deployment (550+ lines)
-- **[Docker Guide](docs/guides/DOCKER_GUIDE.md)** - Local development setup
-- **[Quick Start](docs/setup/QUICK_START.md)** - Fast setup after security integration
-- **[Database Setup](docs/setup/DATABASE_SETUP.md)** - PostgreSQL + PostGIS configuration
+### Development Guides
+- Contributor and development guides (OpenSpec workflow, frontend/backend guidelines) are available internally—see maintainers for access.
 
-### Security
-- **[StackHawk Testing Guide](docs/security/STACKHAWK_TESTING_GUIDE.md)** - Security scanning
-- **[Security Audit](docs/security/SECURITY_AUDIT.md)** - Findings and recommendations
-- **[Security Headers](docs/security/SECURITY_HEADERS_QUICK_REF.md)** - HTTP security reference
-
-### Development
-- **[OpenSpec Workflow](openspec/AGENTS.md)** - Proposal and spec management
-- **[Project Specification](openspec/project.md)** - Complete tech stack and conventions
-- **[Frontend Instructions](frontend/COPILOT_INSTRUCTIONS.md)** - Frontend development guide
-- **[Backend Instructions](backend/COPILOT_INSTRUCTIONS.md)** - Backend development guide
-
-## Development Workflow
+## Development
 
 ### Module Codes
 
-Use these prefixes for branches and commits:
+Use these codes in branch names and commit messages for organization:
 
 ```
-AUTH-0x  Authentication/Registration
-CD-01    Dashboard/Command Interface
-GV-0x    Geospatial Visualization (maps, markers, heatmaps)
-FP-0x    Filtering Panel (hazard/region/time/source)
-RG-0x    Report Generation (CSV, GeoJSON, PDF exports)
-AC-0x    Admin Console (logs, thresholds, triage)
-CR-0x    Citizen Report (submission, validation)
-UM-0x    User Management (RBAC)
+AUTH-0x    Authentication/Registration
+CD-01      Dashboard/Command Interface
+GV-0x      Geospatial Visualization (maps, markers, heatmaps)
+FP-0x      Filtering Panel (hazard/region/time/source)
+RG-0x      Report Generation (CSV, GeoJSON, PDF)
+AC-0x      Admin Console (logs, triage, config)
+CR-0x      Citizen Report (submission, validation)
+UM-0x      User Management (RBAC)
+RSS-0x     RSS Feed Integration
+AAM-0x     Advanced Analytics
+EDI-0x     External Data Integration
 ```
 
-### Git Conventions
+### Git Workflow
 
+**Branch naming convention:**
 ```bash
-# Branch naming
 feature/GV-04-heatmap-density
-fix/CR-03-captcha-timeout
-
-# Commit messages
-feat(GV-02): add dynamic marker refresh
-fix(CR-03): handle CAPTCHA timeout gracefully
-docs(README): update deployment instructions
+fix/CR-03-spam-protection-timeout
+chore/docs-update
 ```
 
-### Docker Development
+**Commit messages:**
+```bash
+git commit -m "feat(GV-02): add dynamic marker refresh"
+git commit -m "fix(CR-03): handle spam-protection timeout"
+git commit -m "docs: update deployment instructions"
+```
 
-All development happens in Docker containers for consistency:
+### Common Commands
 
+**Local Development**
 ```bash
 # Start all services
-docker-compose up
-
-# Rebuild after dependency changes
 docker-compose up --build
-
-# Run backend tests
-docker-compose run backend pytest tests/python/ --cov
-
-# Run frontend tests
-docker-compose run frontend npm test
 
 # View logs
 docker-compose logs -f backend
 docker-compose logs -f frontend
+
+# Run tests
+docker-compose run backend pytest tests/python/ --cov
+docker-compose run frontend npm test --coverage
 
 # Access container shell
 docker-compose exec backend bash
 docker-compose exec frontend sh
 ```
 
-### Testing
+**Production Deployment**
+```bash
+# Example: deploy backend image to DigitalOcean Container Registry and App Platform
+docker build -t registry.digitalocean.com/<registry>/agaila-backend:latest -f Dockerfile.backend .
+doctl registry login
+docker push registry.digitalocean.com/<registry>/agaila-backend:latest
+# Create or update an App Platform app that references your pushed image, or deploy to a Droplet with Docker Compose
+
+# Deploy frontend to Vercel
+cd frontend && vercel --prod
+```
+
+## Contributing
+
+This project welcomes contributions! Please follow these guidelines:
+
+1. **Check existing work** - Review the internal module checklist to see what's in progress (contact maintainers for access)
+2. **Read specifications** - See [openspec/project.md](openspec/project.md) for architecture and conventions
+3. **Create a proposal** - For new features, see [openspec/AGENTS.md](openspec/AGENTS.md)
+4. **Follow code style** - Use provided linting and formatting configs
+5. **Write tests** - Ensure test coverage for new code
+6. **Document changes** - Update the project's internal documentation as needed (maintainers will advise)
+
+> [!NOTE]
+> Before making major changes, open an issue to discuss your approach. This helps avoid duplicate work and ensures alignment with project goals.
+
+## Testing
 
 **Unit & Integration Tests**
 ```bash
-# Python AI/ML tests
-pytest tests/python/ --cov=backend/python
+# Backend Python tests
+docker-compose run backend pytest tests/python/ --cov=backend/python
 
 # Frontend tests
-cd frontend && npm test
+docker-compose run frontend npm test
 
-# Coverage report
-npm run test:coverage
+# Frontend coverage report
+docker-compose run frontend npm run test:coverage
 ```
 
-**Security Testing** (StackHawk)
-```powershell
-# Quick setup (one-time)
-.\scripts\setup-stackhawk.ps1
-
-# Load test functions
-. .\scripts\test-stackhawk.ps1
-
-# Run scans
-Test-Backend    # Backend API scan (5 min)
-Test-Frontend   # Frontend PWA scan (10 min)
-Test-Quick      # Quick backend scan (30 sec)
-```
-
-## Key Constraints
-
-> **Important**: These constraints are critical for system integrity and compliance.
-
-1. **Geographic Scope**: ONLY processes events within Philippine administrative boundaries
-2. **Confidence Display**: Always show confidence scores alongside predictions
-3. **Time-to-Action**: Target < 5 minutes from RSS article to map marker
-4. **Data Privacy**: Comply with RA 10173 (Philippine Data Protection Act)
-5. **Human-in-the-Loop**: Manual validation required for low-confidence reports (<0.7)
-6. **Container-First**: All services must run in Docker containers
+**Security Testing**
+Run automated dependency and security scans using your preferred tooling (Snyk, GitHub CodeQL, OWASP ZAP, etc.) and follow the repository security guide.
 
 ## Troubleshooting
 
-**Docker Issues**
-- Ensure Docker Desktop is running: `docker ps` should succeed
+**Docker Setup Issues**
+- Ensure Docker Desktop is running: `docker ps`
 - Clear Docker cache: `docker system prune -a`
-- Check Docker logs: `docker-compose logs -f [service]`
+- Check service logs: `docker-compose logs -f backend`
 
 **API Connection Errors**
 - Verify Supabase credentials in `backend/.env`
-- Check CORS settings in `backend/python/main.py`
-- Ensure services can communicate: use container names, not localhost
+- Check CORS configuration in backend
+- Use container service names (not localhost) for inter-service communication
 
-**Frontend Build Errors**
-- Clear node_modules: `rm -rf frontend/node_modules && cd frontend && npm install`
-- Check TypeScript errors: `cd frontend && npm run lint`
+**Frontend Build Issues**
+- Clear cache and reinstall: `rm -rf frontend/node_modules && cd frontend && npm install`
+- Check TypeScript: `cd frontend && npm run lint`
 
-For more troubleshooting, see:
-- [Docker Implementation Guide](docs/guides/DOCKER_IMPLEMENTATION.md)
-- [Railway Troubleshooting](docs/guides/RAILWAY_DEPLOYMENT.md#troubleshooting)
+For detailed help, consult the project's internal setup guides or contact the maintainers for deployment instructions.
 
-## Resources
+## Learning Resources
 
-### Learning Materials
-- [Academic Manuscript](Project-context/GAIA-Manuscript.docx.md) - Research context and methodology
-- [System Modules](Project-context/GAIA-modules.md) - Detailed module descriptions
-- [Use Case Clarification](docs/guides/USE_CASE_CLARIFICATION.md) - System requirements
-
-### External Documentation
-- [Supabase Documentation](https://supabase.com/docs)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [React Documentation](https://react.dev/)
-- [Leaflet Documentation](https://leafletjs.com/reference.html)
-- [Railway Documentation](https://docs.railway.app/)
-
-### Related Projects
-- [Climate-NLI Model](https://huggingface.co/MoritzLaurer/deberta-v3-base-zeroshot-v1.1-all-33)
-- [spaCy NER Models](https://spacy.io/models/en)
-- [NAMRIA Philippine Boundaries](https://www.namria.gov.ph/)
+- Thesis and research outputs are included in the project's internal documentation; contact the maintainers for access.
+- **[Supabase Docs](https://supabase.com/docs)** - PostgreSQL and PostGIS setup
+- **[FastAPI Docs](https://fastapi.tiangolo.com/)** - Backend API development
+- **[React Documentation](https://react.dev/)** - Frontend framework guide
+- **[Leaflet Maps](https://leafletjs.com/)** - Interactive mapping library
+- DigitalOcean documentation has details for App Platform, Droplets, and Container Registry (see digitalocean.com/docs)
 
 ## Project Status
 
-**Current Phase**: Production-ready with ongoing enhancements
+**Current Phase**: Production-ready with active development
 
-**Completed Modules** (✅):
+**Completed** ✅
 - Authentication & Authorization (AUTH-01, AUTH-02)
-- Dashboard Interface (CD-01)
+- Dashboard & Command Interface (CD-01)
 - Geospatial Visualization (GV-01 to GV-04)
-- Filtering Panel (FP-01 to FP-04)
-- Report Generation (RG-01, RG-02, RG-03)
+- Advanced Filtering (FP-01 to FP-04)
+- Report Generation (RG-01 to RG-03)
 - Admin Console (AC-01 to AC-04)
-- Citizen Reports (CR-01 to CR-07)
+- Citizen Reporting (CR-01 to CR-07)
 
-**In Progress** (🚧):
-- Advanced Analytics (AAM-01 to AAM-03)
-- External Data Integration (EDI-01 to EDI-03)
+<!-- **In Progress** 🚧
+- Advanced Analytics (AAM)
+- External Data Integration (EDI)
 
-See [MODULE_CHECKLIST.md](MODULE_CHECKLIST.md) for detailed implementation status.
+See the internal module checklist for detailed status (contact maintainers). -->
 
 ---
 
 <div align="center">
 
-**Built with ❤️ for disaster resilience in the Philippines**
+**Built with dedication for disaster resilience and community safety**
 
-[Report Bug](https://github.com/AlexisRellon/GAIA/issues) • [Request Feature](https://github.com/AlexisRellon/GAIA/issues) • [Documentation](docs/README.md)
+[Report Issue](https://github.com/AlexisRellon/AGAILA/issues) • [Request Feature](https://github.com/AlexisRellon/AGAILA/issues) • View project documentation (internal)
 
 </div>
