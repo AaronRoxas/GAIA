@@ -60,7 +60,8 @@ class ClimateNLIClassifier:
         'drought',
         'tsunami',
         'storm surge',
-        'tornado'
+        'tornado',
+        'heat index'
     ]
 
     # =========================================================================
@@ -307,7 +308,9 @@ class ClimateNLIClassifier:
         # Water/Climate hazards
         r'\b(?:drought|dry\s+spell|water\s+shortage|el\s+niño)\b',
         r'\b(?:tornado|waterspout|funnel\s+cloud)\b',
-        r'\b(?:heatwave|heat\s+(?:wave|index)|extreme\s+heat)\b',
+        r'\b(?:heatwave|heat\s+(?:wave|index|indices)|extreme\s+heat|dangerous\s+heat)\b',
+        r'\b(?:heat\s+index\s+(?:warning|advisory|alert|forecast|level|watch|recorded|peaked|levels?))\b',
+        r'\b(?:feels\s+like\s+temperature|\d+\s*[°º]?\s*C\s+(?:heat\s+index|in\s+\w+))\b',
 
         # Hazardous materials
         r'\b(?:oil\s+spill|chemical\s+(?:spill|leak)|toxic|hazardous\s+(?:material|waste))\b',
@@ -344,6 +347,13 @@ class ClimateNLIClassifier:
         r'\b(?:ongoing|continuing|worsening|intensifying)\s+(?:flood|fire|eruption|storm)\b',
         r'\bas\s+of\s+(?:today|now|this\s+morning|press\s+time)\b',
         r'\b(?:earlier\s+today|this\s+morning|last\s+night|overnight)\b',
+
+        # Heat index / temperature event indicators
+        r'\b(?:heat\s+index|heat\s+indices)\s+(?:recorded|logged|peaked|reached|hit)\b',
+        r'\b(?:peaked|recorded|logged|reached)\s+(?:at\s+)?\d+\s*[°º]?\s*C\b',
+        r'\b\d+\s*[°º]?\s*C\s+(?:heat\s+index|logged|recorded|in)\b',
+        r'\b(?:dangerous|extreme\s+caution|danger)\s+(?:heat\s+index|level|category)\b',
+        r'\b(?:expected\s+to\s+experience|brace\s+for|forecast)\s+(?:heat|dangerous)\b',
 
         # Casualty/damage reports
         r'\b(?:death|casualt(?:y|ies)|fatalit(?:y|ies)|victim(?:s)?)\s+(?:toll|count|reported)\b',

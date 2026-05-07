@@ -80,6 +80,7 @@ export const ALL_HAZARD_TYPES = [
   'fire',
   'drought',
   'heat_wave',
+  'heat_index',
   'heavy_rain',
   'other',
 ];

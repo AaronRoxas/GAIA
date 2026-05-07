@@ -250,6 +250,30 @@ export const HAZARD_SAFETY_GUIDES: Record<HazardType, HazardSafetyGuideContent> 
       'Discuss workplace heat mitigation with OSH focal persons.',
     ],
   },
+  heat_index: {
+    summary: 'High heat index combines temperature and humidity—PAGASA warnings indicate dangerous conditions requiring immediate precautions.',
+    before: [
+      'Monitor PAGASA heat index forecasts daily during hot months (March–June).',
+      'Know heat index color codes: Yellow (27–32°C), Orange (33–41°C), Red (42–51°C), Purple (52°C+).',
+      'Stock oral rehydration salts (ORS), electrolyte drinks, and cooling towels.',
+      'Install reflective window films; ensure fans and AC units are serviced.',
+      'Identify vulnerable household members (elderly, infants, those with chronic conditions).',
+    ],
+    during: [
+      'Limit outdoor activities especially between 10am–4pm when heat index peaks.',
+      'Drink water every 15–20 minutes even without feeling thirsty; avoid caffeine and alcohol.',
+      'Recognize heat exhaustion signs: heavy sweating, weakness, cold/pale skin, nausea.',
+      'Recognize heat stroke emergency: hot/red skin, no sweating, confusion, high body temperature—call emergency services immediately.',
+      'Never leave children, elderly, or pets inside parked vehicles—temperatures can rise fatally within minutes.',
+    ],
+    after: [
+      'Continue hydrating even after heat index drops; electrolyte balance takes time to restore.',
+      'Monitor for delayed heat illness symptoms over the next 24–48 hours.',
+      'Report any heat-related medical incidents to barangay health workers for community tracking.',
+      'Review and improve household cooling strategies before the next heat advisory.',
+      'Advocate for workplace heat safety policies if outdoor labor is required.',
+    ],
+  },
   heavy_rain: {
     summary: 'Intense convection without full tropical cyclone classification still triggers flash floods.',
     before: [

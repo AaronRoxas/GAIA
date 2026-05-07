@@ -32,7 +32,7 @@ const PHASE_BLOCKS: {
     iconClassName: 'text-blue-600 dark:text-blue-400',
     titleClassName: 'text-blue-900 dark:text-blue-100',
     badgeFilledClass:
-      'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-700 text-base font-bold text-white tabular-nums dark:bg-blue-600',
+      'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-700 text-xs font-bold text-white tabular-nums dark:bg-blue-600',
   },
   {
     key: 'during',
@@ -44,7 +44,7 @@ const PHASE_BLOCKS: {
     iconClassName: 'text-violet-600 dark:text-violet-400',
     titleClassName: 'text-violet-900 dark:text-violet-100',
     badgeFilledClass:
-      'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600 text-base font-bold text-white tabular-nums dark:bg-violet-500',
+      'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white tabular-nums dark:bg-violet-500',
   },
   {
     key: 'after',
@@ -56,7 +56,7 @@ const PHASE_BLOCKS: {
     iconClassName: 'text-teal-600 dark:text-cyan-400',
     titleClassName: 'text-teal-900 dark:text-teal-100',
     badgeFilledClass:
-      'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-600 text-base font-bold text-white tabular-nums dark:bg-cyan-600',
+      'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white tabular-nums dark:bg-cyan-600',
   },
 ];
 
@@ -94,19 +94,19 @@ export default function HazardInfoPage() {
       <main
         id="hazard-info-main"
         className={cn(
-          'flex-1 w-full max-w-screen-2xl mx-auto px-5 sm:px-8 lg:px-12 py-7 sm:py-9'
+          'flex-1 w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-10 py-5 sm:py-6'
         )}
         aria-label="Hazard information guides"
       >
         <nav
-          className="mb-8 flex flex-wrap items-center gap-x-1 gap-y-1 text-sm font-inter"
+          className="mb-5 flex flex-wrap items-center gap-x-1 gap-y-1 text-xs font-inter"
           aria-label="Breadcrumb"
         >
           <Link
             to="/"
             className={cn(
               'text-secondary hover:text-secondary/90 dark:text-secondary font-medium underline-offset-2 hover:underline',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary rounded-xl px-1.5 py-0.5',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary rounded-lg px-1 py-0.5',
               'dark:hover:text-neutral-50'
             )}
           >
@@ -116,7 +116,7 @@ export default function HazardInfoPage() {
             /
           </span>
           {!selectedId || !config ? (
-            <span className="text-foreground dark:text-neutral-50 font-semibold rounded-xl px-1.5 py-0.5" aria-current="page">
+            <span className="text-foreground dark:text-neutral-50 font-semibold rounded-lg px-1 py-0.5" aria-current="page">
               Hazard info
             </span>
           ) : (
@@ -125,7 +125,7 @@ export default function HazardInfoPage() {
                 type="button"
                 onClick={closeFlashcard}
                 className={cn(
-                  'font-medium underline-offset-2 hover:underline text-secondary hover:text-secondary/90 rounded-xl px-1.5 py-0.5 text-left',
+                  'font-medium underline-offset-2 hover:underline text-secondary hover:text-secondary/90 rounded-lg px-1 py-0.5 text-left',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary dark:text-secondary dark:hover:text-neutral-50'
                 )}
               >
@@ -135,7 +135,7 @@ export default function HazardInfoPage() {
                 /
               </span>
               <span
-                className="text-foreground dark:text-neutral-50 font-semibold rounded-xl px-1.5 py-0.5 truncate max-w-[12rem] sm:max-w-none"
+                className="text-foreground dark:text-neutral-50 font-semibold rounded-lg px-1 py-0.5 truncate max-w-[12rem] sm:max-w-none"
                 aria-current="page"
               >
                 {config.label}
@@ -144,11 +144,11 @@ export default function HazardInfoPage() {
           )}
         </nav>
 
-        <div className={cn('mb-8')}>
-          <h1 className="font-lato text-2xl sm:text-3xl lg:text-[2rem] font-bold tracking-tight dark:text-neutral-50 text-primary mb-2">
+        <div className={cn('mb-6')}>
+          <h1 className="font-lato text-xl sm:text-2xl lg:text-[1.625rem] font-bold tracking-tight dark:text-neutral-50 text-primary mb-1.5">
             Hazard categories
           </h1>
-          <p className="font-inter text-sm sm:text-base text-muted-foreground dark:text-neutral-300 max-w-xl leading-relaxed">
+          <p className="font-inter text-xs sm:text-[13px] text-muted-foreground dark:text-neutral-300 max-w-lg leading-relaxed">
             {!selectedId ? (
               <>
                 Tap a hazard to open a full-panel guide grouped into{' '}
@@ -166,7 +166,7 @@ export default function HazardInfoPage() {
           </p>
         </div>
 
-        <section aria-labelledby="hazard-categories-heading" className="mb-12">
+        <section aria-labelledby="hazard-categories-heading" className="mb-8">
           <h2 id="hazard-categories-heading" className="sr-only">
             {selectedId ? 'Hazard safety guide' : 'Select a hazard category'}
           </h2>
@@ -174,13 +174,13 @@ export default function HazardInfoPage() {
           <div
             ref={flashcardAnchorRef}
             className={cn(
-              'rounded-xl border bg-card transition-[box-shadow,border-color] duration-300 ease-out p-4 sm:p-5',
-              'shadow-md border-border',
-              selectedId && 'shadow-md dark:border-border'
+              'rounded-xl border bg-card transition-[box-shadow,border-color] duration-300 ease-out p-3 sm:p-4',
+              'shadow-sm border-border',
+              selectedId && 'shadow-sm dark:border-border'
             )}
           >
             {!selectedId ? (
-              <ul className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 list-none m-0 p-0">
+              <ul className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3 list-none m-0 p-0">
                 {ALL_HAZARD_TYPES.map((id) => {
                   const typed = id as HazardType;
                   const item = getHazardIcon(typed);
@@ -190,27 +190,27 @@ export default function HazardInfoPage() {
                         type="button"
                         onClick={() => openCategory(typed)}
                         className={cn(
-                          'w-full text-left rounded-xl border border-border bg-card shadow-md transition-all duration-200',
-                          'hover:shadow-lg hover:border-secondary/55 dark:hover:border-secondary focus:outline-none',
+                          'w-full text-left rounded-lg border border-border bg-card shadow-sm transition-all duration-200',
+                          'hover:shadow-md hover:border-secondary/55 dark:hover:border-secondary focus:outline-none',
                           'focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-                          'px-3 py-3.5 sm:px-4 sm:py-4 flex flex-row items-center gap-3 sm:gap-3.5'
+                          'px-2.5 py-2.5 sm:px-3 sm:py-3 flex flex-row items-center gap-2.5'
                         )}
                       >
                         <span
-                          className="inline-flex items-center justify-center w-11 h-11 sm:w-10 sm:h-10 rounded-xl shrink-0"
+                          className="inline-flex items-center justify-center w-9 h-9 sm:w-8 sm:h-8 rounded-lg shrink-0"
                           style={{ backgroundColor: item.bgColor }}
                           aria-hidden
                         >
-                          <FontAwesomeIcon icon={item.icon} className="w-6 h-6 sm:w-5 sm:h-5" style={{ color: item.color }} />
+                          <FontAwesomeIcon icon={item.icon} className="w-5 h-5 sm:w-4 sm:h-4" style={{ color: item.color }} />
                         </span>
                         <div className="min-w-0 flex-1">
                           <span
-                            className="font-lato text-sm sm:text-[0.9375rem] font-bold leading-tight block text-primary dark:text-neutral-50 line-clamp-2 sm:line-clamp-none"
+                            className="font-lato text-xs sm:text-[13px] font-bold leading-tight block text-primary dark:text-neutral-50 line-clamp-2 sm:line-clamp-none"
                             style={{ color: theme === 'dark' ? undefined : item.color }}
                           >
                             {item.label}
                           </span>
-                          <span className="font-inter text-xs text-muted-foreground dark:text-neutral-400 mt-0.5 block leading-snug">
+                          <span className="font-inter text-[10px] sm:text-[11px] text-muted-foreground dark:text-neutral-400 mt-0.5 block leading-snug">
                             View safety guide
                           </span>
                         </div>
@@ -227,12 +227,12 @@ export default function HazardInfoPage() {
                   aria-labelledby="guide-hazard-title"
                   aria-live="polite"
                 >
-                  <div className="shrink-0 flex flex-col gap-5 border-b border-border bg-muted/30 dark:bg-muted/50 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-5 sm:pt-6 pb-5 rounded-t-xl">
+                    <div className="shrink-0 flex flex-col gap-4 border-b border-border bg-muted/30 dark:bg-muted/50 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-4 sm:pt-5 pb-4 rounded-t-xl">
                     <button
                       type="button"
                       onClick={closeFlashcard}
                       className={cn(
-                        'inline-flex items-center gap-2 self-start font-inter text-sm font-medium rounded-xl px-3 py-2 -ml-1 sm:ml-0',
+                        'inline-flex items-center gap-1.5 self-start font-inter text-xs font-medium rounded-lg px-2.5 py-1.5 -ml-1 sm:ml-0',
                         'text-secondary hover:text-secondary/90 hover:bg-muted/60 dark:text-secondary dark:hover:bg-muted/80',
                         'focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-background'
                       )}
@@ -241,33 +241,33 @@ export default function HazardInfoPage() {
                       ← All hazards
                     </button>
 
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
                       <span
-                        className="inline-flex items-center justify-center w-14 h-14 sm:w-[3.75rem] sm:h-[3.75rem] rounded-xl shrink-0 shadow-md border border-secondary/35 ring-2 ring-secondary/25 dark:ring-secondary/35"
+                        className="inline-flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl shrink-0 shadow-sm border border-secondary/35 ring-1 ring-secondary/20 dark:ring-secondary/30"
                         style={{ backgroundColor: config.bgColor }}
                         aria-hidden
                       >
-                        <FontAwesomeIcon icon={config.icon} className="w-8 h-8 sm:w-[2.125rem] sm:h-[2.125rem]" style={{ color: config.color }} />
+                        <FontAwesomeIcon icon={config.icon} className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: config.color }} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="font-inter text-[11px] font-semibold uppercase tracking-wider text-secondary mb-1">
+                        <p className="font-inter text-[10px] font-semibold uppercase tracking-wider text-secondary mb-0.5">
                           Safety guide
                         </p>
                         <h2
                           id="guide-hazard-title"
-                          className="font-lato text-2xl sm:text-[1.875rem] md:text-[2rem] font-bold tracking-tight text-primary dark:text-neutral-50"
+                          className="font-lato text-xl sm:text-2xl font-bold tracking-tight text-primary dark:text-neutral-50"
                           style={{ color: theme === 'dark' ? undefined : config.color }}
                         >
                           {config.label}
                         </h2>
-                        <p className="font-inter text-sm sm:text-base text-muted-foreground dark:text-neutral-300 max-w-3xl mt-2 leading-relaxed">
+                        <p className="font-inter text-xs sm:text-[13px] text-muted-foreground dark:text-neutral-300 max-w-3xl mt-1.5 leading-relaxed">
                           {guide.summary}
                         </p>
                       </div>
                     </div>
 
                     <div
-                      className="flex flex-wrap gap-2 gap-y-2.5 pb-0.5"
+                      className="flex flex-wrap gap-1.5 gap-y-2 pb-0.5"
                       role="tablist"
                       aria-label="Switch hazard category"
                     >
@@ -283,9 +283,9 @@ export default function HazardInfoPage() {
                             aria-selected={active}
                             onClick={() => setSelectedId(typed)}
                             className={cn(
-                              'font-inter text-xs sm:text-[0.8125rem] font-medium rounded-xl px-3 py-2 border transition-colors',
+                              'font-inter text-[11px] sm:text-xs font-medium rounded-lg px-2.5 py-1.5 border transition-colors',
                               active
-                                ? 'border-secondary bg-secondary text-secondary-foreground shadow-sm ring-2 ring-secondary/25'
+                                ? 'border-secondary bg-secondary text-secondary-foreground shadow-sm ring-1 ring-secondary/25'
                                 : 'border-neutral-700/55 bg-muted/60 text-muted-foreground dark:bg-card/90 dark:border-border dark:text-muted-foreground hover:text-foreground dark:hover:text-foreground hover:border-secondary/55 dark:hover:border-secondary/55'
                             )}
                           >
@@ -296,8 +296,8 @@ export default function HazardInfoPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-10 pt-8 sm:pt-9 w-full">
-                    <div className="grid w-full grid-cols-1 gap-8 xl:gap-10 lg:grid-cols-3 lg:gap-8 px-0 sm:px-1 xl:px-2">
+                  <div className="flex flex-col gap-6 pt-5 sm:pt-6 w-full">
+                    <div className="grid w-full grid-cols-1 gap-4 xl:gap-5 lg:grid-cols-3 lg:gap-4 px-0 sm:px-0.5">
                       {PHASE_BLOCKS.map(
                         ({ key, title, description, cardClassName, titleClassName, badgeFilledClass }) => (
                           <Card
@@ -305,34 +305,34 @@ export default function HazardInfoPage() {
                             className={cn(cardClassName, 'overflow-hidden shadow-md')}
                             aria-labelledby={`phase-title-${key}`}
                           >
-                            <CardHeader className="space-y-3 px-5 pt-7 pb-1 sm:px-6 lg:px-7">
-                              <div className="flex items-start gap-3.5">
+                            <CardHeader className="space-y-1.5 px-4 pt-5 pb-0 sm:px-5">
+                              <div className="flex items-start gap-3">
                                 {/* <Icon
                                   className={cn('mt-1 size-7 shrink-0 stroke-[2]', iconClassName)}
                                   strokeWidth={2}
                                   aria-hidden
                                 /> */}
-                                <div className="min-w-0 space-y-2">
+                                <div className="min-w-0 space-y-1">
                                   <CardTitle
                                     id={`phase-title-${key}`}
-                                    className={cn('font-lato text-xl sm:text-[1.35rem] font-bold tracking-tight', titleClassName)}
+                                    className={cn('font-lato text-base sm:text-lg font-bold tracking-tight', titleClassName)}
                                   >
                                     {title}
                                   </CardTitle>
-                                  <CardDescription className="font-inter text-sm sm:text-[0.9375rem] leading-relaxed text-muted-foreground dark:text-neutral-300">
+                                  <CardDescription className="font-inter text-xs sm:text-[0.8125rem] leading-relaxed text-muted-foreground dark:text-neutral-300">
                                     {description}
                                   </CardDescription>
                                 </div>
                               </div>
                             </CardHeader>
-                            <CardContent className="px-5 pb-8 pt-2 sm:px-6 lg:px-7">
-                              <ul className="m-0 list-none space-y-5 p-0">
+                            <CardContent className="px-4 pb-5 pt-3 sm:px-5">
+                              <ul className="m-0 list-none space-y-3 p-0">
                                 {guide[key].map((tip, idx) => (
-                                  <li key={`${key}-${idx}`} className="flex gap-4 items-start font-inter leading-relaxed">
+                                  <li key={`${key}-${idx}`} className="flex gap-3 items-start font-inter leading-normal">
                                     <span className={cn(badgeFilledClass)} aria-hidden>
                                       {idx + 1}
                                     </span>
-                                    <span className="min-w-0 pt-0.5 text-base sm:text-lg text-foreground dark:text-neutral-100 leading-relaxed">
+                                    <span className="min-w-0 text-[13px] sm:text-sm text-foreground dark:text-neutral-100 leading-snug">
                                       {tip}
                                     </span>
                                   </li>
@@ -346,17 +346,17 @@ export default function HazardInfoPage() {
 
                     <footer
                       className={cn(
-                        'w-full -mx-4 sm:-mx-5 px-4 sm:px-6 lg:px-8 py-4 rounded-xl',
-                        'border border-neutral-700/65 bg-muted/70 dark:bg-card/80 dark:border-border'
+                        'w-full rounded-lg py-2.5 px-3 sm:px-4',
+                        'border border-neutral-700/50 bg-muted/60 dark:bg-card/70 dark:border-border'
                       )}
                       role="note"
                     >
-                      <div className="flex items-start gap-3 max-w-full">
+                      <div className="flex items-center gap-2">
                         <Info
-                          className="mt-0.5 size-[1.0625rem] shrink-0 text-secondary opacity-95"
+                          className="size-3.5 shrink-0 text-secondary opacity-90"
                           aria-hidden
                         />
-                        <p className="font-inter text-xs sm:text-sm leading-relaxed text-muted-foreground dark:text-neutral-400">
+                        <p className="font-inter text-[11px] sm:text-xs leading-relaxed text-muted-foreground dark:text-neutral-400">
                           Informational reference only not a substitute for official warnings from LGU, NDRRMC,
                           PAGASA, PHIVOLCS, PCG, or BFP during an emergency.
                         </p>
