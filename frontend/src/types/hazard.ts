@@ -145,6 +145,7 @@ export const HAZARD_TYPES = [
   'fire',
   'drought',
   'heat_wave',
+  'heat_index',
   'heavy_rain',
   'other',
 ] as const;
@@ -173,6 +174,7 @@ export const HAZARD_TYPE_CONFIG: Record<string, { label: string; color: string; 
   fire: { label: 'Fire', color: '#f97316' },
   drought: { label: 'Drought', color: '#ca8a04' },
   heat_wave: { label: 'Heat Wave', color: '#ea580c' },
+  heat_index: { label: 'Heat Index', color: '#dc2626' },
   heavy_rain: { label: 'Heavy Rain', color: '#2563eb' },
   other: { label: 'Other', color: '#6b7280' },
 };

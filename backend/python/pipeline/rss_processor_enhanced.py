@@ -239,6 +239,7 @@ class RSSProcessorEnhanced:
                                 'landslide': 'landslide', 'volcanic eruption': 'volcanic_eruption',
                                 'drought': 'drought', 'tsunami': 'tsunami',
                                 'storm surge': 'storm_surge', 'tornado': 'tornado',
+                                'heat index': 'heat_index',
                             }
                             db_hazard_type = _type_map.get(
                                 (classification.get('hazard_type') or '').lower(), 'other'
@@ -258,7 +259,7 @@ class RSSProcessorEnhanced:
                                 self.stats['duplicates_detected'] += 1
                                 continue
                             
-                            # Save to database
+                            # Save to database (uses primary location from the list)
                             hazard_id = await self._save_hazard_to_db(
                                 entry,
                                 content_data,
@@ -716,6 +717,7 @@ class RSSProcessorEnhanced:
                 'tsunami': 'tsunami',
                 'storm surge': 'storm_surge',
                 'tornado': 'tornado',
+                'heat index': 'heat_index',
                 'other': 'other'  # Explicit mapping for other category
             }
             db_hazard_type = hazard_type_mapping.get(

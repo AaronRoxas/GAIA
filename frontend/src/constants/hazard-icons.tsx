@@ -40,6 +40,7 @@ import {
   faFire,
   faCloudRain,
   faExclamationTriangle,
+  faTemperatureHigh,
 } from '@fortawesome/free-solid-svg-icons';
 
 // ============================================================================
@@ -72,6 +73,7 @@ export type HazardType =
   | 'fire'
   | 'drought'
   | 'heat_wave'
+  | 'heat_index'
   | 'heavy_rain'
   | 'other';
 
@@ -162,7 +164,15 @@ export const HAZARD_ICON_REGISTRY: Record<HazardType, HazardIconConfig> = {
     bgColor: 'rgba(245, 158, 11, 0.15)',
     label: 'Heat Wave',
     ariaLabel: 'Heat wave hazard indicator',
-    keywords: ['extreme heat', 'high temperature', 'heat index', 'init'],
+    keywords: ['extreme heat', 'high temperature', 'init'],
+  },
+  heat_index: {
+    icon: faTemperatureHigh,
+    color: '#dc2626', // red-600
+    bgColor: 'rgba(220, 38, 38, 0.15)',
+    label: 'Heat Index',
+    ariaLabel: 'Heat index hazard indicator',
+    keywords: ['feels like', 'apparent temperature', 'humidity', 'PAGASA warning', 'dangerous heat'],
   },
   heavy_rain: {
     icon: faCloudRain,
