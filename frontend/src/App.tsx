@@ -14,6 +14,10 @@ import { queryClient } from './lib/queryClient';
 import { storageCache } from './lib/storageCache';
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
+// PWA-01: Global offline status toast notifications
+import { OfflineToast } from './components/OfflineToast';
+// PWA-01: Catches ChunkLoadErrors from React.lazy() when offline
+import { ChunkErrorBoundary } from './components/ChunkErrorBoundary';
 import LandingPage from './pages/LandingPage';
 import DashboardShellSkeleton from './components/dashboard/DashboardShellSkeleton';
 
@@ -29,6 +33,7 @@ const ReportConfirmation = React.lazy(() => import('./pages/ReportConfirmation')
 const ReportTracking   = React.lazy(() => import('./pages/ReportTracking'));
 const StatusPage       = React.lazy(() => import('./pages/StatusPage'));
 const HazardInfoPage   = React.lazy(() => import('./pages/HazardInfoPage'));
+const PrivacyPolicy    = React.lazy(() => import('./pages/PrivacyPolicy'));
 
 /**
  * Component that applies document title based on route
@@ -55,9 +60,18 @@ const AppContent = () => {
     >
       <DocumentTitleManager />
       <SkipLink />
+      {/* PWA-01: Global offline status toasts — driven via sonner Toaster */}
+      <OfflineToast />
       <main id="main-content" className="min-h-screen bg-background">
-        <React.Suspense fallback={<DashboardShellSkeleton />}>
-          <Routes>
+        {/*
+          PWA-01: ChunkErrorBoundary wraps Suspense to catch ChunkLoadErrors.
+          React Router navigates client-side without going through the SW,
+          so lazy chunk fetches can fail while offline. The boundary intercepts
+          these and shows "Page Not Available Offline" instead of crashing.
+        */}
+        <ChunkErrorBoundary>
+          <React.Suspense fallback={<DashboardShellSkeleton />}>
+            <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/map" element={<PublicMap />} />
             <Route path="/report" element={<CitizenReportForm />} />
@@ -65,6 +79,7 @@ const AppContent = () => {
             <Route path="/track" element={<ReportTracking />} />
             <Route path="/status" element={<StatusPage />} />
             <Route path="/hazard-info" element={<HazardInfoPage />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
@@ -97,8 +112,9 @@ const AppContent = () => {
                 </div>
               </div>
             } />
-          </Routes>
-        </React.Suspense>
+            </Routes>
+          </React.Suspense>
+        </ChunkErrorBoundary>
         <Toaster />
         <SpeedInsights />
         <Analytics />
